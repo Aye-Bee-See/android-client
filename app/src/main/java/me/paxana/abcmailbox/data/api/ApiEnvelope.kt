@@ -26,6 +26,9 @@ data class ApiEnvelope<T>(
 /** A list response with its paging fields, as repositories hand it to Paging. */
 data class Page<T>(val items: List<T>, val total: Int, val page: Int, val pageSize: Int) {
   val hasMore: Boolean get() = page * pageSize < total
+
+  /** `copy` cannot change a type parameter, so mapping DTOs to domain models needs this. */
+  fun <R> map(transform: (T) -> R): Page<R> = Page(items.map(transform), total, page, pageSize)
 }
 
 fun <T> ApiEnvelope<List<T>>.toPage(): Page<T> = Page(

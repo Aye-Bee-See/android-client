@@ -14,6 +14,8 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import me.paxana.abcmailbox.data.repo.DefaultDirectoryRepository
+import me.paxana.abcmailbox.data.repo.DirectoryRepository
 import me.paxana.abcmailbox.data.session.DefaultSessionRepository
 import me.paxana.abcmailbox.data.session.KeystoreSecretCipher
 import me.paxana.abcmailbox.data.session.SecretCipher
@@ -50,4 +52,7 @@ abstract class BindingsModule {
 
   @Binds
   abstract fun sessionRepository(impl: DefaultSessionRepository): SessionRepository
+
+  @Binds
+  abstract fun directoryRepository(impl: DefaultDirectoryRepository): DirectoryRepository
 }

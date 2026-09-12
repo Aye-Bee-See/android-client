@@ -148,8 +148,8 @@ Delivered: git repository; Gradle 9.7 / AGP 9.3.2 / Kotlin 2.4.20 toolchain with
 **Phase 1: API client, session, theme, shell. Done 12 September 2026.**
 Delivered: `ApiEnvelope` and `Page` types; `AppError` and `ApiResult` with `apiCall` mapping every HTTP status the brief lists; `AuthApi` (login, logout, user); `SessionInterceptor` that attaches the bearer token and reports a refused one; `SessionCache` to break the Retrofit/repository cycle; `SessionStore` (DataStore, AES-GCM under an Android Keystore key); `SessionRepository` interface with `DefaultSessionRepository`; Hilt modules; the theme from the site's palette with dynamic colour off; three-tab shell with type-safe routes; sign-in, account (sign out here or everywhere), and placeholder Directory and Inbox screens. Verified on the emulator against the local API: wrong password, correct password, session surviving a cold restart, server-side logout. Tests: 20 JVM unit tests (envelope, error mapping, interceptor with MockWebServer, login ViewModel with Turbine) and one instrumented Keystore round trip. `minSdk` raised to 26.
 
-**Phase 2: public directory (3 to 4 days).**
-The six directory screens with search, filters, paging, and `full=true` detail reads. Works signed out. Tests: PagingSource against MockWebServer; ViewModel state with fake repositories.
+**Phase 2: public directory. Done 12 September 2026.**
+Delivered: `DirectoryApi` with DTOs matching the live JSON; domain models (`Prisoner`, `Facility`, `Group`, `MailRule`) with the derived facts screens need (address lines from the free-form object, parsed dates, six-month staleness, routing labels); `PagePagingSource` and a `DirectoryRepository` exposing Paging 3 flows and single reads; a nested Directory navigation graph; the home page with featured prisoners; three list screens with search (debounced), filter chips, and infinite scroll; three detail screens (the prisoner page makes a second read for the facility's rules and relay groups). All work signed out. Verified on the emulator against the seeded API. Tests: 14 new JVM tests (mappers over captured fixtures, paging source, repository against MockWebServer), 34 in total.
 
 **Phase 3: writer letters, server mode (4 to 5 days).**
 Inbox, thread, compose with relay-group resolution, note to relay, edit and delete while `queued`, attachments upload and download, drafts in Room. Tests: relay resolution rules (own group, only group, none, `relay_only` refusal) as pure unit tests; compose ViewModel; an instrumented smoke test against the seeded API.
@@ -187,7 +187,8 @@ What the seed does not give us, and what `tools/dev-seed.py` adds by calling the
 4. **Claim deep links.** Confirm the claim URL (`abcmailbox.net/claim?token=`) and host an `assetlinks.json` so Android can verify the link.
 5. **Attachments.** Report question 3: phones produce JPEG or HEIC. The app will always convert to JPEG or PDF, so no HEIC support is needed server-side. 10 MiB is tight for a multi-page scan; 20 MB as the templates say would help.
 6. **Recovery rate limiting.** Not built yet; the phone app will not add client-side throttling, so this is worth doing before e2e goes live. (Logout and revocation, previously on this list, shipped in PR #75.)
-7. **`forgot-password.html` copy** predates recovery codes and says there is no recovery path. Both clients should say: independent accounts recover with the recovery code; managed unclaimed accounts get a new claim token.
+7. **List rows lack the facility.** `GET /prisoner/prisoners` returns `prison` as an id only, so list rows cannot show "Held at: Facility, City" as the web design does without a second request per row. Ask: embed `prisonName` (or a small `prison_details`) on list rows. Related: a facet endpoint (distinct countries, or counts per filter) would let the country chips be data-driven instead of hard-coded.
+8. **`forgot-password.html` copy** predates recovery codes and says there is no recovery path. Both clients should say: independent accounts recover with the recovery code; managed unclaimed accounts get a new claim token.
 
 ## 9. How work will be shown as it happens
 

@@ -23,18 +23,26 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.ui.account.AccountScreen
 import me.paxana.abcmailbox.ui.auth.LoginScreen
-import me.paxana.abcmailbox.ui.directory.DirectoryPlaceholder
+import me.paxana.abcmailbox.ui.directory.DirectoryHomeScreen
+import me.paxana.abcmailbox.ui.directory.FacilitiesScreen
+import me.paxana.abcmailbox.ui.directory.FacilityScreen
+import me.paxana.abcmailbox.ui.directory.GroupScreen
+import me.paxana.abcmailbox.ui.directory.GroupsScreen
+import me.paxana.abcmailbox.ui.directory.PrisonerScreen
+import me.paxana.abcmailbox.ui.directory.PrisonersScreen
 import me.paxana.abcmailbox.ui.letters.InboxPlaceholder
 import kotlin.reflect.KClass
 
 private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
-  Tab(DirectoryRoute, DirectoryRoute::class, "Directory", Icons.Outlined.MenuBook),
+  Tab(DirectoryGraph, DirectoryGraph::class, "Directory", Icons.Outlined.MenuBook),
   Tab(InboxRoute, InboxRoute::class, "Inbox", Icons.Outlined.Mail),
   Tab(AccountRoute, AccountRoute::class, "Account", Icons.Outlined.Person),
 )
@@ -79,10 +87,49 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   ) { innerPadding ->
     NavHost(
       navController = navController,
-      startDestination = DirectoryRoute,
+      startDestination = DirectoryGraph,
       modifier = Modifier.padding(innerPadding),
     ) {
-      composable<DirectoryRoute> { DirectoryPlaceholder() }
+      navigation<DirectoryGraph>(startDestination = DirectoryHomeRoute) {
+        composable<DirectoryHomeRoute> {
+          DirectoryHomeScreen(
+            onPrisoners = { navController.navigate(PrisonersRoute) },
+            onFacilities = { navController.navigate(FacilitiesRoute) },
+            onGroups = { navController.navigate(GroupsRoute) },
+            onPrisoner = { navController.navigate(PrisonerRoute(it)) },
+          )
+        }
+        composable<PrisonersRoute> {
+          PrisonersScreen(onBack = { navController.popBackStack() }, onPrisoner = { navController.navigate(PrisonerRoute(it)) })
+        }
+        composable<PrisonerRoute> {
+          PrisonerScreen(
+            onBack = { navController.popBackStack() },
+            onFacility = { navController.navigate(FacilityRoute(it)) },
+            onGroup = { navController.navigate(GroupRoute(it)) },
+          )
+        }
+        composable<FacilitiesRoute> {
+          FacilitiesScreen(onBack = { navController.popBackStack() }, onFacility = { navController.navigate(FacilityRoute(it)) })
+        }
+        composable<FacilityRoute> {
+          FacilityScreen(
+            onBack = { navController.popBackStack() },
+            onPrisoner = { navController.navigate(PrisonerRoute(it)) },
+            onGroup = { navController.navigate(GroupRoute(it)) },
+          )
+        }
+        composable<GroupsRoute> {
+          GroupsScreen(onBack = { navController.popBackStack() }, onGroup = { navController.navigate(GroupRoute(it)) })
+        }
+        composable<GroupRoute> {
+          GroupScreen(
+            onBack = { navController.popBackStack() },
+            onPrisoner = { navController.navigate(PrisonerRoute(it)) },
+            onFacility = { navController.navigate(FacilityRoute(it)) },
+          )
+        }
+      }
       composable<InboxRoute> {
         InboxPlaceholder(sessionState = sessionState, onSignIn = { navController.navigate(LoginRoute) })
       }

@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.BuildConfig
 import me.paxana.abcmailbox.data.api.AuthApi
+import me.paxana.abcmailbox.data.api.DirectoryApi
 import me.paxana.abcmailbox.data.api.SessionInterceptor
 import me.paxana.abcmailbox.data.session.SessionCache
 import okhttp3.MediaType.Companion.toMediaType
@@ -62,4 +63,8 @@ object NetworkModule {
   @Provides
   @Singleton
   fun authApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+  @Provides
+  @Singleton
+  fun directoryApi(retrofit: Retrofit): DirectoryApi = retrofit.create(DirectoryApi::class.java)
 }
