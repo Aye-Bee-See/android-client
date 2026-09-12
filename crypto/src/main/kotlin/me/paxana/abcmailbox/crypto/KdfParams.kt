@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.crypto
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 /**
@@ -13,13 +15,18 @@ import kotlinx.serialization.Serializable
  * recorded so a future library default cannot silently change how an old
  * key is derived. Costs are stored per account so they can be raised for new
  * accounts without invalidating existing ones.
+ *
+ * kotlinx.serialization drops properties that equal their defaults unless
+ * told otherwise; `@EncodeDefault` makes every field always appear on the
+ * wire, whatever `Json` configuration the caller uses.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class KdfParams(
-  val kdf: String = "argon2id",
-  val alg: Int = Sodium.ALG_ARGON2ID13,
-  val opslimit: Long = Sodium.OPSLIMIT_INTERACTIVE,
-  val memlimit: Int = Sodium.MEMLIMIT_INTERACTIVE,
+  @EncodeDefault val kdf: String = "argon2id",
+  @EncodeDefault val alg: Int = Sodium.ALG_ARGON2ID13,
+  @EncodeDefault val opslimit: Long = Sodium.OPSLIMIT_INTERACTIVE,
+  @EncodeDefault val memlimit: Int = Sodium.MEMLIMIT_INTERACTIVE,
 ) {
   init {
     require(kdf == "argon2id") { "unsupported kdf: $kdf" }
