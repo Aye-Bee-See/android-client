@@ -71,6 +71,17 @@ class DirectoryMappersTest {
   }
 
   @Test
+  fun `list rows carry the facility summary added in API PR 79`() {
+    val rows = json.decodeFromString<ApiEnvelope<List<PrisonerDto>>>(fixture("prisoners-page.json")).data!!.map { it.toDomain() }
+    rows.forEach { p ->
+      val f = p.facility
+      assertTrue("row ${p.id} has no facility summary", f != null && f.name.isNotBlank())
+      assertEquals(p.facilityId, f?.id)
+      assertTrue(f!!.rules.isEmpty()) // the summary is light: no rules, no relay groups
+    }
+  }
+
+  @Test
   fun `address lines come out in postal order and skip blanks`() {
     val obj = buildJsonObject { put("zip", "97201"); put("street", "1 Main St"); put("city", "Portland"); put("note", ""); put("wing", "C") }
     assertEquals(listOf("1 Main St", "Portland", "97201", "C"), obj.toAddressLines())
