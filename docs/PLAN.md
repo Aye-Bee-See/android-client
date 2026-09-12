@@ -88,7 +88,7 @@ The API runs server mode today and e2e later. Two build-time and one runtime swi
 
 - `BuildConfig.ENCRYPTION_MODE` defaults to `server`; a `-Pe2e=true` Gradle property (or a product flavour) flips it.
 - Repositories depend on a `LetterCodec` interface with two implementations: `PlainCodec` (passes `messageText` through) and `E2eCodec` (crypto module). ViewModels never know which is active.
-- The client cannot currently ask the server which mode it runs. Section 8 asks the API for that; until then the flag is manual.
+- `GET /health` reports `encryptionMode`; phase 5 checks it at startup against the build's mode and refuses to run against the other.
 
 ## 5. Cryptography on Android
 
@@ -107,7 +107,7 @@ The brief mandates libsodium primitives so the web, the API, and the phone inter
 **Two things to be careful about.**
 
 1. **Cipher, resolved.** The first draft of this plan found that the server called `crypto_secretbox_easy` (XSalsa20-Poly1305) while every document said XChaCha20-Poly1305. The API side fixed the code rather than the docs in PR #76, with a reversible migration of existing ciphertext, because it is only cheap while the server still holds every content key. The client must therefore use the XChaCha20 AEAD (`crypto_aead_xchacha20poly1305_ietf_*`) and never `crypto_secretbox`; the two refuse each other's output. The corrected brief says the same. Note that your local `main` of the API repo is behind `origin/main` and still has the old call; pull before running the API for e2e work.
-2. `kdfParams` must be readable by both the web client and this one, or a writer who registers on the web cannot log in on the phone. The schema above is a proposal to agree with the web developer before either side ships e2e. Argon2id at libsodium's `INTERACTIVE` cost (opslimit 2, 64 MiB) runs in well under a second on a mid-range phone; `MODERATE` (256 MiB) will not fit on low-end devices.
+2. **`kdfParams`, decided.** Both clients write `{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}` (`KdfParams` in the crypto module pins it). Argon2id at libsodium's `INTERACTIVE` cost (opslimit 2, 64 MiB) runs in well under a second on a mid-range phone; `MODERATE` (256 MiB) will not fit on low-end devices. Costs are stored per account, so they can rise for new accounts later.
 
 **Library choice, decided by the phase 0 spike.** `com.goterl:lazysodium-android` 5.1.0 ships native libraries aligned to 4 KB (`LOAD` align `0x1000`), which fails the 16 KB page-size requirement Google Play applies to apps targeting Android 15 and later. `com.ionspin.kotlin:multiplatform-crypto-libsodium-bindings` 0.9.5 (November 2025) ships all four ABIs at `0x4000`, exposes the exact functions we need (`crypto_box_keypair`, `crypto_box_seal`/`_open`, `crypto_aead_xchacha20poly1305_ietf_encrypt`/`_decrypt`, `crypto_pwhash`, `randombytes_buf`), and has a JVM artifact for host-side unit tests. It is the choice; details and the measurements are in `docs/DECISIONS.md`. The fallback, if it ever goes unmaintained, is building libsodium with the NDK and a thin JNI layer.
 
@@ -183,8 +183,8 @@ What the seed does not give us, and what `tools/dev-seed.py` adds by calling the
 ## 8. Questions and asks for the API and web developers
 
 1. **Cipher naming: done.** PR #76 moved the server to `crypto_aead_xchacha20poly1305_ietf` and corrected every document. The web developer needs to hear that the function name in the design document changed.
-2. **`kdfParams` schema.** Propose `{"kdf":"argon2id","alg":2,"opslimit":N,"memlimit":N}` for both clients so accounts work across web and phone.
-3. **Mode discovery.** Add `encryptionMode` to `GET /health` (or a `GET /config`) so clients stop needing a manual flag, and so an old client can refuse to run against an e2e server rather than posting `messageText` and getting 400s.
+2. **`kdfParams` schema: decided.** `{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}` for both clients (API PR #80); the server checks only that it is an object with a string `kdf`. The crypto module's `KdfParams` class pins the exact JSON.
+3. **Mode discovery: decided.** `GET /health` now returns `encryptionMode` (`server` or `e2e`), 503 while starting (API PR #80). Phase 5 reads it at startup and refuses to run a client built for the other mode.
 4. **Claim deep links.** Confirm the claim URL (`abcmailbox.net/claim?token=`) and host an `assetlinks.json` so Android can verify the link.
 5. **Attachments.** Report question 3: phones produce JPEG or HEIC. The app will always convert to JPEG or PDF, so no HEIC support is needed server-side. 10 MiB is tight for a multi-page scan; 20 MB as the templates say would help.
 6. **Recovery rate limiting.** Not built yet; the phone app will not add client-side throttling, so this is worth doing before e2e goes live. (Logout and revocation, previously on this list, shipped in PR #75.)

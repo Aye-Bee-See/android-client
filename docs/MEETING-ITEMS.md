@@ -4,8 +4,8 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 ## Encryption contract (web + Android, README on the API side)
 
-- **`kdfParams` schema.** Both clients must write and read the same JSON or an account made on one cannot unlock on the other. Proposal: `{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}`. `alg` is libsodium's algorithm id (Argon2id 1.3 = 2), recorded so a future library default cannot silently break old wrapped keys. Costs are stored per account so they can be raised later without invalidating existing accounts. Ask the API side to make the README example match and, optionally, reject a `kdfParams` that is not an object with a `kdf` key.
-- **Encryption mode discovery.** There is no endpoint that says whether the API runs `server` or `e2e`. Ask: add `encryptionMode` to `GET /health`, so a client can refuse to post plaintext to an e2e server instead of failing with 400s. Default until then: a build-time flag on Android.
+- ~~`kdfParams` schema~~ **Decided 12 Sep 2026 (API PR #80):** `{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}`; the server checks it is an object with a string `kdf`. The web developer still needs to hear it.
+- ~~Encryption mode discovery~~ **Decided (API PR #80):** `GET /health` returns `encryptionMode`.
 - **Cipher change notice for the web developer.** The design document now names `crypto_aead_xchacha20poly1305_ietf`, not `crypto_secretbox`. The two will not interoperate. Confirm the web client is on the corrected function.
 
 ## Account flows (web + Android + API)
