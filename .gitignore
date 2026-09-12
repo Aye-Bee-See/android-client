@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+.idea/
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Added for ABC Mailbox
+/.kotlin
+*.hprof
+.env
+/tools/*.token
