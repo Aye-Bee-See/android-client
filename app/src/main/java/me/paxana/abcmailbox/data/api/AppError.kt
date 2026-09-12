@@ -1,0 +1,61 @@
+package me.paxana.abcmailbox.data.api
+
+/**
+ * Everything that can go wrong talking to the API, in the vocabulary the
+ * screens need. The brief's rule: a 400 carries `errors` (a list of sentences);
+ * every other failure carries `info` (one sentence), and a 403's `info` says
+ * exactly why, so it is shown verbatim.
+ */
+sealed class AppError : Exception() {
+  /** The server rejected the input; each entry is a complete sentence. */
+  data class Validation(val errors: List<String>) : AppError()
+
+  /** No token, a bad token, or (on login) wrong credentials. */
+  data class Unauthorized(val info: String?) : AppError()
+
+  /** The caller is known but not allowed; `info` explains what to do. */
+  data class Forbidden(val info: String) : AppError()
+
+  data class NotFound(val info: String?) : AppError()
+
+  /** A lifecycle or state conflict (409), for example moving a letter backwards. */
+  data class Conflict(val info: String?) : AppError()
+
+  /** A used or expired claim token (410). */
+  data class Gone(val info: String?) : AppError()
+
+  data class Server(val status: Int, val info: String?) : AppError()
+
+  /** Could not reach the server at all. */
+  data class Network(override val cause: Throwable) : AppError()
+
+  data class Unexpected(override val cause: Throwable) : AppError()
+
+  /** The sentence to show a person, when one exists. */
+  val userMessage: String?
+    get() = when (this) {
+      is Validation -> errors.joinToString(" ")
+      is Unauthorized -> info
+      is Forbidden -> info
+      is NotFound -> info
+      is Conflict -> info
+      is Gone -> info
+      is Server -> info
+      is Network -> null
+      is Unexpected -> null
+    }
+}
+
+/** A typed outcome so callers handle failure explicitly instead of catching exceptions. */
+sealed interface ApiResult<out T> {
+  data class Success<T>(val value: T) : ApiResult<T>
+  data class Failure(val error: AppError) : ApiResult<Nothing>
+}
+
+inline fun <T, R> ApiResult<T>.map(transform: (T) -> R): ApiResult<R> = when (this) {
+  is ApiResult.Success -> ApiResult.Success(transform(value))
+  is ApiResult.Failure -> this
+}
+
+fun <T> ApiResult<T>.getOrNull(): T? = (this as? ApiResult.Success)?.value
+fun <T> ApiResult<T>.errorOrNull(): AppError? = (this as? ApiResult.Failure)?.error

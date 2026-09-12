@@ -2,6 +2,20 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-12: minSdk 26
+
+**Context.** The scaffold chose 25 (Android 7.1). API 26 adds `java.time` and `java.util.Base64`, both used by the session and crypto code; below 26 they need backports or `android.util` equivalents.
+
+**Decision.** `minSdk = 26`. Devices below Android 8.0 are a negligible share in 2026, and the libsodium binding's own floor is not lower.
+
+**Consequences.** None expected. Revisit only if a partner group reports users on older phones.
+
+## 2026-09-12: ViewModels depend on a `SessionRepository` interface
+
+**Context.** The first draft injected the concrete repository into `LoginViewModel`, which made the ViewModel untestable without DataStore, Retrofit, and the Keystore.
+
+**Decision.** A small interface (`state`, `login`, `logout`) with `DefaultSessionRepository` bound in Hilt. Tests use a scripted fake. The same shape will be used for every repository that a ViewModel depends on.
+
 ## 2026-09-12: build on AGP 9.3.2 / Gradle 9.7 / Kotlin 2.4.20, opting out of AGP 9's built-in Kotlin
 
 **Context.** The scaffold shipped with AGP 8.11.2, the newest version the installed Android Studio (Narwhal 2025.1.1, build 251) can open. Every attempt to keep that ceiling failed in turn: KSP 2.3.x requires AGP 8.12; Hilt 2.59.1+ requires AGP 9.0 and Hilt 2.59 references an AGP class that 8.11 lacks; and finally the current AndroidX core (1.19.0) requires AGP 9.1 while OkHttp 5.5 requires compileSdk 37. Staying on AGP 8 would have meant pinning nearly every library to mid-2025 releases.

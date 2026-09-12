@@ -1,58 +1,73 @@
 package me.paxana.abcmailbox.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-  primary = Purple80,
-  secondary = PurpleGrey80,
-  tertiary = Pink80
+private val LightColors = lightColorScheme(
+  primary = Ink,
+  onPrimary = Paper,
+  secondary = Red,
+  onSecondary = PaperRaised,
+  // The bottom bar's selected pill and other "container" surfaces; without
+  // these Material 3 falls back to its default purple.
+  secondaryContainer = RedWash,
+  onSecondaryContainer = Red,
+  surfaceContainer = PaperRaised,
+  surfaceContainerLow = PaperRaised,
+  surfaceContainerHigh = PaperRaised,
+  tertiary = InkMuted,
+  background = Paper,
+  onBackground = Ink,
+  surface = Paper,
+  onSurface = Ink,
+  surfaceVariant = PaperRaised,
+  onSurfaceVariant = InkMuted,
+  outline = Rule,
+  outlineVariant = Rule,
+  error = Red,
+  onError = PaperRaised,
+  errorContainer = RedWash,
+  onErrorContainer = Red,
 )
 
-private val LightColorScheme = lightColorScheme(
-  primary = Purple40,
-  secondary = PurpleGrey40,
-  tertiary = Pink40
-
-  /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val DarkColors = darkColorScheme(
+  primary = InkDark,
+  onPrimary = PaperDark,
+  secondary = RedDark,
+  onSecondary = PaperDark,
+  secondaryContainer = RedWashDark,
+  onSecondaryContainer = RedDark,
+  surfaceContainer = PaperRaisedDark,
+  surfaceContainerLow = PaperRaisedDark,
+  surfaceContainerHigh = PaperRaisedDark,
+  tertiary = InkMutedDark,
+  background = PaperDark,
+  onBackground = InkDark,
+  surface = PaperDark,
+  onSurface = InkDark,
+  surfaceVariant = PaperRaisedDark,
+  onSurfaceVariant = InkMutedDark,
+  outline = RuleDark,
+  outlineVariant = RuleDark,
+  error = RedDark,
+  onError = PaperDark,
+  errorContainer = RedWashDark,
+  onErrorContainer = RedDark,
 )
 
+/**
+ * The scaffold's theme used Material's dynamic colour (wallpaper-derived on
+ * Android 12+). It is switched off here on purpose: the app should look like
+ * the site, not like the wallpaper.
+ */
 @Composable
-fun ABCMailboxTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
-  // Dynamic color is available on Android 12+
-  dynamicColor: Boolean = true,
-  content: @Composable () -> Unit
-) {
-  val colorScheme = when {
-    dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-      val context = LocalContext.current
-      if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    }
-
-    darkTheme -> DarkColorScheme
-    else -> LightColorScheme
-  }
-
+fun AbcTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
   MaterialTheme(
-    colorScheme = colorScheme,
-    typography = Typography,
-    content = content
+    colorScheme = if (darkTheme) DarkColors else LightColors,
+    typography = AbcTypography,
+    content = content,
   )
 }
