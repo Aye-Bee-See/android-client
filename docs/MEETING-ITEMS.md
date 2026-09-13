@@ -22,7 +22,7 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 ## Letters, small (API)
 
-- **Thread reads:** embed `relay_group {id, name}` on messages inside `GET /chat/chat?full=true`, and the light `prison_details` on `prisoner_details` of chat rows, so the thread can name the relay group and the inbox can show the facility. Same pattern as PR #79.
+- ~~Thread reads~~ **Done (API PR #82):** messages in thread reads carry `relay_group`, chat rows carry the facility summary.
 
 ## Directory (API)
 

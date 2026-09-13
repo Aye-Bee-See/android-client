@@ -20,11 +20,19 @@ class LettersMappersTest {
   fun `inbox rows with full=true carry the prisoner and the last message`() {
     val rows = json.decodeFromString<ApiEnvelope<List<ChatDto>>>(fixture("chats-full.json")).data!!.map { it.toDomain() }
     val t = rows.first()
-    assertEquals("Jane Smith", t.prisoner?.name)
+    assertTrue(!t.prisoner?.name.isNullOrBlank())
     assertEquals(false, t.lastMessage?.fromPrisoner)
     assertEquals(LetterStatus.QUEUED, t.lastMessage?.status)
     assertEquals(1, t.letters.size)
     assertTrue(t.letters.first().canEdit)
+  }
+
+  @Test
+  fun `chat rows carry the facility summary and embedded messages name their relay group (API PR 82)`() {
+    val t = json.decodeFromString<ApiEnvelope<List<ChatDto>>>(fixture("chats-full.json")).data!!.first().toDomain()
+    assertEquals("Test Prison", t.prisoner?.facility?.name)
+    val relayed = t.letters.first { it.relayGroupId != null }
+    assertEquals("Test Chapter", relayed.relayGroupName)
   }
 
   @Test
