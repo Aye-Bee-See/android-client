@@ -30,3 +30,12 @@ Build for end-to-end encryption mode (the API's future mode) with `-Pe2e=true`.
 2. `python3 tools/dev-seed.py` adds relay links, a group member (`member1` / `password1`), and a managed writer with a claim token.
 3. Start an emulator and install: `./gradlew :app:installDebug`. Debug builds talk to `http://10.0.2.2:3000`, the emulator's name for the host machine.
 4. Sign in as `user1` / `password1` for a writer who already has a thread.
+
+## Run on a physical phone
+
+Debug builds have a hidden server setting: on the Account tab, tap the "Build … mode" line five times. Enter the address of the machine running the API and tap "Save and check"; the app calls `/health` there and reports the result. Saving signs you out, because a token is only valid for the server that issued it. Two ways to reach your machine:
+
+- **USB, any network.** With the phone connected and USB debugging on, run `adb reverse tcp:3000 tcp:3000` and enter `127.0.0.1` in the dialog. The phone's own port 3000 is tunnelled to the machine. The tunnel lasts until the cable is unplugged or `adb reverse --remove-all`.
+- **Same Wi-Fi.** Enter the machine's LAN address (for example `192.168.1.20`; port 3000 is assumed). Both devices must be on the same network, the API must listen on all interfaces (it does), and the machine's firewall must allow incoming connections for node.
+
+Install the debug APK with `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk`, or run from Android Studio with the phone selected. Debug builds allow plain HTTP to any host; release builds do not.

@@ -8,8 +8,11 @@ import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.BuildConfig
 import me.paxana.abcmailbox.data.api.AuthApi
 import me.paxana.abcmailbox.data.api.DirectoryApi
+import me.paxana.abcmailbox.data.api.HealthApi
 import me.paxana.abcmailbox.data.api.LettersApi
 import me.paxana.abcmailbox.data.api.SessionInterceptor
+import me.paxana.abcmailbox.data.dev.BaseUrlInterceptor
+import me.paxana.abcmailbox.data.dev.DevServerUrl
 import me.paxana.abcmailbox.data.session.SessionCache
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -41,9 +44,11 @@ object NetworkModule {
 
   @Provides
   @Singleton
-  fun okHttp(cache: SessionCache): OkHttpClient = OkHttpClient.Builder()
+  fun okHttp(cache: SessionCache, devServerUrl: DevServerUrl): OkHttpClient = OkHttpClient.Builder()
     .connectTimeout(15, TimeUnit.SECONDS)
     .readTimeout(30, TimeUnit.SECONDS)
+    // First, so every later interceptor and the logger see the final address.
+    .addInterceptor(BaseUrlInterceptor { devServerUrl.current() })
     .addInterceptor(SessionInterceptor(cache))
     .apply {
       if (BuildConfig.DEBUG) {
@@ -72,4 +77,8 @@ object NetworkModule {
   @Provides
   @Singleton
   fun lettersApi(retrofit: Retrofit): LettersApi = retrofit.create(LettersApi::class.java)
+
+  @Provides
+  @Singleton
+  fun healthApi(retrofit: Retrofit): HealthApi = retrofit.create(HealthApi::class.java)
 }

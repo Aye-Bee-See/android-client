@@ -2,6 +2,8 @@ package me.paxana.abcmailbox
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
+import me.paxana.abcmailbox.data.dev.DevServerRepository
+import javax.inject.Inject
 
 /**
  * The process-wide entry point. Hilt generates the dependency graph rooted here;
@@ -11,4 +13,7 @@ import dagger.hilt.android.HiltAndroidApp
  * and any cached key material must never leave the device through a cloud backup.
  */
 @HiltAndroidApp
-class AbcApplication : Application()
+class AbcApplication : Application() {
+  /** Injected only so the stored server override is read before the first request goes out. */
+  @Inject lateinit var devServer: DevServerRepository
+}

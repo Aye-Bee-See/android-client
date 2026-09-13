@@ -9,16 +9,63 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.api.ApiResult
+import me.paxana.abcmailbox.data.dev.DevServerRepository
 import me.paxana.abcmailbox.data.session.SessionRepository
 import javax.inject.Inject
 
-data class AccountUiState(val signingOut: Boolean = false, val notice: String? = null)
+data class AccountUiState(
+  val signingOut: Boolean = false,
+  val notice: String? = null,
+  val serverUrl: String = "",
+  val serverDefault: String = "",
+  val serverOverridden: Boolean = false,
+  val serverDialog: Boolean = false,
+  val serverChecking: Boolean = false,
+  val serverResult: String? = null,
+)
 
 @HiltViewModel
-class AccountViewModel @Inject constructor(private val sessions: SessionRepository) : ViewModel() {
+class AccountViewModel @Inject constructor(
+  private val sessions: SessionRepository,
+  private val devServer: DevServerRepository,
+) : ViewModel() {
 
-  private val _uiState = MutableStateFlow(AccountUiState())
+  private val _uiState = MutableStateFlow(AccountUiState(serverUrl = devServer.baseUrl.value, serverDefault = devServer.default, serverOverridden = devServer.isOverridden))
   val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
+
+  private var buildTaps = 0
+
+  /** Five taps on the build line open the server dialog (debug builds only; the screen gates it). */
+  fun onBuildLineTap() {
+    buildTaps++
+    if (buildTaps >= 5) { buildTaps = 0; _uiState.update { it.copy(serverDialog = true, serverResult = null) } }
+  }
+
+  fun closeServerDialog() = _uiState.update { it.copy(serverDialog = false) }
+
+  fun saveServer(input: String) {
+    _uiState.update { it.copy(serverChecking = true, serverResult = null) }
+    viewModelScope.launch {
+      val saved = devServer.set(input)
+      val result = saved.fold(
+        onSuccess = { url ->
+          when (val r = devServer.check()) {
+            is ApiResult.Success -> "Reachable: ${r.value}"
+            is ApiResult.Failure -> "Saved $url, but /health failed: ${r.error.userMessage ?: "no connection"}. Is the API running and on the same Wi-Fi?"
+          }
+        },
+        onFailure = { it.message ?: "Invalid URL" },
+      )
+      _uiState.update { it.copy(serverChecking = false, serverResult = result, serverUrl = devServer.baseUrl.value, serverOverridden = devServer.isOverridden) }
+    }
+  }
+
+  fun resetServer() {
+    viewModelScope.launch {
+      devServer.reset()
+      _uiState.update { it.copy(serverResult = "Back to the default.", serverUrl = devServer.baseUrl.value, serverOverridden = devServer.isOverridden) }
+    }
+  }
 
   fun signOut(everywhere: Boolean) {
     _uiState.update { it.copy(signingOut = true, notice = null) }

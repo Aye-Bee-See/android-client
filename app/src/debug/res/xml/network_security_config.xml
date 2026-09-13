@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds only: this file replaces the one in src/main. It allows plain
+  HTTP to any host so a phone on the same Wi-Fi can reach the API running on a
+  development machine (for example http://192.168.1.20:3000/). Release builds
+  keep the strict config and never send cleartext.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

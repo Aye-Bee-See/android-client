@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.account
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,10 +79,23 @@ fun AccountScreen(
       }
     }
     Text(
-      "Build ${BuildConfig.VERSION_NAME} · ${BuildConfig.ENCRYPTION_MODE} mode",
+      "Build ${BuildConfig.VERSION_NAME} · ${BuildConfig.ENCRYPTION_MODE} mode" + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
       style = MaterialTheme.typography.labelSmall,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
+      // Debug builds: five taps open the hidden server dialog.
+      modifier = if (BuildConfig.DEBUG) Modifier.clickable(onClick = viewModel::onBuildLineTap) else Modifier,
     )
+    if (BuildConfig.DEBUG && ui.serverDialog) {
+      DevServerDialog(
+        current = ui.serverUrl,
+        default = ui.serverDefault,
+        checking = ui.serverChecking,
+        result = ui.serverResult,
+        onSave = viewModel::saveServer,
+        onReset = viewModel::resetServer,
+        onDismiss = viewModel::closeServerDialog,
+      )
+    }
     SnackbarHost(hostState = snackbar) { Snackbar(it) }
   }
 }
