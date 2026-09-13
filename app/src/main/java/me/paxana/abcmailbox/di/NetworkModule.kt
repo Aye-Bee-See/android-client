@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.BuildConfig
 import me.paxana.abcmailbox.data.api.AuthApi
 import me.paxana.abcmailbox.data.api.DirectoryApi
+import me.paxana.abcmailbox.data.api.LettersApi
 import me.paxana.abcmailbox.data.api.SessionInterceptor
 import me.paxana.abcmailbox.data.session.SessionCache
 import okhttp3.MediaType.Companion.toMediaType
@@ -67,4 +68,8 @@ object NetworkModule {
   @Provides
   @Singleton
   fun directoryApi(retrofit: Retrofit): DirectoryApi = retrofit.create(DirectoryApi::class.java)
+
+  @Provides
+  @Singleton
+  fun lettersApi(retrofit: Retrofit): LettersApi = retrofit.create(LettersApi::class.java)
 }

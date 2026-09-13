@@ -1,0 +1,185 @@
+package me.paxana.abcmailbox.ui.letters
+
+import androidx.paging.PagingData
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import me.paxana.abcmailbox.data.api.ApiResult
+import me.paxana.abcmailbox.data.api.AppError
+import me.paxana.abcmailbox.data.files.StagedFile
+import me.paxana.abcmailbox.data.repo.DirectoryRepository
+import me.paxana.abcmailbox.data.repo.Draft
+import me.paxana.abcmailbox.data.repo.DraftsRepository
+import me.paxana.abcmailbox.data.repo.FacilityFilter
+import me.paxana.abcmailbox.data.repo.GroupFilter
+import me.paxana.abcmailbox.data.repo.LetterEdit
+import me.paxana.abcmailbox.data.repo.LettersRepository
+import me.paxana.abcmailbox.data.repo.NewLetter
+import me.paxana.abcmailbox.data.repo.PrisonerFilter
+import me.paxana.abcmailbox.data.session.Session
+import me.paxana.abcmailbox.data.session.SessionRepository
+import me.paxana.abcmailbox.data.session.SessionState
+import me.paxana.abcmailbox.data.session.SessionUser
+import me.paxana.abcmailbox.domain.Attachment
+import me.paxana.abcmailbox.domain.Facility
+import me.paxana.abcmailbox.domain.Group
+import me.paxana.abcmailbox.domain.Letter
+import me.paxana.abcmailbox.domain.LetterStatus
+import me.paxana.abcmailbox.domain.Prisoner
+import me.paxana.abcmailbox.domain.RelayChoice
+import me.paxana.abcmailbox.domain.Routing
+import me.paxana.abcmailbox.domain.Thread
+import me.paxana.abcmailbox.domain.Verification
+import me.paxana.abcmailbox.ui.nav.ComposeRoute
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import java.io.File
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class ComposeViewModelTest {
+
+  private val dispatcher = StandardTestDispatcher()
+
+  @Before fun setMain() = Dispatchers.setMain(dispatcher)
+  @After fun resetMainDispatcher() = Dispatchers.resetMain()
+
+  private fun group(id: Int) = Group(id, "Group $id", "Town", null, null, null, null, emptyMap(), emptyList(), null, "relay", "active", emptyList(), emptyList(), null)
+  private fun facility(routing: Routing, groups: List<Group>) = Facility(10, "Facility", emptyList(), null, routing, null, null, Verification(null, null), emptyList(), emptyList(), groups)
+  private fun prisoner() = Prisoner(3, "Alex", null, emptyList(), 10, null, null, null, null, null, null, null, null, emptyList(), null, null, null, null, null, false, Verification(null, null), emptyList())
+
+  private fun vm(routing: Routing, groups: List<Group>, letters: FakeLetters = FakeLetters(), drafts: FakeDrafts = FakeDrafts(), edit: Int? = null) =
+    ComposeViewModel(
+      letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(),
+      FakeSession(), ComposeRoute(prisonerId = 3, editMessageId = edit),
+    )
+
+  @Test
+  fun `one relay group is automatic and sent explicitly`() = runTest {
+    val letters = FakeLetters()
+    val vm = vm(Routing.DIRECT, listOf(group(7)), letters)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(vm.ui.value.relay is RelayChoice.Automatic)
+    vm.onBodyChange("Dear Alex"); vm.send()
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(NewLetter(3, "Dear Alex", null, 7), letters.sent.single())
+    assertEquals(41, vm.ui.value.sentChatId)
+  }
+
+  @Test
+  fun `relay-only with two groups blocks sending until one is chosen`() = runTest {
+    val letters = FakeLetters()
+    val vm = vm(Routing.RELAY_ONLY, listOf(group(1), group(2)), letters)
+    dispatcher.scheduler.advanceUntilIdle()
+    vm.onBodyChange("Hello")
+    assertFalse(vm.ui.value.canSend)
+    vm.onSelectRelay(2)
+    assertTrue(vm.ui.value.canSend)
+    vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(2, letters.sent.single().relayChapter)
+  }
+
+  @Test
+  fun `relay-only with no group is blocked outright`() = runTest {
+    val vm = vm(Routing.RELAY_ONLY, emptyList())
+    dispatcher.scheduler.advanceUntilIdle()
+    vm.onBodyChange("Hello")
+    assertTrue(vm.ui.value.relay is RelayChoice.Blocked)
+    assertFalse(vm.ui.value.canSend)
+  }
+
+  @Test
+  fun `draft is restored, autosaved after a pause, and deleted on send`() = runTest {
+    val drafts = FakeDrafts(mutableMapOf((1 to 3) to Draft("half written", "note", null, 0)))
+    val vm = vm(Routing.DIRECT, emptyList(), drafts = drafts)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("half written", vm.ui.value.body)
+    assertTrue(vm.ui.value.draftRestored)
+    vm.onBodyChange("half written, more")
+    dispatcher.scheduler.advanceTimeBy(700); dispatcher.scheduler.runCurrent()
+    assertEquals("half written, more", drafts.store[1 to 3]?.body)
+    vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertNull(drafts.store[1 to 3])
+  }
+
+  @Test
+  fun `a failed send keeps the text and shows the server sentence`() = runTest {
+    val letters = FakeLetters(fail = AppError.Validation(listOf("Choose a relay group.")))
+    val vm = vm(Routing.DIRECT, emptyList(), letters)
+    dispatcher.scheduler.advanceUntilIdle()
+    vm.onBodyChange("Hello"); vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Choose a relay group.", vm.ui.value.error)
+    assertEquals("Hello", vm.ui.value.body)
+    assertNull(vm.ui.value.sentChatId)
+  }
+
+  @Test
+  fun `edit mode loads the letter and saves through edit`() = runTest {
+    val letters = FakeLetters()
+    val vm = vm(Routing.DIRECT, emptyList(), letters, edit = 41)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("probe", vm.ui.value.body)
+    vm.onBodyChange("probe, edited"); vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(LetterEdit(41, "probe, edited", null, null), letters.edits.single())
+    assertEquals(41, vm.ui.value.sentChatId)
+  }
+
+  // Fakes ---------------------------------------------------------------
+
+  class FakeLetters(private val fail: AppError? = null) : LettersRepository {
+    val sent = mutableListOf<NewLetter>()
+    val edits = mutableListOf<LetterEdit>()
+    private fun stub(id: Int) = Letter(id, 41, false, LetterStatus.QUEUED, "probe", null, null, null, false, null, null, emptyList(), emptyList())
+    override fun threads(): Flow<PagingData<Thread>> = emptyFlow()
+    override suspend fun thread(chatId: Int) = ApiResult.Failure(AppError.NotFound(null))
+    override suspend fun threadForPrisoner(prisonerId: Int) = ApiResult.Success(null)
+    override suspend fun letter(messageId: Int): ApiResult<Letter> = ApiResult.Success(stub(messageId))
+    override suspend fun send(letter: NewLetter): ApiResult<Letter> { fail?.let { return ApiResult.Failure(it) }; sent += letter; return ApiResult.Success(stub(99)) }
+    override suspend fun edit(edit: LetterEdit): ApiResult<Unit> { edits += edit; return ApiResult.Success(Unit) }
+    override suspend fun delete(messageId: Int) = ApiResult.Success(Unit)
+    override suspend fun upload(messageId: Int, staged: StagedFile) = ApiResult.Success(Attachment(1, messageId, staged.name, staged.mimeType, staged.size))
+    override suspend fun deleteAttachment(attachmentId: Int) = ApiResult.Success(Unit)
+    override suspend fun download(attachment: Attachment) = ApiResult.Success(File("x"))
+    override suspend fun retentionDays() = ApiResult.Success(90)
+  }
+
+  class FakeDirectory(private val p: Prisoner, private val f: Facility) : DirectoryRepository {
+    override fun prisoners(filter: PrisonerFilter): Flow<PagingData<Prisoner>> = emptyFlow()
+    override fun facilities(filter: FacilityFilter): Flow<PagingData<Facility>> = emptyFlow()
+    override fun groups(filter: GroupFilter): Flow<PagingData<Group>> = emptyFlow()
+    override suspend fun featuredPrisoners(limit: Int) = ApiResult.Success(listOf(p))
+    override suspend fun prisoner(id: Int) = ApiResult.Success(p)
+    override suspend fun facility(id: Int) = ApiResult.Success(f)
+    override suspend fun group(id: Int) = ApiResult.Failure(AppError.NotFound(null))
+  }
+
+  class FakeDrafts(val store: MutableMap<Pair<Int, Int>, Draft> = mutableMapOf()) : DraftsRepository {
+    override suspend fun load(userId: Int, prisonerId: Int) = store[userId to prisonerId]
+    override suspend fun save(userId: Int, prisonerId: Int, draft: Draft) { store[userId to prisonerId] = draft }
+    override suspend fun delete(userId: Int, prisonerId: Int) { store.remove(userId to prisonerId) }
+  }
+
+  class FakeSession : SessionRepository {
+    override val state: StateFlow<SessionState> = MutableStateFlow(SessionState.SignedIn(Session("t", 0, SessionUser(1, "user1", null, null, "user", null))))
+    override suspend fun login(username: String, password: String) = ApiResult.Failure(AppError.Unauthorized(null))
+    override suspend fun logout(everywhere: Boolean) = ApiResult.Success(Unit)
+  }
+
+  class FakeLocalFiles : me.paxana.abcmailbox.data.files.LocalFilesContract {
+    override suspend fun stage(uri: android.net.Uri): StagedFile = error("not used")
+    override fun discard(staged: StagedFile) = Unit
+    override fun downloadTarget(attachmentId: Int, name: String) = File("x")
+  }
+}

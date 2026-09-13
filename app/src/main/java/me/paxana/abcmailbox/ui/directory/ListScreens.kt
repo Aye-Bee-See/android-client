@@ -25,10 +25,15 @@ private val routings = Routing.entries.filter { it != Routing.UNKNOWN }.map { it
 private val networkRoles = listOf("collecting" to "Collecting letters", "relay" to "Mailing relay")
 
 @Composable
-fun PrisonersScreen(onBack: () -> Unit, onPrisoner: (Int) -> Unit, viewModel: PrisonersViewModel = hiltViewModel()) {
+fun PrisonersScreen(
+  onBack: () -> Unit,
+  onPrisoner: (Int) -> Unit,
+  title: String = "Political prisoners",
+  viewModel: PrisonersViewModel = hiltViewModel(),
+) {
   val filter by viewModel.filter.collectAsStateWithLifecycle()
   val items = viewModel.items.collectAsLazyPagingItems()
-  DetailScaffold(title = "Political prisoners", onBack = onBack) { padding ->
+  DetailScaffold(title = title, onBack = onBack) { padding ->
     PagedList(
       items = items,
       emptyText = "No prisoners match.",

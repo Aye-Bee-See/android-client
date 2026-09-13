@@ -20,6 +20,10 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 - **Attachment limit and types.** Templates say 20 MB; the API caps at 10 MiB. Multi-page scans from a phone camera are large. Android will always convert to JPEG or PDF, so HEIC is not needed server-side. Ask: raise to 20 MB.
 - **Retention.** API PR #78 purges mailed letters and replies after a per-writer window. Decide what a thread should show in place of purged letters (a count, a date, nothing). Android will show a one-line note.
 
+## Letters, small (API)
+
+- **Thread reads:** embed `relay_group {id, name}` on messages inside `GET /chat/chat?full=true`, and the light `prison_details` on `prisoner_details` of chat rows, so the thread can name the relay group and the inbox can show the facility. Same pattern as PR #79.
+
 ## Directory (API)
 
 - **Facet data for filters.** The country chips on the lists are hard-coded from the web mock-ups. A facet endpoint (distinct countries, or counts per filter value) would make them data-driven. Low priority.

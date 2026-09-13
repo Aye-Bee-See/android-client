@@ -13,15 +13,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
@@ -29,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.domain.Facility
 import me.paxana.abcmailbox.domain.Group
 import me.paxana.abcmailbox.domain.NetworkRoles
@@ -50,12 +44,11 @@ fun PrisonerScreen(
   onBack: () -> Unit,
   onFacility: (Int) -> Unit,
   onGroup: (Int) -> Unit,
+  onWrite: (Int) -> Unit,
   viewModel: PrisonerViewModel = hiltViewModel(),
 ) {
   val state by viewModel.prisoner.collectAsStateWithLifecycle()
   val facility by viewModel.facility.collectAsStateWithLifecycle()
-  val snackbar = remember { SnackbarHostState() }
-  val scope = rememberCoroutineScope()
 
   DetailScaffold(title = (state as? Loadable.Loaded)?.value?.name ?: "Prisoner", onBack = onBack) { padding ->
     Column(Modifier.fillMaxSize().padding(padding)) {
@@ -67,10 +60,9 @@ fun PrisonerScreen(
           facilityDetail = facility,
           onFacility = onFacility,
           onGroup = onGroup,
-          onWrite = { scope.launch { snackbar.showSnackbar("Writing letters arrives in the next build.") } },
+          onWrite = { onWrite(s.value.id) },
         )
       }
-      SnackbarHost(snackbar) { Snackbar(it) }
     }
   }
 }

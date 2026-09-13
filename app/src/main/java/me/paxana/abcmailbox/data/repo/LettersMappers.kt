@@ -1,0 +1,56 @@
+package me.paxana.abcmailbox.data.repo
+
+import me.paxana.abcmailbox.data.api.AttachmentDto
+import me.paxana.abcmailbox.data.api.ChatDto
+import me.paxana.abcmailbox.data.api.MessageDto
+import me.paxana.abcmailbox.data.api.StatusHistoryDto
+import me.paxana.abcmailbox.domain.Attachment
+import me.paxana.abcmailbox.domain.LastMessage
+import me.paxana.abcmailbox.domain.Letter
+import me.paxana.abcmailbox.domain.LetterStatus
+import me.paxana.abcmailbox.domain.StatusChange
+import me.paxana.abcmailbox.domain.Thread
+
+fun AttachmentDto.toDomain() = Attachment(id = id, messageId = message, name = originalName, mimeType = mimeType, size = size)
+
+fun StatusHistoryDto.toDomain() = StatusChange(
+  from = fromStatus?.let { LetterStatus.fromKey(it) },
+  to = LetterStatus.fromKey(toStatus),
+  at = createdAt.toInstantOrNull(),
+  byUserId = changedBy,
+)
+
+fun MessageDto.toDomain(): Letter = Letter(
+  id = id,
+  threadId = chat,
+  fromPrisoner = sender == "prisoner",
+  status = LetterStatus.fromKey(status),
+  // In e2e mode messageText is null and the body arrives as ciphertext; phase 5 decrypts here.
+  body = messageText.orEmpty(),
+  relayNote = relayNote?.takeIf { it.isNotBlank() },
+  relayGroupId = relayChapter ?: relayGroup?.id,
+  relayGroupName = relayGroup?.name,
+  keep = keep,
+  createdAt = createdAt.toInstantOrNull(),
+  statusChangedAt = statusChangedAt.toInstantOrNull(),
+  history = statusHistory.orEmpty().map { it.toDomain() },
+  attachments = attachments.orEmpty().map { it.toDomain() },
+)
+
+fun ChatDto.toDomain(): Thread = Thread(
+  id = id,
+  prisonerId = prisoner,
+  prisoner = prisonerDetails?.toDomain(),
+  lastMessage = lastMessage?.let {
+    LastMessage(
+      id = it.id,
+      fromPrisoner = it.sender == "prisoner",
+      status = LetterStatus.fromKey(it.status),
+      at = it.createdAt.toInstantOrNull(),
+      preview = it.messageText?.takeIf { t -> t.isNotBlank() },
+    )
+  },
+  lastActivity = lastMessageAt.toInstantOrNull() ?: updatedAt.toInstantOrNull(),
+  // Oldest first for a conversation view; the API returns them in insertion order already.
+  letters = messages.orEmpty().map { it.toDomain() }.sortedBy { it.createdAt },
+)

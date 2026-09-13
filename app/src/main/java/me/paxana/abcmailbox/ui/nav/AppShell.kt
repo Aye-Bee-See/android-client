@@ -36,14 +36,16 @@ import me.paxana.abcmailbox.ui.directory.GroupScreen
 import me.paxana.abcmailbox.ui.directory.GroupsScreen
 import me.paxana.abcmailbox.ui.directory.PrisonerScreen
 import me.paxana.abcmailbox.ui.directory.PrisonersScreen
-import me.paxana.abcmailbox.ui.letters.InboxPlaceholder
+import me.paxana.abcmailbox.ui.letters.ComposeScreen
+import me.paxana.abcmailbox.ui.letters.InboxScreen
+import me.paxana.abcmailbox.ui.letters.ThreadScreen
 import kotlin.reflect.KClass
 
 private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
   Tab(DirectoryGraph, DirectoryGraph::class, "Directory", Icons.Outlined.MenuBook),
-  Tab(InboxRoute, InboxRoute::class, "Inbox", Icons.Outlined.Mail),
+  Tab(InboxGraph, InboxGraph::class, "Inbox", Icons.Outlined.Mail),
   Tab(AccountRoute, AccountRoute::class, "Account", Icons.Outlined.Person),
 )
 
@@ -107,6 +109,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
             onBack = { navController.popBackStack() },
             onFacility = { navController.navigate(FacilityRoute(it)) },
             onGroup = { navController.navigate(GroupRoute(it)) },
+            onWrite = { navController.navigate(ComposeRoute(it)) },
           )
         }
         composable<FacilitiesRoute> {
@@ -130,8 +133,39 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           )
         }
       }
-      composable<InboxRoute> {
-        InboxPlaceholder(sessionState = sessionState, onSignIn = { navController.navigate(LoginRoute) })
+      navigation<InboxGraph>(startDestination = InboxRoute) {
+        composable<InboxRoute> {
+          InboxScreen(
+            sessionState = sessionState,
+            onSignIn = { navController.navigate(LoginRoute) },
+            onThread = { navController.navigate(ThreadRoute(it)) },
+            onNewLetter = { navController.navigate(PickPrisonerRoute) },
+          )
+        }
+        composable<PickPrisonerRoute> {
+          PrisonersScreen(
+            title = "Write to…",
+            onBack = { navController.popBackStack() },
+            onPrisoner = { navController.navigate(ComposeRoute(it)) { popUpTo<PickPrisonerRoute> { inclusive = true } } },
+          )
+        }
+      }
+      // Reachable from both tabs, so they live outside either graph.
+      composable<ThreadRoute> {
+        ThreadScreen(
+          onBack = { navController.popBackStack() },
+          onPrisoner = { navController.navigate(PrisonerRoute(it)) },
+          onWrite = { navController.navigate(ComposeRoute(it)) },
+          onEdit = { prisonerId, messageId -> navController.navigate(ComposeRoute(prisonerId, messageId)) },
+        )
+      }
+      composable<ComposeRoute> {
+        ComposeScreen(
+          sessionState = sessionState,
+          onSignIn = { navController.navigate(LoginRoute) },
+          onBack = { navController.popBackStack() },
+          onSent = { chatId -> navController.navigate(ThreadRoute(chatId)) { popUpTo<ComposeRoute> { inclusive = true } } },
+        )
       }
       composable<AccountRoute> {
         AccountScreen(sessionState = sessionState, onSignIn = { navController.navigate(LoginRoute) })

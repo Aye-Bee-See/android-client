@@ -20,6 +20,11 @@ import kotlinx.serialization.Serializable
 @Serializable data object GroupsRoute
 @Serializable data class GroupRoute(val id: Int)
 
+@Serializable data object InboxGraph
 @Serializable data object InboxRoute
+@Serializable data class ThreadRoute(val chatId: Int)
+/** `editMessageId` set means "edit this queued letter" instead of "write a new one". */
+@Serializable data class ComposeRoute(val prisonerId: Int, val editMessageId: Int? = null)
+@Serializable data object PickPrisonerRoute
 @Serializable data object AccountRoute
 @Serializable data object LoginRoute
