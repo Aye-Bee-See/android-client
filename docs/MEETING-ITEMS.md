@@ -20,6 +20,10 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 - **Attachment limit and types.** Templates say 20 MB; the API caps at 10 MiB. Multi-page scans from a phone camera are large. Android will always convert to JPEG or PDF, so HEIC is not needed server-side. Ask: raise to 20 MB.
 - **Retention.** API PR #78 purges mailed letters and replies after a per-writer window. Decide what a thread should show in place of purged letters (a count, a date, nothing). Android will show a one-line note.
 
+## Sessions (API)
+
+- **Tokens outlive the database.** After `DB_RESET=true` with the same `JWT_SECRET`, a token issued before the reset still works, and it maps to whichever reseeded account now has that id (observed 13 Sep 2026: the phone stayed "signed in" across a reset). Harmless in development, but the same holds after a restore from backup or a rebuild in production. Ask: on boot, if the database is new or restored, bump the sessions revocation marker so everything issued before is refused. Cheap and closes the gap without rotating the secret.
+
 ## Letters, small (API)
 
 - ~~Thread reads~~ **Done (API PR #82):** messages in thread reads carry `relay_group`, chat rows carry the facility summary.
