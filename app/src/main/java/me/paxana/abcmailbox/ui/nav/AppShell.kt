@@ -39,6 +39,7 @@ import me.paxana.abcmailbox.ui.account.AccountScreen
 import me.paxana.abcmailbox.ui.account.ChangePasswordScreen
 import me.paxana.abcmailbox.ui.auth.ClaimScreen
 import me.paxana.abcmailbox.ui.auth.RecoverScreen
+import me.paxana.abcmailbox.ui.auth.RecoveryCodeScreen
 import me.paxana.abcmailbox.ui.auth.LoginScreen
 import me.paxana.abcmailbox.ui.directory.DirectoryHomeScreen
 import me.paxana.abcmailbox.ui.directory.FacilitiesScreen
@@ -72,12 +73,21 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val scope = rememberCoroutineScope()
   val backStackEntry by navController.currentBackStackEntryAsState()
   val destination = backStackEntry?.destination
-  val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, RecoverRoute::class)
+  val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
   val showBars = fullScreen.none { destination?.hasRoute(it) == true }
   val snackbar = remember { SnackbarHostState() }
 
+  val pendingCode by viewModel.pendingRecoveryCode.collectAsStateWithLifecycle()
+  val keysLocked by viewModel.keysLocked.collectAsStateWithLifecycle()
+  val mode by viewModel.mode.collectAsStateWithLifecycle()
+
   LaunchedEffect(Unit) {
     viewModel.expired.collect { snackbar.showSnackbar("Your session ended. Please sign in again.") }
+  }
+  // A recovery code was just created (first sign-in on an end-to-end server, or a claim):
+  // it takes over the screen until the writer confirms they saved it.
+  LaunchedEffect(pendingCode) {
+    if (pendingCode != null && destination?.hasRoute(RecoveryCodeRoute::class) != true) navController.navigate(RecoveryCodeRoute) { launchSingleTop = true }
   }
 
   Scaffold(
@@ -156,6 +166,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
         composable<InboxRoute> {
           InboxScreen(
             sessionState = sessionState,
+            keysLocked = keysLocked,
             onSignIn = { navController.navigate(LoginRoute) },
             onThread = { navController.navigate(ThreadRoute(it)) },
             onNewLetter = { navController.navigate(PickPrisonerRoute) },
@@ -189,6 +200,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
       composable<AccountRoute> {
         AccountScreen(
           sessionState = sessionState,
+          mode = mode,
           onSignIn = { navController.navigate(LoginRoute) },
           onChangePassword = { navController.navigate(ChangePasswordRoute) },
         )
@@ -216,6 +228,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
       composable<ClaimRoute>(deepLinks = listOf(navDeepLink<ClaimRoute>(basePath = "abcmailbox://claim"))) {
         ClaimScreen(
           sessionState = sessionState,
+          mode = mode,
           onClaimed = {
             navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
             scope.launch { snackbar.showSnackbar("Account claimed. You are signed in.") }
@@ -224,7 +237,23 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
         )
       }
       composable<RecoverRoute> {
-        RecoverScreen(onBack = { navController.popBackStack() }, onClaim = { navController.navigate(ClaimRoute()) })
+        RecoverScreen(
+          sessionState = sessionState,
+          onBack = { navController.popBackStack() },
+          onClaim = { navController.navigate(ClaimRoute()) },
+          onRecovered = {
+            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            scope.launch { snackbar.showSnackbar("Password changed. You are signed in.") }
+          },
+        )
+      }
+      composable<RecoveryCodeRoute> {
+        // One path owns the pop: confirming clears the code, and the cleared code pops the screen.
+        // Popping in both places popped twice, because this composable is still alive, with a
+        // null code, while it animates out.
+        val code = pendingCode
+        if (code == null) LaunchedEffect(Unit) { navController.popBackStack<RecoveryCodeRoute>(inclusive = true) }
+        else RecoveryCodeScreen(code = code, onSaved = { viewModel.recoveryCodeSaved() })
       }
     }
   }

@@ -22,7 +22,7 @@ Requires JDK 17 or newer on the path (Android Studio's bundled JDK works). Andro
 ./gradlew :crypto:test :app:assembleDebug
 ```
 
-Build for end-to-end encryption mode (the API's future mode) with `-Pe2e=true`.
+One build works against both API modes: the app asks `GET /health` which letter contract the server speaks (`server` or `e2e`) and encrypts on the device when it must. The crypto is proven against libsodium.js in both directions; see `tools/` (`npm install` there once, then `node make-e2e-fixture.mjs`, `node verify-kotlin-fixture.mjs`, `node verify-account.mjs`).
 
 ## Run against a local API
 

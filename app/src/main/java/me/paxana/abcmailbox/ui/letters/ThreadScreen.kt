@@ -170,7 +170,11 @@ private fun LetterCard(letter: Letter, busy: Boolean, onOpen: (me.paxana.abcmail
       Box(Modifier.weight(1f))
       StatusChip(letter.status)
     }
-    if (letter.body.isNotBlank()) Text(letter.body, style = MaterialTheme.typography.bodyLarge)
+    if (letter.locked) {
+      Text("🔒 This letter is encrypted and this device does not hold a key that opens it.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    } else if (letter.body.isNotBlank()) {
+      Text(letter.body, style = MaterialTheme.typography.bodyLarge)
+    }
     letter.relayNote?.let {
       Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(10.dp)) {
         Text("NOTE TO RELAY GROUP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -188,14 +192,18 @@ private fun LetterCard(letter: Letter, busy: Boolean, onOpen: (me.paxana.abcmail
       }
     }
     val statusLine = when (letter.status) {
-      LetterStatus.QUEUED -> "Waiting for " + (letter.relayGroupName ?: "the relay group") + " to print it"
+      LetterStatus.QUEUED -> when {
+        letter.relayGroupName != null -> "Waiting for ${letter.relayGroupName} to print it"
+        letter.relayGroupId != null -> "Waiting for the relay group to print it"
+        else -> "Queued. No relay group is assigned to this facility yet."
+      }
       LetterStatus.PRINTED -> "Printed by ${letter.relayGroupName ?: "the relay group"}" + (letter.statusChangedAt?.let { " on ${it.longDate()}" } ?: "")
       LetterStatus.MAILED -> "Mailed by ${letter.relayGroupName ?: "the relay group"}" + (letter.statusChangedAt?.let { " on ${it.longDate()}" } ?: "")
       LetterStatus.RECEIVED -> "Recorded by a support group"
       LetterStatus.UNKNOWN -> ""
     }
     if (statusLine.isNotBlank()) Text(statusLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    if (letter.canEdit) {
+    if (letter.canEdit && !letter.locked) {
       Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }
         TextButton(onClick = onDelete, enabled = !busy) { Text("Delete", color = MaterialTheme.colorScheme.error) }

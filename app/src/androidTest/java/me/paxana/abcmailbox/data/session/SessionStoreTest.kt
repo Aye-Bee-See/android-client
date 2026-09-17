@@ -25,7 +25,7 @@ class SessionStoreTest {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     val file = File(context.cacheDir, "session-test-${System.nanoTime()}.preferences_pb")
     val dataStore = PreferenceDataStoreFactory.create(scope = this) { file }
-    val store = SessionStore(dataStore, KeystoreSecretCipher(), Json)
+    val store = DataStoreSessionStore(dataStore, KeystoreSecretCipher(), Json)
 
     assertNull(store.session.first())
 

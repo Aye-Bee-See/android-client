@@ -17,16 +17,23 @@ import javax.inject.Singleton
  * observes sign-in state instead of polling it. The stored value is the
  * session's JSON, encrypted by [SecretCipher], base64 for the string key.
  */
+interface SessionStore {
+  /** `null` means signed out. */
+  val session: Flow<Session?>
+  suspend fun save(session: Session)
+  suspend fun clear()
+}
+
 @Singleton
-class SessionStore @Inject constructor(
+class DataStoreSessionStore @Inject constructor(
   private val dataStore: DataStore<Preferences>,
   private val cipher: SecretCipher,
   private val json: Json,
-) {
+) : SessionStore {
   private val key = stringPreferencesKey("session")
 
   /** `null` means signed out. An undecryptable blob also reads as signed out. */
-  val session: Flow<Session?> = dataStore.data.map { prefs ->
+  override val session: Flow<Session?> = dataStore.data.map { prefs ->
     prefs[key]?.let { stored ->
       runCatching {
         val bytes = cipher.decrypt(Base64.getDecoder().decode(stored))
@@ -35,13 +42,13 @@ class SessionStore @Inject constructor(
     }
   }
 
-  suspend fun save(session: Session) {
+  override suspend fun save(session: Session) {
     val blob = cipher.encrypt(json.encodeToString(session).toByteArray(Charsets.UTF_8))
     val encoded = Base64.getEncoder().encodeToString(blob)
     dataStore.edit { it[key] = encoded }
   }
 
-  suspend fun clear() {
+  override suspend fun clear() {
     dataStore.edit { it.remove(key) }
   }
 }

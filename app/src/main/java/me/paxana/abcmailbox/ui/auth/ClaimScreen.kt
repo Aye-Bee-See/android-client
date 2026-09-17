@@ -32,16 +32,18 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.paxana.abcmailbox.BuildConfig
+import me.paxana.abcmailbox.data.crypto.EncryptionMode
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.ui.common.AlertBanner
 import me.paxana.abcmailbox.ui.common.DetailScaffold
+import me.paxana.abcmailbox.ui.common.UppercaseTransformation
 import me.paxana.abcmailbox.ui.common.longDate
 
 /** After `claim.html`: take over an account a support group created for you. */
 @Composable
 fun ClaimScreen(
   sessionState: SessionState,
+  mode: EncryptionMode,
   onClaimed: () -> Unit,
   onBack: () -> Unit,
   viewModel: ClaimViewModel = hiltViewModel(),
@@ -63,6 +65,7 @@ fun ClaimScreen(
           label = { Text("Claim token") },
           placeholder = { Text("XXXX-XXXX-XXXX-XXXX-XXXX-XXXX") },
           textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+          visualTransformation = UppercaseTransformation,
           singleLine = true,
           enabled = !ui.busy,
           keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
@@ -82,8 +85,8 @@ fun ClaimScreen(
         style = MaterialTheme.typography.bodyLarge,
       )
       AlertBanner(
-        if (BuildConfig.ENCRYPTION_MODE == "e2e") {
-          "Your password is your encryption key. No one, not this site and not your group, can read your letters without it. If you lose it, your letters cannot be recovered."
+        if (mode == EncryptionMode.E2E || info.endToEnd) {
+          "Your password protects your encryption key. No one, not this site and not your group, can read your letters without it. After this step you will get a recovery code: it is the only way back in if you forget the password."
         } else {
           "There is no \"email me a reset link\". Keep your password somewhere safe; if you lose it, a network admin has to help you."
         }
@@ -111,7 +114,7 @@ fun ClaimScreen(
       }
 
       if (ui.tokenDead) AlertBanner(ui.error.orEmpty()) else ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
-      Button(onClick = viewModel::claim, enabled = ui.canClaim, modifier = Modifier.fillMaxWidth().testTag("claim-submit")) { Text(if (ui.busy) "Claiming…" else "Claim account") }
+      Button(onClick = viewModel::claim, enabled = ui.canClaim, modifier = Modifier.fillMaxWidth().testTag("claim-submit")) { Text(if (ui.busy) "Claiming… this takes a few seconds" else "Claim account") }
       TextButton(onClick = viewModel::startOver, enabled = !ui.busy) { Text("Use a different token") }
     }
   }

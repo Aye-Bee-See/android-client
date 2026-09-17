@@ -57,7 +57,12 @@ interface LettersApi {
 
   @Multipart
   @POST("messaging/attachment")
-  suspend fun upload(@Part("message") message: RequestBody, @Part file: MultipartBody.Part): ApiEnvelope<AttachmentDto>
+  suspend fun upload(
+    @Part("message") message: RequestBody,
+    @Part file: MultipartBody.Part,
+    /** End-to-end mode: the nonce the file was encrypted with; omitted in server mode. */
+    @Part("nonce") nonce: RequestBody? = null,
+  ): ApiEnvelope<AttachmentDto>
 
   @GET("messaging/attachments")
   suspend fun attachments(@Query("message") message: Int): ApiEnvelope<List<AttachmentDto>>
@@ -78,14 +83,24 @@ interface LettersApi {
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class SendMessageRequest(
-  val messageText: String,
+  /** Server mode. In end-to-end mode this stays null and the four cipher fields plus `envelopes` are sent. */
+  val messageText: String? = null,
   val prisoner: Int,
   /** Required by the API; `@EncodeDefault` because defaults are otherwise omitted from the JSON. */
   @EncodeDefault val sender: String = "user",
   /** Omitted (not null) when unset, so the server resolves the relay group itself. */
   val relayChapter: Int? = null,
   val relayNote: String? = null,
+  val ciphertext: String? = null,
+  val nonce: String? = null,
+  val relayNoteCiphertext: String? = null,
+  val relayNoteNonce: String? = null,
+  val envelopes: List<EnvelopeDto>? = null,
 )
+
+/** A letter's content key sealed to one reader. Group readers name the `keyVersion` it was sealed to. */
+@Serializable
+data class EnvelopeDto(val readerType: String, val readerId: Int, val wrappedKey: String, val keyVersion: Int? = null)
 
 @Serializable
 data class UpdateMessageRequest(
@@ -94,6 +109,10 @@ data class UpdateMessageRequest(
   val relayNote: String? = null,
   val relayChapter: Int? = null,
   val keep: Boolean? = null,
+  val ciphertext: String? = null,
+  val nonce: String? = null,
+  val relayNoteCiphertext: String? = null,
+  val relayNoteNonce: String? = null,
 )
 
 @Serializable
@@ -117,6 +136,9 @@ data class LastMessageDto(
   val messageText: String? = null,
   val status: String? = null,
   val createdAt: String? = null,
+  val ciphertext: String? = null,
+  val nonce: String? = null,
+  val envelopes: List<EnvelopeDto>? = null,
 )
 
 @Serializable
@@ -138,12 +160,12 @@ data class MessageDto(
   @SerialName("status_history") val statusHistory: List<StatusHistoryDto>? = null,
   val attachments: List<AttachmentDto>? = null,
   @SerialName("relay_group") val relayGroup: RelayGroupDto? = null,
-  // End-to-end mode fields, opaque until phase 5.
+  // End-to-end mode: `messageText` is null and these carry the letter; `envelopes` is filtered to the caller.
   val ciphertext: String? = null,
   val nonce: String? = null,
   val relayNoteCiphertext: String? = null,
   val relayNoteNonce: String? = null,
-  val envelopes: JsonElement? = null,
+  val envelopes: List<EnvelopeDto>? = null,
 )
 
 @Serializable data class RelayGroupDto(val id: Int, val name: String)

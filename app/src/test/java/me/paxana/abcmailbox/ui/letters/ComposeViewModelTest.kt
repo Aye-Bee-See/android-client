@@ -179,6 +179,11 @@ class ComposeViewModelTest {
     override suspend fun claimInfo(token: String) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun claim(token: String, username: String, password: String, email: String?) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun changePassword(current: String, new: String) = ApiResult.Success(Unit)
+    override val pendingRecoveryCode = MutableStateFlow<String?>(null)
+    override fun recoveryCodeSaved() = Unit
+    override val keysLocked = MutableStateFlow(false)
+    override suspend fun unlock(password: String) = ApiResult.Success(Unit)
+    override suspend fun recover(username: String, recoveryCode: String, newPassword: String) = ApiResult.Failure(AppError.NotFound(null))
   }
 
   class FakeLocalFiles : me.paxana.abcmailbox.data.files.LocalFilesContract {

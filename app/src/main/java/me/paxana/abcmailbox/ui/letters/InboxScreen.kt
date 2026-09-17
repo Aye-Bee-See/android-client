@@ -13,6 +13,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,6 +40,7 @@ import me.paxana.abcmailbox.ui.common.shortDate
 @Composable
 fun InboxScreen(
   sessionState: SessionState,
+  keysLocked: Boolean,
   onSignIn: () -> Unit,
   onThread: (Int) -> Unit,
   onNewLetter: () -> Unit,
@@ -44,7 +53,7 @@ fun InboxScreen(
         Text("Sign in to see your conversations and write letters.")
         Button(onClick = onSignIn) { Text("Sign in") }
       }
-      is SessionState.SignedIn -> SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter)
+      is SessionState.SignedIn -> if (keysLocked) UnlockPrompt() else SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter)
     }
   }
 }
@@ -89,4 +98,22 @@ fun ThreadRow(t: Thread, onClick: () -> Unit) {
     subtitle = direction + (t.lastActivity?.let { " · ${it.shortDate()}" } ?: ""),
     onClick = onClick,
   )
+}
+
+/** End-to-end server, signed in, but this device does not hold the private key (restored phone, cleared data). */
+@Composable
+private fun UnlockPrompt(viewModel: UnlockViewModel = hiltViewModel()) {
+  val ui by viewModel.ui.collectAsStateWithLifecycle()
+  Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Text("Your letters are locked on this device. Enter your password to unlock them. It is used here, on the phone, to open your encryption key; it is not sent anywhere.")
+    OutlinedTextField(
+      value = ui.password, onValueChange = viewModel::onPassword, label = { Text("Password") }, singleLine = true, enabled = !ui.busy,
+      visualTransformation = PasswordVisualTransformation(),
+      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+      keyboardActions = KeyboardActions(onDone = { viewModel.unlock() }),
+      modifier = Modifier.fillMaxWidth(),
+    )
+    ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+    Button(onClick = viewModel::unlock, enabled = !ui.busy && ui.password.isNotEmpty()) { Text(if (ui.busy) "Unlocking…" else "Unlock") }
+  }
 }

@@ -32,3 +32,5 @@ import kotlinx.serialization.Serializable
 @Serializable data class ClaimRoute(val token: String? = null)
 @Serializable data object RecoverRoute
 @Serializable data object ChangePasswordRoute
+/** Full screen, not dismissible: the one-time recovery code. The code itself never goes through navigation state. */
+@Serializable data object RecoveryCodeRoute

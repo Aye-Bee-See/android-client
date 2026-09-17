@@ -25,12 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.paxana.abcmailbox.BuildConfig
+import me.paxana.abcmailbox.data.crypto.EncryptionMode
 import me.paxana.abcmailbox.data.session.Role
 import me.paxana.abcmailbox.data.session.SessionState
 
 @Composable
 fun AccountScreen(
   sessionState: SessionState,
+  mode: EncryptionMode,
   onSignIn: () -> Unit,
   onChangePassword: () -> Unit,
   viewModel: AccountViewModel = hiltViewModel(),
@@ -81,7 +83,7 @@ fun AccountScreen(
       }
     }
     Text(
-      "Build ${BuildConfig.VERSION_NAME} · ${BuildConfig.ENCRYPTION_MODE} mode" + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
+      "Build ${BuildConfig.VERSION_NAME} · " + when (mode) { EncryptionMode.E2E -> "end-to-end encrypted"; EncryptionMode.SERVER -> "server mode"; EncryptionMode.UNKNOWN -> "server not reached" } + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
       style = MaterialTheme.typography.labelSmall,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       // Debug builds: five taps open the hidden server dialog.

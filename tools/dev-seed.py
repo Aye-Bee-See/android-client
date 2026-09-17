@@ -134,6 +134,11 @@ else:
 member = login("member1", "password1")
 
 # 6. Managed writer with a claim token ------------------------------------------
+if health.get("encryptionMode") == "e2e":
+    step("end-to-end server: skipping the managed writer (its keypair must be made by a group member's client)")
+    print("\nSign in as user1 / password1 (keys are created on first sign-in), member1 / password1 for the group.")
+    print("Run: node tools/e2e-bootstrap-group.mjs " + BASE + " member1 password1   to give the group keys.")
+    sys.exit(0)
 writer_name = "Alex (letter night)"
 _, r = call("GET", "/auth/writers", token=member)
 writer = next((w for w in r["data"] if w["name"] == writer_name), None)

@@ -52,6 +52,22 @@ class FakeSessionRepository(
     return login(username, password)
   }
 
+  override val pendingRecoveryCode = MutableStateFlow<String?>(null)
+  override fun recoveryCodeSaved() { pendingRecoveryCode.value = null }
+  override val keysLocked = MutableStateFlow(false)
+  var unlockPassword: String = "password1"
+  val recoveries = mutableListOf<Triple<String, String, String>>()
+
+  override suspend fun unlock(password: String): ApiResult<Unit> =
+    if (password == unlockPassword) { keysLocked.value = false; ApiResult.Success(Unit) }
+    else ApiResult.Failure(AppError.Validation(listOf("That password does not open your letters.")))
+
+  override suspend fun recover(username: String, recoveryCode: String, newPassword: String): ApiResult<Session> {
+    recoveries += Triple(username, recoveryCode, newPassword)
+    nextError?.let { return ApiResult.Failure(it) }
+    return login(username, newPassword)
+  }
+
   override suspend fun changePassword(current: String, new: String): ApiResult<Unit> {
     if (current != currentPassword) return ApiResult.Failure(AppError.Validation(listOf("Your current password is incorrect.")))
     passwordChangedTo = new

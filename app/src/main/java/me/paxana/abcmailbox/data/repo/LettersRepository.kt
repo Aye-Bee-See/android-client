@@ -16,6 +16,7 @@ import me.paxana.abcmailbox.data.api.UpdateMessageRequest
 import me.paxana.abcmailbox.data.api.apiCall
 import me.paxana.abcmailbox.data.api.map
 import me.paxana.abcmailbox.data.api.toPage
+import me.paxana.abcmailbox.data.crypto.LetterCodec
 import me.paxana.abcmailbox.data.files.LocalFilesContract
 import me.paxana.abcmailbox.data.files.StagedFile
 import me.paxana.abcmailbox.domain.Attachment
@@ -54,47 +55,81 @@ class DefaultLettersRepository @Inject constructor(
   private val api: LettersApi,
   private val json: Json,
   private val files: LocalFilesContract,
+  private val codec: LetterCodec,
 ) : LettersRepository {
+
+  private fun me.paxana.abcmailbox.data.api.ChatDto.decoded() = toDomain(letter = codec::incoming, preview = codec::preview)
 
   override fun threads(): Flow<PagingData<Thread>> = Pager(PagingConfig(pageSize = 20, initialLoadSize = 20)) {
     PagePagingSource { page, size ->
-      apiCall(json) { api.chats(page = page, pageSize = size) }.map { env -> env.toPage().map { it.toDomain() } }
+      apiCall(json) { api.chats(page = page, pageSize = size) }.map { env -> env.toPage().map { it.decoded() } }
     }
   }.flow
 
   override suspend fun thread(chatId: Int): ApiResult<Thread> =
-    apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).toDomain() }
+    apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).decoded() }
 
   override suspend fun threadForPrisoner(prisonerId: Int): ApiResult<Thread?> =
     when (val r = apiCall(json) { api.chatByPrisoner(prisonerId) }) {
-      is ApiResult.Success -> ApiResult.Success(r.value.data?.toDomain())
+      is ApiResult.Success -> ApiResult.Success(r.value.data?.decoded())
       is ApiResult.Failure -> if (r.error is AppError.NotFound) ApiResult.Success(null) else r
     }
 
   override suspend fun letter(messageId: Int): ApiResult<Letter> =
-    apiCall(json) { api.message(messageId) }.map { checkNotNull(it.data).toDomain() }
+    apiCall(json) { api.message(messageId) }.map { codec.incoming(checkNotNull(it.data)) }
 
-  override suspend fun send(letter: NewLetter): ApiResult<Letter> = apiCall(json) {
-    api.send(
-      SendMessageRequest(
-        messageText = letter.body,
-        prisoner = letter.prisonerId,
-        relayChapter = letter.relayChapter,
-        relayNote = letter.relayNote?.takeIf { it.isNotBlank() },
-      )
-    )
-  }.map { checkNotNull(it.data).toDomain() }
+  override suspend fun send(letter: NewLetter): ApiResult<Letter> {
+    // A 409 here means a group rotated its key between our lookup and the send: encode again
+    // (which fetches the new public key and version) and retry once.
+    repeat(2) { attempt ->
+      val request = when (val encoded = codec.outgoing(letter)) {
+        is ApiResult.Failure -> return encoded
+        is ApiResult.Success -> encoded.value.first
+      }
+      when (val r = apiCall(json) { api.send(request) }) {
+        is ApiResult.Success -> return ApiResult.Success(codec.incoming(checkNotNull(r.value.data)))
+        is ApiResult.Failure -> if (r.error !is AppError.Conflict || attempt == 1) return r
+      }
+    }
+    error("unreachable")
+  }
 
-  override suspend fun edit(edit: LetterEdit): ApiResult<Unit> = apiCall(json) {
-    api.update(UpdateMessageRequest(id = edit.messageId, messageText = edit.body, relayNote = edit.relayNote, relayChapter = edit.relayChapter))
-  }.map { }
+  override suspend fun edit(edit: LetterEdit): ApiResult<Unit> {
+    val existing = when (val r = apiCall(json) { api.message(edit.messageId) }) {
+      is ApiResult.Failure -> return r
+      is ApiResult.Success -> checkNotNull(r.value.data)
+    }
+    val request = when (val encoded = codec.edit(edit, existing)) {
+      is ApiResult.Failure -> return encoded
+      is ApiResult.Success -> encoded.value
+    }
+    return apiCall(json) { api.update(request) }.map { }
+  }
 
   override suspend fun delete(messageId: Int): ApiResult<Unit> = apiCall(json) { api.delete(IdBody(messageId)) }.map { }
 
-  override suspend fun upload(messageId: Int, staged: StagedFile): ApiResult<Attachment> = apiCall(json) {
-    val part = MultipartBody.Part.createFormData("file", staged.name, staged.file.asRequestBody(staged.mimeType.toMediaType()))
-    api.upload(messageId.toString().toRequestBody("text/plain".toMediaType()), part)
-  }.map { checkNotNull(it.data).toDomain() }
+  override suspend fun upload(messageId: Int, staged: StagedFile): ApiResult<Attachment> {
+    val messageField = messageId.toString().toRequestBody("text/plain".toMediaType())
+    if (!codec.isEndToEnd()) {
+      return apiCall(json) {
+        api.upload(messageField, MultipartBody.Part.createFormData("file", staged.name, staged.file.asRequestBody(staged.mimeType.toMediaType())))
+      }.map { checkNotNull(it.data).toDomain() }
+    }
+    // End-to-end: the file is encrypted under the letter's content key before it leaves the phone.
+    // The declared type still describes the plaintext; the server does not sniff ciphertext.
+    val key = when (val m = apiCall(json) { api.message(messageId) }) {
+      is ApiResult.Failure -> return m
+      is ApiResult.Success -> codec.contentKey(checkNotNull(m.value.data)) ?: return ApiResult.Failure(LetterCodec.LOCKED)
+    }
+    return apiCall(json) {
+      val (cipherBytes, nonce) = withContext(Dispatchers.Default) { codec.encryptFile(staged.file.readBytes(), key) }
+      api.upload(
+        messageField,
+        MultipartBody.Part.createFormData("file", staged.name, cipherBytes.toRequestBody(staged.mimeType.toMediaType())),
+        nonce.toRequestBody("text/plain".toMediaType()),
+      )
+    }.map { checkNotNull(it.data).toDomain() }
+  }
 
   override suspend fun deleteAttachment(attachmentId: Int): ApiResult<Unit> =
     apiCall(json) { api.deleteAttachment(IdBody(attachmentId)) }.map { }
@@ -102,11 +137,24 @@ class DefaultLettersRepository @Inject constructor(
   override suspend fun download(attachment: Attachment): ApiResult<File> {
     val target = files.downloadTarget(attachment.id, attachment.name)
     if (target.exists() && target.length() == attachment.size) return ApiResult.Success(target)
+    val nonce = attachment.nonce
+    if (nonce == null) {
+      return apiCall(json) {
+        withContext(Dispatchers.IO) {
+          api.download(attachment.id).use { body -> body.byteStream().use { input -> target.outputStream().use { input.copyTo(it) } } }
+          target
+        }
+      }
+    }
+    // End-to-end: what comes down is ciphertext; open it with the letter's content key.
+    val key = when (val m = apiCall(json) { api.message(attachment.messageId) }) {
+      is ApiResult.Failure -> return m
+      is ApiResult.Success -> codec.contentKey(checkNotNull(m.value.data)) ?: return ApiResult.Failure(LetterCodec.LOCKED)
+    }
     return apiCall(json) {
       withContext(Dispatchers.IO) {
-        api.download(attachment.id).use { body ->
-          body.byteStream().use { input -> target.outputStream().use { input.copyTo(it) } }
-        }
+        val cipherBytes = api.download(attachment.id).use { it.bytes() }
+        target.writeBytes(codec.decryptFile(cipherBytes, nonce, key))
         target
       }
     }

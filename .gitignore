@@ -17,3 +17,4 @@ local.properties
 
 # Node tooling
 /tools/node_modules
+/tools/dev-group-key.json

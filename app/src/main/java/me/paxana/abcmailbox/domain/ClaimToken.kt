@@ -36,4 +36,4 @@ object ClaimToken {
   fun pretty(input: String): String = normalise(input).chunked(4).joinToString("-")
 }
 
-data class ClaimInfo(val writerName: String, val groupName: String?, val expiresAt: Instant?)
+data class ClaimInfo(val writerName: String, val groupName: String?, val expiresAt: Instant?, val endToEnd: Boolean = false)

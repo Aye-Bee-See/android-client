@@ -8,10 +8,6 @@ plugins {
   alias(libs.plugins.room)
 }
 
-// `./gradlew assembleDebug -Pe2e=true` builds a client that expects the API in
-// end-to-end mode. Default is server mode, which is what the API runs today.
-val e2eMode = providers.gradleProperty("e2e").orNull == "true"
-
 android {
   namespace = "me.paxana.abcmailbox"
   compileSdk = 37
@@ -24,8 +20,6 @@ android {
     versionName = "0.1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-    buildConfigField("String", "ENCRYPTION_MODE", "\"${if (e2eMode) "e2e" else "server"}\"")
   }
 
   buildTypes {

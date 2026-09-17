@@ -15,6 +15,8 @@ import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.HealthApi
 import me.paxana.abcmailbox.data.api.apiCall
 import me.paxana.abcmailbox.data.api.map
+import me.paxana.abcmailbox.data.crypto.EncryptionModeRepository
+import me.paxana.abcmailbox.data.crypto.KeyVault
 import me.paxana.abcmailbox.data.session.SessionStore
 import me.paxana.abcmailbox.di.ApplicationScope
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -46,6 +48,8 @@ class DevServerRepository @Inject constructor(
   private val healthApi: HealthApi,
   private val json: Json,
   private val holder: DevServerUrl,
+  private val vault: KeyVault,
+  private val modes: EncryptionModeRepository,
   @ApplicationScope scope: CoroutineScope,
 ) {
   private val key = stringPreferencesKey("dev_api_base_url")
@@ -64,13 +68,19 @@ class DevServerRepository @Inject constructor(
   suspend fun set(input: String): Result<String> {
     val url = normalise(input) ?: return Result.failure(IllegalArgumentException("That is not a valid URL. Try http://192.168.1.20:3000/"))
     dataStore.edit { it[key] = url }
+    holder.update(url)
     sessionStore.clear()
+    vault.clear()
+    modes.refresh()
     return Result.success(url)
   }
 
   suspend fun reset() {
     dataStore.edit { it.remove(key) }
+    holder.update(default)
     sessionStore.clear()
+    vault.clear()
+    modes.refresh()
   }
 
   /** `GET /health` at whatever URL is in force; the interceptor applies it. */

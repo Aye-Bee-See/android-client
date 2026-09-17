@@ -33,7 +33,9 @@ class LettersRepositoryTest {
     val api = Retrofit.Builder().baseUrl(server.url("/"))
       .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
       .build().create(LettersApi::class.java)
-    repo = DefaultLettersRepository(api, json, FakeLocalFiles(tmp))
+    val authApi = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(me.paxana.abcmailbox.data.api.AuthApi::class.java)
+    val codec = me.paxana.abcmailbox.data.crypto.LetterCodec(me.paxana.abcmailbox.data.crypto.FixedMode(me.paxana.abcmailbox.data.crypto.EncryptionMode.SERVER), me.paxana.abcmailbox.data.crypto.FakeCryptoEngine(), me.paxana.abcmailbox.data.crypto.InMemoryVault(), me.paxana.abcmailbox.ui.auth.FakeSessionRepository(), authApi, json)
+    repo = DefaultLettersRepository(api, json, FakeLocalFiles(tmp), codec)
   }
 
   @After

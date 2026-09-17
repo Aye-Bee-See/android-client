@@ -14,7 +14,7 @@ enum class LetterStatus(val key: String, val label: String, val meaning: String)
   }
 }
 
-data class Attachment(val id: Int, val messageId: Int, val name: String, val mimeType: String, val size: Long) {
+data class Attachment(val id: Int, val messageId: Int, val name: String, val mimeType: String, val size: Long, val nonce: String? = null) {
   val sizeLabel: String get() = when {
     size >= 1_048_576 -> "%.1f MB".format(size / 1_048_576.0)
     size >= 1024 -> "${size / 1024} KB"
@@ -38,6 +38,8 @@ data class Letter(
   val statusChangedAt: Instant?,
   val history: List<StatusChange>,
   val attachments: List<Attachment>,
+  /** End-to-end mode: true when this device holds no key that opens the letter. */
+  val locked: Boolean = false,
 ) {
   /** The brief's rule: a writer may edit or delete only while the letter is queued. */
   val canEdit: Boolean get() = !fromPrisoner && status == LetterStatus.QUEUED

@@ -206,3 +206,14 @@ fun AppError.readable(): String = when (this) {
   is AppError.NotFound -> info ?: "That record doesn't exist or is not public."
   else -> userMessage ?: "Something went wrong. Please try again."
 }
+
+/**
+ * Shows text in upper case without changing what is stored. Rewriting a field's
+ * value inside `onValueChange` (for example `it.uppercase()`) fights the keyboard's
+ * composing state and can drop keystrokes; transforming only the display cannot.
+ * The mapping is the identity because upper-casing these ASCII codes keeps length.
+ */
+object UppercaseTransformation : androidx.compose.ui.text.input.VisualTransformation {
+  override fun filter(text: androidx.compose.ui.text.AnnotatedString) =
+    androidx.compose.ui.text.input.TransformedText(androidx.compose.ui.text.AnnotatedString(text.text.uppercase()), androidx.compose.ui.text.input.OffsetMapping.Identity)
+}

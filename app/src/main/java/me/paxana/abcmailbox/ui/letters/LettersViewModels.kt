@@ -92,3 +92,23 @@ class ThreadViewModel(
 }
 
 internal fun AppError.orGeneric(fallback: String) = userMessage ?: fallback
+
+data class UnlockUiState(val password: String = "", val busy: Boolean = false, val error: String? = null)
+
+@HiltViewModel
+class UnlockViewModel @Inject constructor(private val sessions: me.paxana.abcmailbox.data.session.SessionRepository) : ViewModel() {
+  private val _ui = MutableStateFlow(UnlockUiState())
+  val ui: StateFlow<UnlockUiState> = _ui.asStateFlow()
+  fun onPassword(v: String) = _ui.update { it.copy(password = v, error = null) }
+  fun unlock() {
+    val pw = _ui.value.password
+    if (pw.isEmpty()) return
+    _ui.update { it.copy(busy = true, error = null) }
+    viewModelScope.launch {
+      when (val r = sessions.unlock(pw)) {
+        is ApiResult.Success -> _ui.update { UnlockUiState() }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: "Could not unlock. Check your connection.") }
+      }
+    }
+  }
+}

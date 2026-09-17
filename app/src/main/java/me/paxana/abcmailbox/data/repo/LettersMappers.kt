@@ -11,7 +11,7 @@ import me.paxana.abcmailbox.domain.LetterStatus
 import me.paxana.abcmailbox.domain.StatusChange
 import me.paxana.abcmailbox.domain.Thread
 
-fun AttachmentDto.toDomain() = Attachment(id = id, messageId = message, name = originalName, mimeType = mimeType, size = size)
+fun AttachmentDto.toDomain() = Attachment(id = id, messageId = message, name = originalName, mimeType = mimeType, size = size, nonce = nonce)
 
 fun StatusHistoryDto.toDomain() = StatusChange(
   from = fromStatus?.let { LetterStatus.fromKey(it) },
@@ -37,7 +37,11 @@ fun MessageDto.toDomain(): Letter = Letter(
   attachments = attachments.orEmpty().map { it.toDomain() },
 )
 
-fun ChatDto.toDomain(): Thread = Thread(
+/** `letter` and `preview` let the caller decrypt in end-to-end mode; the defaults are the server-mode pass-through. */
+fun ChatDto.toDomain(
+  letter: (MessageDto) -> Letter = { it.toDomain() },
+  preview: (me.paxana.abcmailbox.data.api.LastMessageDto) -> String? = { it.messageText?.takeIf { t -> t.isNotBlank() } },
+): Thread = Thread(
   id = id,
   prisonerId = prisoner,
   prisoner = prisonerDetails?.toDomain(),
@@ -47,10 +51,10 @@ fun ChatDto.toDomain(): Thread = Thread(
       fromPrisoner = it.sender == "prisoner",
       status = LetterStatus.fromKey(it.status),
       at = it.createdAt.toInstantOrNull(),
-      preview = it.messageText?.takeIf { t -> t.isNotBlank() },
+      preview = preview(it),
     )
   },
   lastActivity = lastMessageAt.toInstantOrNull() ?: updatedAt.toInstantOrNull(),
   // Oldest first for a conversation view; the API returns them in insertion order already.
-  letters = messages.orEmpty().map { it.toDomain() }.sortedBy { it.createdAt },
+  letters = messages.orEmpty().map(letter).sortedBy { it.createdAt },
 )

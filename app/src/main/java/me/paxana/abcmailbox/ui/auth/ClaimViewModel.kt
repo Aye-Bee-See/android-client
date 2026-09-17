@@ -59,7 +59,7 @@ class ClaimViewModel(
     if (route.token != null && ClaimToken.isWellFormed(route.token)) check()
   }
 
-  fun onTokenChange(v: String) = _ui.update { it.copy(token = v.uppercase(), error = null, tokenDead = false, info = null) }
+  fun onTokenChange(v: String) = _ui.update { it.copy(token = v, error = null, tokenDead = false, info = null) }
   fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null) }
   fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, error = null) }
   fun onConfirmChange(v: String) = _ui.update { it.copy(confirm = v, error = null) }

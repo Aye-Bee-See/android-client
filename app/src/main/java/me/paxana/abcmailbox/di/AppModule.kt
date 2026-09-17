@@ -15,6 +15,12 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import me.paxana.abcmailbox.data.crypto.CryptoEngine
+import me.paxana.abcmailbox.data.crypto.DefaultEncryptionModeRepository
+import me.paxana.abcmailbox.data.crypto.DefaultKeyVault
+import me.paxana.abcmailbox.data.crypto.EncryptionModeRepository
+import me.paxana.abcmailbox.data.crypto.KeyVault
+import me.paxana.abcmailbox.data.crypto.SodiumCryptoEngine
 import me.paxana.abcmailbox.data.db.AppDatabase
 import me.paxana.abcmailbox.data.files.LocalFiles
 import me.paxana.abcmailbox.data.files.LocalFilesContract
@@ -28,7 +34,9 @@ import me.paxana.abcmailbox.data.repo.DirectoryRepository
 import me.paxana.abcmailbox.data.session.DefaultSessionRepository
 import me.paxana.abcmailbox.data.session.KeystoreSecretCipher
 import me.paxana.abcmailbox.data.session.SecretCipher
+import me.paxana.abcmailbox.data.session.DataStoreSessionStore
 import me.paxana.abcmailbox.data.session.SessionRepository
+import me.paxana.abcmailbox.data.session.SessionStore
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
@@ -81,4 +89,16 @@ abstract class BindingsModule {
 
   @Binds
   abstract fun localFiles(impl: LocalFiles): LocalFilesContract
+
+  @Binds
+  abstract fun sessionStore(impl: DataStoreSessionStore): SessionStore
+
+  @Binds
+  abstract fun encryptionMode(impl: DefaultEncryptionModeRepository): EncryptionModeRepository
+
+  @Binds
+  abstract fun keyVault(impl: DefaultKeyVault): KeyVault
+
+  @Binds
+  abstract fun cryptoEngine(impl: SodiumCryptoEngine): CryptoEngine
 }
