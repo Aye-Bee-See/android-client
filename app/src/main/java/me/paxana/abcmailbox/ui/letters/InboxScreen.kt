@@ -48,6 +48,7 @@ fun InboxScreen(
   onAddWriter: () -> Unit = {},
   onGroupLetter: (writerId: Int?, writerName: String?) -> Unit = { _, _ -> },
   onHandoff: (me.paxana.abcmailbox.domain.ManagedWriter) -> Unit = {},
+  onGroupKey: () -> Unit = {},
 ) {
   Column(Modifier.fillMaxSize()) {
     Text("Inbox", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
@@ -62,7 +63,7 @@ fun InboxScreen(
         // Group members get the queue, the conversations they can see, and their writers.
         sessionState.session.user.isStaff -> me.paxana.abcmailbox.ui.group.GroupInbox(
           conversations = { SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter = null) },
-          onLetter = onQueueLetter, onAddWriter = onAddWriter, onNewLetter = onGroupLetter, onHandoff = onHandoff,
+          onLetter = onQueueLetter, onAddWriter = onAddWriter, onNewLetter = onGroupLetter, onHandoff = onHandoff, onGroupKey = onGroupKey,
         )
         else -> SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter)
       }

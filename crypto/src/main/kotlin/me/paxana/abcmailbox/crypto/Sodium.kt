@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.crypto
 
+import com.ionspin.kotlin.crypto.scalarmult.ScalarMultiplication
 import com.ionspin.kotlin.crypto.LibsodiumInitializer
 import com.ionspin.kotlin.crypto.aead.AuthenticatedEncryptionWithAssociatedData
 import com.ionspin.kotlin.crypto.aead.crypto_aead_xchacha20poly1305_ietf_KEYBYTES
@@ -72,6 +73,10 @@ object Sodium {
     val kp = Box.keypair()
     return KeyPair(kp.publicKey.asByteArray(), kp.secretKey.asByteArray())
   }
+
+  /** `crypto_scalarmult_base`: the X25519 public key that belongs to a private key. */
+  fun publicKeyOf(privateKey: ByteArray): ByteArray =
+    ScalarMultiplication.scalarMultiplicationBase(privateKey.asUByteArray()).asByteArray()
 
   /** `crypto_box_seal`: anyone with the public key can seal; only the private key opens. */
   fun seal(message: ByteArray, recipientPublicKey: ByteArray): ByteArray =

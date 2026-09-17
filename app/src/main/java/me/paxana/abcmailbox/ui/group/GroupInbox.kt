@@ -49,16 +49,23 @@ fun GroupInbox(
   onAddWriter: () -> Unit,
   onNewLetter: (writerId: Int?, writerName: String?) -> Unit,
   onHandoff: (ManagedWriter) -> Unit,
+  onGroupKey: () -> Unit = {},
 ) {
   var tab by rememberSaveable { mutableIntStateOf(0) }
   Column(Modifier.fillMaxSize()) {
+    GroupKeyBanner(onMembers = onGroupKey)
     PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
       listOf("To print", "Conversations", "Writers").forEachIndexed { i, label -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label) }) }
     }
-    when (tab) {
-      0 -> QueueTab(onLetter)
-      1 -> conversations()
-      else -> WritersTab(onAddWriter, onNewLetter, onHandoff)
+    // When the group key opens, letters that were locked become readable: rebuilding the tab
+    // under a new key re-runs its resume effect, which refreshes the list.
+    val keyOpen = hiltViewModel<GroupKeyViewModel>().keyState.collectAsStateWithLifecycle().value is me.paxana.abcmailbox.data.crypto.GroupKeyState.Ready
+    androidx.compose.runtime.key(keyOpen) {
+      when (tab) {
+        0 -> QueueTab(onLetter)
+        1 -> conversations()
+        else -> WritersTab(onAddWriter, onNewLetter, onHandoff)
+      }
     }
   }
 }

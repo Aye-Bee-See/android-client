@@ -39,6 +39,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class LetterWorkRoute(val messageId: Int)
 @Serializable data object AddWriterRoute
 @Serializable data class HandoffRoute(val writerId: Int, val writerName: String)
+/** End-to-end servers: who in the group holds its key. */
+@Serializable data object GroupKeyRoute
 @Serializable data object AccountRoute
 @Serializable data object LoginRoute
 /** `token` is set when the screen was opened by a claim link. */

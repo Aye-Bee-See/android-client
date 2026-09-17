@@ -90,6 +90,7 @@ fun ThreadScreen(
           busyMessageId = ui.busyMessageId,
           onPrisoner = onPrisoner,
           onOpen = viewModel::open,
+          mayChange = me.paxana.abcmailbox.domain.mayChangeLetters(ui.isStaff, ui.staffGroupId, t.value.writer),
           onEdit = { onEdit(t.value.prisonerId, it) },
           onDelete = { confirmDelete = it },
         )
@@ -136,6 +137,7 @@ private fun ThreadBody(
   busyMessageId: Int?,
   onPrisoner: (Int) -> Unit,
   onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit,
+  mayChange: Boolean,
   onEdit: (Int) -> Unit,
   onDelete: (Int) -> Unit,
 ) {
@@ -164,14 +166,14 @@ private fun ThreadBody(
       item("empty") { Text("No letters in this conversation yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
     }
     items(thread.letters, key = { it.id }) { letter ->
-      LetterCard(letter, busy = busyMessageId == letter.id, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) })
+      LetterCard(letter, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) })
       HorizontalDivider()
     }
   }
 }
 
 @Composable
-private fun LetterCard(letter: Letter, busy: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
   Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(
@@ -216,7 +218,7 @@ private fun LetterCard(letter: Letter, busy: Boolean, onOpen: (me.paxana.abcmail
       LetterStatus.UNKNOWN -> ""
     }
     if (statusLine.isNotBlank()) Text(statusLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    if (letter.canEdit && !letter.locked) {
+    if (letter.canEdit && !letter.locked && mayChange) {
       Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }
         TextButton(onClick = onDelete, enabled = !busy) { Text("Delete", color = MaterialTheme.colorScheme.error) }

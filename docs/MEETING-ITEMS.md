@@ -37,6 +37,14 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 - **Facet data for filters.** The country chips on the lists are hard-coded from the web mock-ups. A facet endpoint (distinct countries, or counts per filter value) would make them data-driven. Low priority.
 
+## Groups and end-to-end encryption (API, web)
+
+- **Sharing a letter with a partner group is half a workflow.** The partner can read and print a shared letter, but cannot mark it printed or mailed, it never appears in their print queue, and in end-to-end mode the relay group of a letter cannot be changed. Decide: may any group holding an envelope move the status, or should there be an explicit hand-over of the letter to the partner? (Android plan, ask 10.)
+- **Key rotation is web-only.** Android will not build rotation: it re-seals everything a group holds in one request and a failure half-way locks the group out. The app survives rotations made on the web. Confirm the web developer is building it, and that the Group key page tells volunteers to go there when a member should lose access for good.
+- **A new group member can do nothing until someone hands them the key, and nobody is told.** The member sees a notice; the holders do not. Ask: a count of members waiting for the key on `GET /auth/member-keys` is already derivable; should the web and the app show holders a prompt ("Noor is waiting for the group key")?
+- **Writers made before the switch to end-to-end have no keypair.** The API lets the managing group set one once; Android does this automatically the first time a token or a letter needs it. The web client should do the same, or those writers cannot be written for.
+- **Who edits a managed writer's queued letter?** Android lets a group edit or delete queued letters only for writers it writes for (managed or anonymous), never for independent writers whose letters it merely relays. Confirm the web does the same.
+
 ## Decisions the Android side made alone (confirm or object)
 
 - **Scope order:** anonymous directory, then writer flows, then group-member flows. Admin stays web-only.

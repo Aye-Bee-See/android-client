@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -62,8 +64,12 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit) {
     )
     OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(code))) }) { Text("Copy") }
     AlertBanner("Write it on paper or put it in a password manager. Do not keep it only on this phone, and do not send it to anyone.")
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Checkbox(checked = saved, onCheckedChange = { saved = it }, modifier = Modifier.testTag("recovery-saved"))
+    // The whole row is the control: tapping the sentence ticks the box, and a screen reader hears one checkbox with its label.
+    Row(
+      verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+      modifier = Modifier.fillMaxWidth().toggleable(value = saved, role = Role.Checkbox, onValueChange = { saved = it }).padding(vertical = 12.dp).testTag("recovery-saved"),
+    ) {
+      Checkbox(checked = saved, onCheckedChange = null)
       Text("I have saved this code somewhere safe.", style = MaterialTheme.typography.bodyMedium)
     }
     Button(onClick = onSaved, enabled = saved, modifier = Modifier.fillMaxWidth().testTag("recovery-continue")) { Text("Continue") }

@@ -2,6 +2,20 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-17: group and custody keys live in memory only, and are checked when opened
+
+**Context.** A group member reads through up to three keys: their own, the group's (sealed to them), and those of unclaimed writers (sealed to the group). The member's own keypair is already kept on disk under an Android Keystore key so they are not asked for a password at every launch.
+
+**Decision.** Only the member's own key is persisted. `GroupKeyring` opens the group key and the custody keys from the server's copies once per sign-in (one `GET /auth/keys`, one `GET /auth/writers`), holds them in memory, and zeroes them at sign-out. Every sealed private key that is opened has its public key recomputed (`crypto_scalarmult_base`) and compared with the published one. Decoding stays synchronous: repositories call `codec.ready()` first, which is a no-op for writers and in server mode.
+
+**Consequences.** A stolen, unlocked phone yields what the signed-in member could read anyway, and nothing more is written to flash. A member removed from the group loses access at their next launch without any local clean-up. The cost is two small requests per launch for group members. A substituted key blob fails loudly instead of decrypting to garbage or, worse, being used to seal new letters.
+
+**Rejected.** Persisting the group key beside the member's (more secrets on disk for no user-visible gain). Making every decode function `suspend` so keys could load lazily (it ripples through every mapper and paging source for the sake of one fetch).
+
+## 2026-09-17: group key rotation stays on the website
+
+**Decision.** The app does not rotate group keys; it only survives rotations done elsewhere (409 `KeyVersionError`: reload the keyring, re-seal, retry once). Reasons in `docs/PLAN.md`, phase 6b.
+
 ## 2026-09-17: call `crypto_pwhash` directly, normalise secrets to NFKC
 
 **Context.** The Kotlin-to-Node interop test failed for a password containing "ä" while ASCII passwords passed. The ionspin binding's `PasswordHash.pwhash` passes `String.length` (UTF-16 units) as the password's byte length, so libsodium hashes a truncated UTF-8 sequence for any non-ASCII password and derives a different key than libsodium.js.

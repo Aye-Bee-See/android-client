@@ -17,11 +17,14 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.api.ApiResult
+import me.paxana.abcmailbox.data.crypto.GroupKeyState
 import me.paxana.abcmailbox.data.repo.GroupRepository
 import me.paxana.abcmailbox.data.repo.LettersRepository
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.Attachment
+import me.paxana.abcmailbox.domain.Group
+import me.paxana.abcmailbox.domain.GroupMember
 import me.paxana.abcmailbox.domain.IssuedToken
 import me.paxana.abcmailbox.domain.LetterStatus
 import me.paxana.abcmailbox.domain.ManagedWriter
@@ -70,6 +73,8 @@ data class LetterWorkUiState(
   val busy: Boolean = false,
   val notice: String? = null,
   val openFile: Pair<File, String>? = null,
+  /** End-to-end only: other relay groups of the facility this letter could be shared with. */
+  val partners: List<Group> = emptyList(),
 )
 
 /** One letter as the relay group sees it: who it goes to, what it says, and where it is in the queue. */
@@ -88,9 +93,23 @@ class LetterWorkViewModel(
 
   fun load() {
     viewModelScope.launch {
-      _ui.update { st -> st.copy(item = when (val r = group.queueItem(route.messageId)) {
+      val r = group.queueItem(route.messageId)
+      _ui.update { st -> st.copy(item = when (r) {
         is ApiResult.Success -> Loadable.Loaded(r.value)
         is ApiResult.Failure -> Loadable.Failed(r.error)
+      }) }
+      (r as? ApiResult.Success)?.value?.letter?.prisonerId?.let { id -> _ui.update { it.copy(partners = group.partnersFor(id)) } }
+    }
+  }
+
+  /** Seals this letter's content key to a partner relay group. The letter itself is not re-encrypted or moved. */
+  fun share(partner: Group) {
+    _ui.update { it.copy(busy = true) }
+    viewModelScope.launch {
+      val r = group.shareWith(route.messageId, partner.id)
+      _ui.update { it.copy(busy = false, notice = when (r) {
+        is ApiResult.Success -> "${partner.name} can now read this letter."
+        is ApiResult.Failure -> r.error.userMessage ?: "Could not share the letter."
       }) }
     }
   }
@@ -179,4 +198,63 @@ class HandoffViewModel(private val group: GroupRepository, private val route: Ha
       }
     }
   }
+}
+
+// End-to-end mode: the group's key ------------------------------------------------------------
+
+data class GroupKeyUiState(
+  val members: Loadable<List<GroupMember>> = Loadable.Loading,
+  val busy: Boolean = false,
+  val busyMemberId: Int? = null,
+  val error: String? = null,
+  val notice: String? = null,
+)
+
+/**
+ * The group key banner on the inbox and the members screen share this. The
+ * key's state lives in the repository (it is a fact about the session, not
+ * about a screen); this only adds what a screen needs around it.
+ */
+@HiltViewModel
+class GroupKeyViewModel @Inject constructor(private val group: GroupRepository) : ViewModel() {
+  val keyState: StateFlow<GroupKeyState> = group.keyState
+  private val _ui = MutableStateFlow(GroupKeyUiState())
+  val ui: StateFlow<GroupKeyUiState> = _ui.asStateFlow()
+
+  /** Asks the server again: another member may have set the key up, or handed it to this one, since the last look. */
+  fun refresh() { viewModelScope.launch { group.refreshKeyState() } }
+
+  fun setUp() {
+    if (_ui.value.busy) return
+    _ui.update { it.copy(busy = true, error = null) }
+    viewModelScope.launch {
+      val r = group.setUpGroupKey()
+      _ui.update {
+        it.copy(busy = false, error = (r as? ApiResult.Failure)?.error?.let { e -> e.userMessage ?: "Could not set up the group key." },
+          notice = if (r is ApiResult.Success) "The group key is set up. Hand it to the other members so they can read letters too." else null)
+      }
+    }
+  }
+
+  fun loadMembers() {
+    viewModelScope.launch {
+      _ui.update { it.copy(members = when (val r = group.members()) { is ApiResult.Success -> Loadable.Loaded(r.value); is ApiResult.Failure -> Loadable.Failed(r.error) }) }
+    }
+  }
+
+  fun hand(member: GroupMember) = change(member, "${member.name} can now read the group's letters, from their next sign-in or refresh.") { group.handKeyTo(member.id) }
+  fun stop(member: GroupMember) = change(member, "${member.name} will no longer be handed the group key.") { group.stopHandingKeyTo(member.id) }
+
+  private fun change(member: GroupMember, done: String, call: suspend () -> ApiResult<Unit>) {
+    if (_ui.value.busyMemberId != null) return
+    _ui.update { it.copy(busyMemberId = member.id, error = null, notice = null) }
+    viewModelScope.launch {
+      when (val r = call()) {
+        is ApiResult.Success -> { _ui.update { it.copy(busyMemberId = null, notice = done) }; loadMembers() }
+        is ApiResult.Failure -> _ui.update { it.copy(busyMemberId = null, error = r.error.userMessage ?: "That did not work. Please try again.") }
+      }
+    }
+  }
+
+  fun noticeShown() = _ui.update { it.copy(notice = null) }
 }

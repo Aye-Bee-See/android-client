@@ -69,6 +69,7 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
   val snackbar = remember { SnackbarHostState() }
   val context = LocalContext.current
   var confirmMailed by remember { mutableStateOf(false) }
+  var choosePartner by remember { mutableStateOf(false) }
 
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
   LaunchedEffect(ui.openFile) {
@@ -91,11 +92,26 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
           onPrint = { PrintLetter.print(context, "Letter to ${s.value.prisoner?.name ?: "prisoner"}", s.value.letter.body) },
           onOpen = viewModel::open,
           onThread = { s.value.letter.threadId?.let(onThread) },
+          canShare = ui.partners.isNotEmpty() && !s.value.letter.locked,
+          onShare = { choosePartner = true },
         )
       }
       SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter)) { Snackbar(it) }
     }
   }
+
+  if (choosePartner) AlertDialog(
+    onDismissRequest = { choosePartner = false },
+    title = { Text("Share with a partner group") },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("They will be able to read and print this letter. It stays in your queue: your group still marks it printed and mailed, so agree between you who posts it.", style = MaterialTheme.typography.bodyMedium)
+        ui.partners.forEach { g -> TextButton(onClick = { choosePartner = false; viewModel.share(g) }, modifier = Modifier.fillMaxWidth()) { Text(g.name) } }
+      }
+    },
+    confirmButton = {},
+    dismissButton = { TextButton(onClick = { choosePartner = false }) { Text("Cancel") } },
+  )
 
   if (confirmMailed) AlertDialog(
     onDismissRequest = { confirmMailed = false },
@@ -107,7 +123,10 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
 }
 
 @Composable
-private fun LetterWorkBody(item: QueueItem, busy: Boolean, onAdvance: () -> Unit, onPrint: () -> Unit, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onThread: () -> Unit) {
+private fun LetterWorkBody(
+  item: QueueItem, busy: Boolean, onAdvance: () -> Unit, onPrint: () -> Unit, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onThread: () -> Unit,
+  canShare: Boolean = false, onShare: () -> Unit = {},
+) {
   val letter = item.letter
   val p = item.prisoner
   Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -156,6 +175,8 @@ private fun LetterWorkBody(item: QueueItem, busy: Boolean, onAdvance: () -> Unit
       LetterStatus.MAILED -> Text("Mailed" + (letter.statusChangedAt?.let { " on ${it.longDate()}" } ?: "") + ". Nothing more to do.", color = MaterialTheme.colorScheme.onSurfaceVariant)
       else -> Unit
     }
+    // End-to-end only, and only where the facility has another relay group: the server permits no other readers.
+    if (canShare && letter.status != LetterStatus.MAILED) OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Share with a partner group") }
     TextButton(onClick = onThread) { Text("Open the conversation") }
   }
 }

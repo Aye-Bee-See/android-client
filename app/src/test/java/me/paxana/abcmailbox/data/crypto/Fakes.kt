@@ -64,4 +64,40 @@ class FakeCryptoEngine : CryptoEngine {
   override fun decryptText(ciphertext: String, nonce: String, contentKey: ByteArray) = ciphertext.removePrefix("enc[").removeSuffix("]")
   override fun encryptFile(bytes: ByteArray, contentKey: ByteArray) = bytes.reversedArray() to "file-nonce"
   override fun decryptFile(ciphertext: ByteArray, nonce: String, contentKey: ByteArray) = ciphertext.reversedArray()
+
+  // Group side. Public keys travel as base64, so the fake's readable names are base64 of e.g. "PUB-GROUP".
+  private val b64 = java.util.Base64.getEncoder()
+  fun publicText(kp: Sodium.KeyPair): String = b64.encodeToString(kp.publicKey)
+  fun keyPairForBase64(publicKey: String) = keyPairFor(String(java.util.Base64.getDecoder().decode(publicKey)))
+  var nextNewKey = "PUB-MADE"
+  var nextToken = "T0KENT0KENT0KENT0KENT0KE"
+
+  override fun newKeyPairSealedTo(holderPublicKey: String): me.paxana.abcmailbox.crypto.SealedKeyPair {
+    val kp = keyPairFor(nextNewKey)
+    return me.paxana.abcmailbox.crypto.SealedKeyPair(kp, publicText(kp), sealPrivateKey(kp.privateKey, holderPublicKey))
+  }
+  override fun sealPrivateKey(privateKey: ByteArray, holderPublicKey: String) = "sealedkey(${String(privateKey)})to($holderPublicKey)"
+  override fun openSealedKey(sealedPrivateKey: String, holder: Sodium.KeyPair, expectedPublicKey: String?): Sodium.KeyPair {
+    val m = Regex("""sealedkey\(private-of-(.+)\)to\((.+)\)""").matchEntire(sealedPrivateKey) ?: throw IllegalStateException("not a sealed key")
+    if (m.groupValues[2] != publicText(holder)) throw IllegalStateException("not sealed to this holder")
+    val kp = keyPairFor(m.groupValues[1])
+    if (expectedPublicKey != null && expectedPublicKey != publicText(kp)) throw me.paxana.abcmailbox.crypto.KeyMismatchException()
+    return kp
+  }
+  override suspend fun newClaimToken(writerPrivateKey: ByteArray) = me.paxana.abcmailbox.crypto.NewClaimToken(
+    nextToken, "hash($nextToken)", WrappedKey("wrapped(${String(writerPrivateKey)})under($nextToken)", "claim-salt", KdfParams()))
+  override fun sealContentKey(contentKey: ByteArray, reader: Reader) = Envelope(reader.type, reader.id, "sealed(${String(contentKey)})to(${reader.publicKey})", reader.keyVersion)
+}
+
+/** A keyring whose contents a test sets directly. `loads` counts how often it was asked, `forced` how often it was told to look again. */
+class FakeKeyring(initial: GroupKeyState = GroupKeyState.NotNeeded) : GroupKeyring {
+  override val state = MutableStateFlow(initial)
+  val custody = mutableMapOf<Int, Sodium.KeyPair>()
+  var loads = 0
+  var forced = 0
+  override suspend fun load(force: Boolean): GroupKeyState { loads++; if (force) forced++; return state.value }
+  override fun groupKey(): GroupKey? = (state.value as? GroupKeyState.Ready)?.key
+  override fun writerKey(writerId: Int): Sodium.KeyPair? = custody[writerId]
+  override fun remember(writerId: Int, keyPair: Sodium.KeyPair) { custody[writerId] = keyPair }
+  override fun forget() { custody.clear(); state.value = GroupKeyState.NotNeeded }
 }

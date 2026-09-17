@@ -36,8 +36,21 @@ class LetterCodec @Inject constructor(
   private val sessions: SessionRepository,
   private val authApi: AuthApi,
   private val json: Json,
+  private val keyring: GroupKeyring,
 ) {
-  private val myId: Int? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
+  // Not called `me`: that would shadow the `me.paxana…` package root inside this class.
+  private val viewer get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user
+  private val myId: Int? get() = viewer?.id
+
+  /**
+   * Call before decoding anything. For a group member on an end-to-end server it
+   * loads the group key and the custody keys once, so [incoming] and [preview]
+   * can stay plain functions; for everyone else it returns at once.
+   */
+  suspend fun ready() { if (viewer?.isStaff == true) keyring.load() }
+
+  /** After a 409 KeyVersionError: some group rotated its key, possibly ours, so open it again before re-sealing. */
+  suspend fun refreshKeys() { if (viewer?.isStaff == true) keyring.load(force = true) }
 
   suspend fun isEndToEnd(): Boolean = modes.current() == EncryptionMode.E2E
 
@@ -53,27 +66,43 @@ class LetterCodec @Inject constructor(
         ) to null
       )
     }
-    if (letter.asWriterId != null || letter.fromPrisoner) {
-      return ApiResult.Failure(AppError.Validation(listOf("On an end-to-end server, letters written by a group need the group's key. That arrives in the next build.")))
-    }
-    val me = myId ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
-    val keyPair = vault.keyPair(me) ?: return ApiResult.Failure(LOCKED)
-    val readers = mutableListOf(Reader(Reader.USER, me, Base64.getEncoder().encodeToString(keyPair.publicKey)))
-    letter.relayChapter?.let { groupId ->
-      when (val r = apiCall(json) { authApi.publicKey(chapter = groupId) }) {
-        is ApiResult.Failure -> return r
-        is ApiResult.Success -> {
-          val pk = r.value.data?.publicKey ?: return ApiResult.Failure(
-            AppError.Validation(listOf("That relay group has not set up encryption yet, so it cannot receive letters. Choose another group or ask them to finish setting up."))
-          )
-          readers += Reader(Reader.CHAPTER, groupId, pk, r.value.data?.keyVersion)
+    val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
+    val readers = mutableListOf<Reader>()
+    if (user.isStaff) {
+      // A group member writes as the group: anonymously, for a writer it manages, or recording a reply.
+      val group = when (val s = keyring.load()) {
+        is GroupKeyState.Ready -> s.key
+        else -> return ApiResult.Failure(s.asError())
+      }
+      letter.asWriterId?.let { writerId ->
+        when (val r = publicKeyOf(user = writerId)) {
+          is ApiResult.Failure -> return r
+          is ApiResult.Success -> readers += Reader(Reader.USER, writerId, r.value.first
+            ?: return ApiResult.Failure(AppError.Validation(listOf("This writer has no encryption key yet, so nothing can be sealed to them. They get one the first time they sign in."))))
         }
       }
+      // The group keeps its own envelope wherever the server permits one: as the manager of the writer
+      // (which includes its anonymous writer), or as a relay group of the facility.
+      val groupMayRead = letter.asWriterId == null || keyring.writerKey(letter.asWriterId) != null || letter.groupRelaysFacility || letter.relayChapter == group.groupId
+      if (groupMayRead) readers += Reader(Reader.CHAPTER, group.groupId, group.publicKey, group.version)
+    } else {
+      val keyPair = vault.keyPair(user.id) ?: return ApiResult.Failure(LOCKED)
+      readers += Reader(Reader.USER, user.id, Base64.getEncoder().encodeToString(keyPair.publicKey))
     }
-    val enc = engine.encryptLetter(letter.body, letter.relayNote, readers)
+    letter.relayChapter?.takeIf { groupId -> !letter.fromPrisoner && readers.none { it.type == Reader.CHAPTER && it.id == groupId } }?.let { groupId ->
+      when (val r = publicKeyOf(chapter = groupId)) {
+        is ApiResult.Failure -> return r
+        is ApiResult.Success -> readers += Reader(Reader.CHAPTER, groupId, r.value.first ?: return ApiResult.Failure(
+          AppError.Validation(listOf("That relay group has not set up encryption yet, so it cannot receive letters. Choose another group or ask them to finish setting up."))
+        ), r.value.second)
+      }
+    }
+    val enc = engine.encryptLetter(letter.body, letter.relayNote?.takeIf { it.isNotBlank() && !letter.fromPrisoner }, readers)
     val request = SendMessageRequest(
       prisoner = letter.prisonerId,
-      relayChapter = letter.relayChapter,
+      sender = sender,
+      user = letter.asWriterId,
+      relayChapter = letter.relayChapter.takeIf { !letter.fromPrisoner },
       ciphertext = enc.body.ciphertext,
       nonce = enc.body.nonce,
       relayNoteCiphertext = enc.relayNote?.ciphertext,
@@ -116,15 +145,60 @@ class LetterCodec @Inject constructor(
   /** The letter's content key, from the envelope sealed to this account. Null when locked or not a reader. */
   fun contentKey(dto: MessageDto): ByteArray? = openMine(dto.envelopes)
 
+  /**
+   * A writer has one way in: the envelope sealed to them. A group member has up to three:
+   * their own, the group's, and those of writers whose keys the group holds in custody.
+   */
   private fun openMine(envelopes: List<EnvelopeDto>?): ByteArray? {
-    val me = myId ?: return null
-    val keyPair = vault.keyPair(me) ?: return null
-    val mine = envelopes?.firstOrNull { it.readerType == Reader.USER && it.readerId == me } ?: return null
-    return runCatching { engine.openEnvelope(mine.wrappedKey, keyPair) }.getOrNull()
+    val user = viewer ?: return null
+    if (envelopes.isNullOrEmpty()) return null
+    val group = if (user.isStaff) keyring.groupKey() else null
+    for (e in envelopes) {
+      val keyPair = when {
+        e.readerType == Reader.USER && e.readerId == user.id -> vault.keyPair(user.id)
+        e.readerType == Reader.CHAPTER && e.readerId == group?.groupId -> group.keyPair
+        e.readerType == Reader.USER && group != null -> keyring.writerKey(e.readerId)
+        else -> null
+      } ?: continue
+      runCatching { engine.openEnvelope(e.wrappedKey, keyPair) }.getOrNull()?.let { return it }
+    }
+    return null
+  }
+
+  /** Base64 public key and, for groups, the key version. A rotation makes a cached copy wrong, so this always asks. */
+  private suspend fun publicKeyOf(user: Int? = null, chapter: Int? = null): ApiResult<Pair<String?, Int?>> =
+    when (val r = apiCall(json) { authApi.publicKey(user = user, chapter = chapter) }) {
+      is ApiResult.Failure -> r
+      is ApiResult.Success -> ApiResult.Success(r.value.data?.publicKey to r.value.data?.keyVersion)
+    }
+
+  /**
+   * Forwarding: one more envelope for a partner relay group, sealed from the content key this
+   * reader already holds. The letter itself is never re-encrypted.
+   */
+  suspend fun envelopeFor(dto: MessageDto, groupId: Int): ApiResult<EnvelopeDto> {
+    ready()
+    val key = contentKey(dto) ?: return ApiResult.Failure(LOCKED)
+    return when (val r = publicKeyOf(chapter = groupId)) {
+      is ApiResult.Failure -> r
+      is ApiResult.Success -> {
+        val publicKey = r.value.first ?: return ApiResult.Failure(AppError.Validation(listOf("That group has not set up encryption yet, so it cannot be given this letter.")))
+        engine.sealContentKey(key, Reader(Reader.CHAPTER, groupId, publicKey, r.value.second)).let { ApiResult.Success(EnvelopeDto(it.readerType, it.readerId, it.wrappedKey, it.keyVersion)) }
+      }
+    }
   }
 
   fun encryptFile(bytes: ByteArray, contentKey: ByteArray): Pair<ByteArray, String> = engine.encryptFile(bytes, contentKey)
   fun decryptFile(ciphertext: ByteArray, nonce: String, contentKey: ByteArray): ByteArray = engine.decryptFile(ciphertext, nonce, contentKey)
+
+  /** A sentence for each reason a group member cannot use the group key yet. */
+  private fun GroupKeyState.asError(): AppError = when (this) {
+    is GroupKeyState.Failed -> error
+    GroupKeyState.Locked -> LOCKED
+    is GroupKeyState.NotSetUp -> AppError.Forbidden("Your group has not set up its encryption key yet. Open the Inbox and choose \"Set up the group key\".")
+    is GroupKeyState.NotHeld -> AppError.Forbidden("You have not been given your group's key yet. Ask a member who holds it to hand it to you from their Inbox.")
+    else -> AppError.Unexpected(IllegalStateException("The group key is not available."))
+  }
 
   companion object {
     val LOCKED = AppError.Forbidden("Your letters are locked on this device. Unlock them with your password first.")

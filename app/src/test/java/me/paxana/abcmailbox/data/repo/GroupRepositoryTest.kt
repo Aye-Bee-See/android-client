@@ -9,6 +9,11 @@ import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.api.AuthApi
 import me.paxana.abcmailbox.data.api.GroupApi
+import me.paxana.abcmailbox.data.api.LettersApi
+import me.paxana.abcmailbox.data.crypto.FakeKeyring
+import me.paxana.abcmailbox.data.crypto.GroupKey
+import me.paxana.abcmailbox.data.crypto.GroupKeyState
+import me.paxana.abcmailbox.data.session.SessionUser
 import me.paxana.abcmailbox.data.crypto.EncryptionMode
 import me.paxana.abcmailbox.data.crypto.FakeCryptoEngine
 import me.paxana.abcmailbox.data.crypto.FixedMode
@@ -27,6 +32,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -38,13 +44,31 @@ class GroupRepositoryTest {
   private val server = MockWebServer()
   private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; explicitNulls = false }
   private lateinit var repo: DefaultGroupRepository
+  private val engine = FakeCryptoEngine()
+  private val vault = InMemoryVault()
+  private val keyring = FakeKeyring()
+  private val sessions = FakeSessionRepository()
+  private val groupPair get() = engine.keyPairFor("PUB-GROUP")
+  private val groupPublic get() = engine.publicText(groupPair)
+
+  private fun build(mode: EncryptionMode): DefaultGroupRepository {
+    val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
+    val authApi = retrofit.create(AuthApi::class.java)
+    val codec = LetterCodec(FixedMode(mode), engine, vault, sessions, authApi, json, keyring)
+    return DefaultGroupRepository(retrofit.create(GroupApi::class.java), ComposeViewModelTest.FakeLetters(), NoDirectory, codec, json, keyring, engine, vault, sessions, authApi, retrofit.create(LettersApi::class.java))
+  }
+
+  /** A member of group 1 who holds its key (version 3), on an end-to-end server. */
+  private fun endToEnd(): DefaultGroupRepository {
+    sessions.signInAs(SessionUser(9, "member1", "Sam", null, "chapter", 1))
+    keyring.state.value = GroupKeyState.Ready(GroupKey(1, groupPair, groupPublic, 3))
+    return build(EncryptionMode.E2E)
+  }
 
   @Before
   fun setUp() {
     server.start()
-    val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
-    val codec = LetterCodec(FixedMode(EncryptionMode.SERVER), FakeCryptoEngine(), InMemoryVault(), FakeSessionRepository(), retrofit.create(AuthApi::class.java), json)
-    repo = DefaultGroupRepository(retrofit.create(GroupApi::class.java), ComposeViewModelTest.FakeLetters(), NoDirectory, codec, json)
+    repo = build(EncryptionMode.SERVER)
   }
 
   @After fun tearDown() = server.shutdown()
@@ -101,6 +125,96 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"info":"Your group is pending approval by a network admin.","status":403}"""))
     val r = repo.writers() as ApiResult.Failure
     assertEquals(AppError.Forbidden("Your group is pending approval by a network admin."), r.error)
+  }
+
+  // End-to-end ------------------------------------------------------------------------------------
+
+  @Test
+  fun `an end-to-end writer gets a keypair made here, sealed to the group key of the version this device holds`() = runTest {
+    val e2e = endToEnd(); engine.nextNewKey = "PUB-MARIA"
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"id":47,"name":"Maria T.","managedBy":1},"success":true,"status":201}"""))
+    e2e.addWriter("Maria T.", null, null)
+    val maria = engine.publicText(engine.keyPairFor("PUB-MARIA"))
+    assertEquals("""{"name":"Maria T.","publicKey":"$maria","orgWrappedPrivateKey":"sealedkey(private-of-PUB-MARIA)to($groupPublic)","orgKeyVersion":3}""", server.takeRequest().body.readUtf8())
+    assertEquals("usable at once, without reloading the keyring", "private-of-PUB-MARIA", String(keyring.writerKey(47)!!.privateKey))
+  }
+
+  @Test
+  fun `a rotated group key is opened again and the writer sealed to the new one, once`() = runTest {
+    val e2e = endToEnd()
+    server.enqueue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"KeyVersionError","error":"The group key was rotated.","status":409}"""))
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"id":47,"name":"Maria T.","managedBy":1},"success":true,"status":201}"""))
+    assertTrue(e2e.addWriter("Maria T.", null, null) is ApiResult.Success)
+    assertEquals(1, keyring.forced); assertEquals(2, server.requestCount)
+  }
+
+  @Test
+  fun `an end-to-end claim token never reaches the server, only its hash and the key wrapped under it`() = runTest {
+    val e2e = endToEnd(); keyring.custody[44] = engine.keyPairFor("PUB-ALEX"); engine.nextToken = "R60GRVGC3V007NS41T6ZAPXG"
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"writer":44,"expiresAt":"2026-09-20T22:20:47.692Z"},"success":true,"status":201}"""))
+    val issued = (e2e.issueToken(44) as ApiResult.Success).value
+    assertEquals("R60GRVGC3V007NS41T6ZAPXG", issued.token); assertNotNull(issued.expiresAt)
+    val sent = server.takeRequest().body.readUtf8()
+    assertFalse("the token itself must not be in the request", sent.contains("R60GRVGC3V007NS41T6ZAPXG\"") && !sent.contains("hash("))
+    assertEquals("""{"writer":44,"tokenHash":"hash(R60GRVGC3V007NS41T6ZAPXG)","claimWrappedPrivateKey":"wrapped(private-of-PUB-ALEX)under(R60GRVGC3V007NS41T6ZAPXG)","claimSalt":"claim-salt","claimKdfParams":{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}}""", sent)
+  }
+
+  @Test
+  fun `a writer from before encryption is given a keypair the first time a token is made for them`() = runTest {
+    val e2e = endToEnd(); engine.nextNewKey = "PUB-OLD"
+    server.enqueue(MockResponse().setBody("""{"data":[{"id":45,"name":"Old","managedBy":1}],"success":true,"status":200}"""))
+    server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"writer":45,"expiresAt":null},"success":true,"status":201}"""))
+    assertTrue(e2e.issueToken(45) is ApiResult.Success)
+    assertEquals("/auth/writers?page_size=100", server.takeRequest().path)
+    val put = server.takeRequest()
+    assertEquals("PUT", put.method); assertEquals("/auth/user", put.path)
+    assertEquals("""{"id":45,"publicKey":"${engine.publicText(engine.keyPairFor("PUB-OLD"))}","orgWrappedPrivateKey":"sealedkey(private-of-PUB-OLD)to($groupPublic)","orgKeyVersion":3}""", put.body.readUtf8())
+    assertTrue(server.takeRequest().body.readUtf8().contains("wrapped(private-of-PUB-OLD)"))
+  }
+
+  @Test
+  fun `setting up the group key seals it to this member and then looks at the server's view again`() = runTest {
+    sessions.signInAs(SessionUser(9, "member1", "Sam", null, "chapter", 1)); vault.store(9, engine.keyPairFor("PUB-MEMBER"))
+    val e2e = build(EncryptionMode.E2E); engine.nextNewKey = "PUB-GROUP"
+    server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    assertTrue(e2e.setUpGroupKey() is ApiResult.Success)
+    val member = engine.publicText(engine.keyPairFor("PUB-MEMBER"))
+    assertEquals("""{"chapter":1,"publicKey":"$groupPublic","wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to($member)"}""", server.takeRequest().body.readUtf8())
+    assertEquals(1, keyring.forced)
+  }
+
+  @Test
+  fun `the key is handed to a member sealed to their public key, and not at all to one who has none`() = runTest {
+    val e2e = endToEnd()
+    val members = """{"data":{"chapter":1,"publicKey":"$groupPublic","keyVersion":3,"members":[{"id":9,"username":"member1","name":"Sam","publicKey":"PUB-SAM","holdsGroupKey":true},{"id":10,"username":"member2","name":"","publicKey":"PUB-NOOR","holdsGroupKey":false},{"id":11,"username":"member3","publicKey":null,"holdsGroupKey":false}]},"success":true,"status":200}"""
+    server.enqueue(MockResponse().setBody(members))
+    val listed = (e2e.members() as ApiResult.Success).value
+    assertEquals(listOf("Sam", "member2", "member3"), listed.map { it.name })
+    assertTrue(listed[0].isMe); assertFalse(listed[2].hasOwnKey)
+    server.takeRequest()
+
+    server.enqueue(MockResponse().setBody(members)); server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    assertTrue(e2e.handKeyTo(10) is ApiResult.Success)
+    server.takeRequest()
+    assertEquals("""{"chapter":1,"user":10,"wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to(PUB-NOOR)"}""", server.takeRequest().body.readUtf8())
+
+    server.enqueue(MockResponse().setBody(members))
+    assertTrue(e2e.handKeyTo(11) is ApiResult.Failure)
+    assertEquals("only the members list was asked for", 4, server.requestCount)
+  }
+
+  @Test
+  fun `sharing posts one envelope for the partner group and leaves the letter alone`() = runTest {
+    val e2e = endToEnd()
+    server.enqueue(MockResponse().setBody("""{"data":{"id":7,"chat":1,"sender":"user","prisoner":3,"ciphertext":"enc[x]","nonce":"n","envelopes":[{"readerType":"chapter","readerId":1,"wrappedKey":"${engine.sealedTo(groupPair)}"}]},"success":true,"status":200}"""))
+    server.enqueue(MockResponse().setBody("""{"data":{"chapter":2,"publicKey":"PUB-PARTNER","keyVersion":5},"success":true,"status":200}"""))
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
+    assertTrue(e2e.shareWith(7, 2) is ApiResult.Success)
+    server.takeRequest(); server.takeRequest()
+    val post = server.takeRequest()
+    assertEquals("/messaging/envelope", post.path)
+    assertEquals("""{"message":7,"readerType":"chapter","readerId":2,"wrappedKey":"sealed(KEY)to(PUB-PARTNER)","keyVersion":5}""", post.body.readUtf8())
   }
 
   private object NoDirectory : DirectoryRepository {

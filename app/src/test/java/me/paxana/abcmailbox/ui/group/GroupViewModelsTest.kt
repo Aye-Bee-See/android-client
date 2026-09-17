@@ -1,5 +1,10 @@
 package me.paxana.abcmailbox.ui.group
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import me.paxana.abcmailbox.crypto.Sodium
+import me.paxana.abcmailbox.data.crypto.GroupKey
+import me.paxana.abcmailbox.data.crypto.GroupKeyState
+import me.paxana.abcmailbox.domain.GroupMember
 import androidx.paging.PagingData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,6 +55,58 @@ class GroupViewModelsTest {
     override suspend fun addWriter(name: String, email: String?, note: String?) = ApiResult.Success(ManagedWriter(47, name.trim(), email, note, null))
     override suspend fun issueToken(writerId: Int) = ApiResult.Success(IssuedToken("TOKEN${++issued}", null))
     override suspend fun revokeToken(writerId: Int): ApiResult<Unit> { revoked++; return ApiResult.Success(Unit) }
+
+    // The group key: a test sets the state and the members, and reads back what was asked for.
+    override val keyState = MutableStateFlow<GroupKeyState>(GroupKeyState.NotNeeded)
+    var team = listOf(GroupMember(9, "Sam", hasOwnKey = true, holdsGroupKey = true, isMe = true), GroupMember(10, "Noor", hasOwnKey = true, holdsGroupKey = false, isMe = false))
+    val handed = mutableListOf<Int>(); val stopped = mutableListOf<Int>(); val shared = mutableListOf<Pair<Int, Int>>()
+    var partners = emptyList<me.paxana.abcmailbox.domain.Group>()
+    override suspend fun refreshKeyState() = keyState.value
+    override suspend fun setUpGroupKey(): ApiResult<Unit> { refuse?.let { return ApiResult.Failure(it) }; keyState.value = GroupKeyState.Ready(GroupKey(1, Sodium.KeyPair(ByteArray(1), ByteArray(1)), "PUB", 1)); return ApiResult.Success(Unit) }
+    override suspend fun members() = ApiResult.Success(team)
+    override suspend fun handKeyTo(memberId: Int): ApiResult<Unit> {
+      refuse?.let { return ApiResult.Failure(it) }
+      handed += memberId; team = team.map { if (it.id == memberId) it.copy(holdsGroupKey = true) else it }; return ApiResult.Success(Unit)
+    }
+    override suspend fun stopHandingKeyTo(memberId: Int): ApiResult<Unit> { stopped += memberId; team = team.map { if (it.id == memberId) it.copy(holdsGroupKey = false) else it }; return ApiResult.Success(Unit) }
+    override suspend fun partnersFor(prisonerId: Int) = partners
+    override suspend fun shareWith(messageId: Int, partnerGroupId: Int): ApiResult<Unit> { refuse?.let { return ApiResult.Failure(it) }; shared += messageId to partnerGroupId; return ApiResult.Success(Unit) }
+  }
+
+  @Test
+  fun `setting up the group key opens it, and a refusal is shown in the API's words`() = runTest {
+    val group = FakeGroup(); val vm = GroupKeyViewModel(group)
+    vm.setUp(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(vm.keyState.value is GroupKeyState.Ready)
+    assertTrue(vm.ui.value.notice!!.contains("Hand it to the other members"))
+
+    val late = GroupKeyViewModel(FakeGroup(refuse = AppError.Conflict("This group already has keys.")))
+    late.setUp(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("This group already has keys.", late.ui.value.error)
+    assertFalse(late.ui.value.busy)
+  }
+
+  @Test
+  fun `handing the key to a member reloads the list, which then shows them as a holder`() = runTest {
+    val group = FakeGroup(); val vm = GroupKeyViewModel(group)
+    vm.loadMembers(); dispatcher.scheduler.advanceUntilIdle()
+    val noor = (vm.ui.value.members as Loadable.Loaded).value.first { it.name == "Noor" }
+    assertFalse(noor.holdsGroupKey)
+    vm.hand(noor); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(10), group.handed)
+    assertTrue((vm.ui.value.members as Loadable.Loaded).value.first { it.name == "Noor" }.holdsGroupKey)
+    assertNull(vm.ui.value.busyMemberId)
+  }
+
+  @Test
+  fun `a letter is shared with a partner group by name, and only partners the repository offers are listed`() = runTest {
+    val group = FakeGroup().apply { partners = listOf(me.paxana.abcmailbox.domain.Group(2, "Northside ABC", null, null, null, null, null, emptyMap(), emptyList(), null, "relay", "active", emptyList(), emptyList(), null)) }
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf("Northside ABC"), vm.ui.value.partners.map { it.name })
+    vm.share(vm.ui.value.partners.single()); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(41 to 2), group.shared)
+    assertEquals("Northside ABC can now read this letter.", vm.ui.value.notice)
   }
 
   @Test

@@ -90,6 +90,10 @@ abstract class BindingsModule {
   abstract fun groupRepository(impl: DefaultGroupRepository): GroupRepository
 
   @Binds
+  @Singleton
+  abstract fun groupKeyring(impl: me.paxana.abcmailbox.data.crypto.DefaultGroupKeyring): me.paxana.abcmailbox.data.crypto.GroupKeyring
+
+  @Binds
   abstract fun draftsRepository(impl: DefaultDraftsRepository): DraftsRepository
 
   @Binds

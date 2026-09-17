@@ -22,7 +22,7 @@ Requires JDK 17 or newer on the path (Android Studio's bundled JDK works). Andro
 ./gradlew :crypto:test :app:assembleDebug
 ```
 
-One build works against both API modes: the app asks `GET /health` which letter contract the server speaks (`server` or `e2e`) and encrypts on the device when it must. The crypto is proven against libsodium.js in both directions; see `tools/` (`npm install` there once, then `node make-e2e-fixture.mjs`, `node verify-kotlin-fixture.mjs`, `node verify-account.mjs`).
+One build works against both API modes: the app asks `GET /health` which letter contract the server speaks (`server` or `e2e`) and encrypts on the device when it must. The crypto is proven against libsodium.js in both directions; see `tools/` (`npm install` there once, then `node make-e2e-fixture.mjs`, `node verify-kotlin-fixture.mjs`, `node verify-account.mjs`; for the group side, `node verify-claim-token.mjs`, `node verify-member-holds-group-key.mjs`, `node verify-group-can-read.mjs`).
 
 ## Run against a local API
 

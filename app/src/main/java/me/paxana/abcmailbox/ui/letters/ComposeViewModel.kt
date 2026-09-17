@@ -110,6 +110,7 @@ class ComposeViewModel(
   private val userId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
 
   private val isStaff: Boolean = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.isStaff == true
+  private val staffGroupId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.takeIf { it.isStaff }?.chapterId
   // Drafts belong to a writer's own letters; a group's letters for others are not drafted on this phone.
   private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && !isStaff
 
@@ -233,6 +234,8 @@ class ComposeViewModel(
       val letter = NewLetter(
         prisonerId = route.prisonerId, body = s.body, relayNote = s.note.ifBlank { null }, relayChapter = relayChapter,
         asWriterId = route.replyForUserId ?: route.writerId, fromPrisoner = route.replyForUserId != null,
+        // End-to-end: the server lets a group hold an envelope where it relays for the facility (or manages the writer).
+        groupRelaysFacility = staffGroupId != null && s.facility?.relayGroups?.any { it.id == staffGroupId } == true,
       )
       when (val r = letters.send(letter)) {
         is ApiResult.Failure -> _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric("Could not send the letter.")) }

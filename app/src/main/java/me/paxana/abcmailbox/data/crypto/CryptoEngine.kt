@@ -9,6 +9,10 @@ import me.paxana.abcmailbox.crypto.AccountKeyFields
 import me.paxana.abcmailbox.crypto.AccountKeys
 import me.paxana.abcmailbox.crypto.EncryptedLetter
 import me.paxana.abcmailbox.crypto.EncryptedText
+import me.paxana.abcmailbox.crypto.Envelope
+import me.paxana.abcmailbox.crypto.GroupKeys
+import me.paxana.abcmailbox.crypto.NewClaimToken
+import me.paxana.abcmailbox.crypto.SealedKeyPair
 import me.paxana.abcmailbox.crypto.KdfParams
 import me.paxana.abcmailbox.crypto.KeyWrapping
 import me.paxana.abcmailbox.crypto.LetterCipher
@@ -41,6 +45,17 @@ interface CryptoEngine {
   fun decryptText(ciphertext: String, nonce: String, contentKey: ByteArray): String
   fun encryptFile(bytes: ByteArray, contentKey: ByteArray): Pair<ByteArray, String>
   fun decryptFile(ciphertext: ByteArray, nonce: String, contentKey: ByteArray): ByteArray
+
+  // The group's side: see GroupKeys in :crypto.
+  /** A new keypair whose private half is sealed to [holderPublicKey]: a group for its first member, or a writer for the group. */
+  fun newKeyPairSealedTo(holderPublicKey: String): SealedKeyPair
+  /** Opens a private key sealed to [holder] and checks it against the public key the server publishes. */
+  fun openSealedKey(sealedPrivateKey: String, holder: Sodium.KeyPair, expectedPublicKey: String?): Sodium.KeyPair
+  fun sealPrivateKey(privateKey: ByteArray, holderPublicKey: String): String
+  /** Runs Argon2id, so it is slow and off the main thread. */
+  suspend fun newClaimToken(writerPrivateKey: ByteArray): NewClaimToken
+  /** One more envelope for a letter whose content key is already open (forwarding). */
+  fun sealContentKey(contentKey: ByteArray, reader: Reader): Envelope
 }
 
 @Singleton
@@ -78,4 +93,10 @@ class SodiumCryptoEngine @Inject constructor() : CryptoEngine {
   override fun decryptText(ciphertext: String, nonce: String, contentKey: ByteArray) = LetterCipher.decryptText(ciphertext, nonce, contentKey)
   override fun encryptFile(bytes: ByteArray, contentKey: ByteArray) = LetterCipher.encryptFile(bytes, contentKey)
   override fun decryptFile(ciphertext: ByteArray, nonce: String, contentKey: ByteArray) = LetterCipher.decryptFile(ciphertext, nonce, contentKey)
+
+  override fun newKeyPairSealedTo(holderPublicKey: String): SealedKeyPair { Sodium.initialize(); return GroupKeys.createSealedTo(holderPublicKey) }
+  override fun openSealedKey(sealedPrivateKey: String, holder: Sodium.KeyPair, expectedPublicKey: String?): Sodium.KeyPair { Sodium.initialize(); return GroupKeys.open(sealedPrivateKey, holder, expectedPublicKey) }
+  override fun sealPrivateKey(privateKey: ByteArray, holderPublicKey: String): String { Sodium.initialize(); return GroupKeys.sealPrivateKey(privateKey, holderPublicKey) }
+  override suspend fun newClaimToken(writerPrivateKey: ByteArray) = withContext(Dispatchers.Default) { Sodium.initialize(); GroupKeys.claimToken(writerPrivateKey) }
+  override fun sealContentKey(contentKey: ByteArray, reader: Reader): Envelope { Sodium.initialize(); return LetterCipher.seal(contentKey, reader) }
 }

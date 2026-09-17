@@ -35,6 +35,9 @@ class FakeSessionRepository(
     return ApiResult.Success(session)
   }
 
+  /** Tests that need a particular account (a group member, say) skip the sign-in form. */
+  fun signInAs(user: SessionUser) { _state.value = SessionState.SignedIn(Session("tok", 0L, user)) }
+
   override suspend fun logout(everywhere: Boolean): ApiResult<Unit> {
     _state.value = SessionState.SignedOut
     return ApiResult.Success(Unit)

@@ -148,7 +148,8 @@ class ComposeViewModelTest {
     vm.onBodyChange("Written at letter night"); dispatcher.scheduler.advanceTimeBy(700); dispatcher.scheduler.runCurrent()
     assertTrue("no draft for a letter written on someone's behalf", drafts.store.isEmpty())
     vm.send(); dispatcher.scheduler.advanceUntilIdle()
-    assertEquals(NewLetter(3, "Written at letter night", null, 7, asWriterId = 44, fromPrisoner = false), letters.sent.single())
+    // The member's group relays for this facility, which on an end-to-end server is what lets it hold an envelope.
+    assertEquals(NewLetter(3, "Written at letter night", null, 7, asWriterId = 44, fromPrisoner = false, groupRelaysFacility = true), letters.sent.single())
   }
 
   @Test

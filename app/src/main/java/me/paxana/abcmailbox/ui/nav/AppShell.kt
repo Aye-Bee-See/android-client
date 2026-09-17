@@ -16,6 +16,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,6 +72,15 @@ private val tabs = listOf(
  * pushed on top of whichever tab asked for it; when the session becomes
  * signed-in the login screen pops itself.
  */
+private const val ACCOUNT_UNKNOWN = Int.MIN_VALUE
+private const val NO_ACCOUNT = -1
+
+/** Screens that show one account's data. They are closed when the account changes. */
+private val accountScreens = listOf(
+  ThreadRoute::class, ComposeRoute::class, PickPrisonerRoute::class, LetterWorkRoute::class,
+  AddWriterRoute::class, HandoffRoute::class, GroupKeyRoute::class, ChangePasswordRoute::class,
+)
+
 @Composable
 fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val sessionState by viewModel.state.collectAsStateWithLifecycle()
@@ -87,6 +99,23 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   LaunchedEffect(Unit) {
     viewModel.expired.collect { snackbar.showSnackbar("Your session ended. Please sign in again.") }
   }
+  // When the account changes (sign-out, an expired session, or a different person signing in), nothing the
+  // previous account had open may stay reachable. Tabs keep a saved back stack each, so a thread opened by
+  // one account would otherwise still be sitting on the Inbox tab for the next one.
+  val accountId = (sessionState as? SessionState.SignedIn)?.session?.user?.id ?: NO_ACCOUNT
+  var lastAccountId by rememberSaveable { mutableIntStateOf(ACCOUNT_UNKNOWN) }
+  LaunchedEffect(accountId, sessionState is SessionState.Loading) {
+    if (sessionState is SessionState.Loading) return@LaunchedEffect
+    // Signing in from signed-out changes nothing that was private; every other change does.
+    if (lastAccountId != ACCOUNT_UNKNOWN && lastAccountId != NO_ACCOUNT && lastAccountId != accountId) {
+      navController.clearBackStack<DirectoryGraph>()
+      navController.clearBackStack<InboxGraph>()
+      navController.clearBackStack<AccountRoute>()
+      while (accountScreens.any { navController.currentDestination?.hasRoute(it) == true }) if (!navController.popBackStack()) break
+    }
+    lastAccountId = accountId
+  }
+
   // A recovery code was just created (first sign-in on an end-to-end server, or a claim):
   // it takes over the screen until the writer confirms they saved it.
   LaunchedEffect(pendingCode) {
@@ -177,6 +206,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
             onAddWriter = { navController.navigate(AddWriterRoute) },
             onGroupLetter = { writerId, writerName -> navController.navigate(PickPrisonerRoute(writerId, writerName)) },
             onHandoff = { navController.navigate(HandoffRoute(it.id, it.name)) },
+            onGroupKey = { navController.navigate(GroupKeyRoute) },
           )
         }
         composable<PickPrisonerRoute> { entry ->
@@ -201,6 +231,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           )
         }
         composable<HandoffRoute> { HandoffScreen(onBack = { navController.popBackStack() }) }
+        composable<GroupKeyRoute> { me.paxana.abcmailbox.ui.group.GroupKeyScreen(onBack = { navController.popBackStack() }) }
       }
       // Reachable from both tabs, so they live outside either graph.
       composable<ThreadRoute> {

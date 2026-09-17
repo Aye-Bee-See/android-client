@@ -40,6 +40,8 @@ data class NewLetter(
   val asWriterId: Int? = null,
   /** Group accounts: this is a prisoner's reply being recorded on `asWriterId`'s thread. */
   val fromPrisoner: Boolean = false,
+  /** Group accounts, end-to-end: the group is a relay group of this facility, so the server lets it hold an envelope. */
+  val groupRelaysFacility: Boolean = false,
 )
 
 data class LetterEdit(val messageId: Int, val body: String, val relayNote: String?, val relayChapter: Int?)
@@ -71,21 +73,28 @@ class DefaultLettersRepository @Inject constructor(
 
   override fun threads(): Flow<PagingData<Thread>> = Pager(PagingConfig(pageSize = 20, initialLoadSize = 20)) {
     PagePagingSource { page, size ->
+      codec.ready()
       apiCall(json) { api.chats(page = page, pageSize = size) }.map { env -> env.toPage().map { it.decoded() } }
     }
   }.flow
 
-  override suspend fun thread(chatId: Int): ApiResult<Thread> =
-    apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).decoded() }
+  override suspend fun thread(chatId: Int): ApiResult<Thread> {
+    codec.ready()
+    return apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).decoded() }
+  }
 
-  override suspend fun threadForPrisoner(prisonerId: Int): ApiResult<Thread?> =
-    when (val r = apiCall(json) { api.chatByPrisoner(prisonerId) }) {
+  override suspend fun threadForPrisoner(prisonerId: Int): ApiResult<Thread?> {
+    codec.ready()
+    return when (val r = apiCall(json) { api.chatByPrisoner(prisonerId) }) {
       is ApiResult.Success -> ApiResult.Success(r.value.data?.decoded())
       is ApiResult.Failure -> if (r.error is AppError.NotFound) ApiResult.Success(null) else r
     }
+  }
 
-  override suspend fun letter(messageId: Int): ApiResult<Letter> =
-    apiCall(json) { api.message(messageId) }.map { codec.incoming(checkNotNull(it.data)) }
+  override suspend fun letter(messageId: Int): ApiResult<Letter> {
+    codec.ready()
+    return apiCall(json) { api.message(messageId) }.map { codec.incoming(checkNotNull(it.data)) }
+  }
 
   override suspend fun send(letter: NewLetter): ApiResult<Letter> {
     // A 409 here means a group rotated its key between our lookup and the send: encode again
@@ -97,13 +106,14 @@ class DefaultLettersRepository @Inject constructor(
       }
       when (val r = apiCall(json) { api.send(request) }) {
         is ApiResult.Success -> return ApiResult.Success(codec.incoming(checkNotNull(r.value.data)))
-        is ApiResult.Failure -> if (r.error !is AppError.Conflict || attempt == 1) return r
+        is ApiResult.Failure -> if (r.error !is AppError.Conflict || attempt == 1) return r else codec.refreshKeys()
       }
     }
     error("unreachable")
   }
 
   override suspend fun edit(edit: LetterEdit): ApiResult<Unit> {
+    codec.ready()
     val existing = when (val r = apiCall(json) { api.message(edit.messageId) }) {
       is ApiResult.Failure -> return r
       is ApiResult.Success -> checkNotNull(r.value.data)
@@ -118,6 +128,7 @@ class DefaultLettersRepository @Inject constructor(
   override suspend fun delete(messageId: Int): ApiResult<Unit> = apiCall(json) { api.delete(IdBody(messageId)) }.map { }
 
   override suspend fun upload(messageId: Int, staged: StagedFile): ApiResult<Attachment> {
+    codec.ready()
     val messageField = messageId.toString().toRequestBody("text/plain".toMediaType())
     if (!codec.isEndToEnd()) {
       return apiCall(json) {
@@ -144,6 +155,7 @@ class DefaultLettersRepository @Inject constructor(
     apiCall(json) { api.deleteAttachment(IdBody(attachmentId)) }.map { }
 
   override suspend fun download(attachment: Attachment): ApiResult<File> {
+    codec.ready()
     val target = files.downloadTarget(attachment.id, attachment.name)
     if (target.exists() && target.length() == attachment.size) return ApiResult.Success(target)
     val nonce = attachment.nonce

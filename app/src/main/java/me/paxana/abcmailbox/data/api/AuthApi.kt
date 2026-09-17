@@ -103,6 +103,10 @@ data class UpdateUserRequest(
   val wrappedPrivateKey: String? = null,
   val kdfSalt: String? = null,
   val kdfParams: KdfParams? = null,
+  // End-to-end mode, managing group only, once: the keypair it made for an unclaimed writer who has none.
+  val publicKey: String? = null,
+  val orgWrappedPrivateKey: String? = null,
+  val orgKeyVersion: Int? = null,
 )
 
 @Serializable

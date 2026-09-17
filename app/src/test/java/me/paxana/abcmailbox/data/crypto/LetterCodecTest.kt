@@ -28,6 +28,7 @@ class LetterCodecTest {
   private val engine = FakeCryptoEngine()
   private val vault = InMemoryVault()
   private val sessions = FakeSessionRepository()
+  private val keyring = FakeKeyring()
   private lateinit var authApi: AuthApi
 
   @Before
@@ -40,7 +41,7 @@ class LetterCodecTest {
 
   @After fun tearDown() = server.shutdown()
 
-  private fun codec(mode: EncryptionMode) = LetterCodec(FixedMode(mode), engine, vault, sessions, authApi, json)
+  private fun codec(mode: EncryptionMode) = LetterCodec(FixedMode(mode), engine, vault, sessions, authApi, json, keyring)
 
   @Test
   fun `server mode passes plain text through and needs no keys`() = runTest {
@@ -116,5 +117,96 @@ class LetterCodecTest {
     val req = (codec(EncryptionMode.E2E).edit(LetterEdit(9, "edited body", null, 2), existing) as ApiResult.Success).value
     assertEquals("enc[edited body]", req.ciphertext)
     assertNull(req.messageText); assertNull(req.relayChapter); assertNull(req.relayNoteCiphertext)
+  }
+
+  // A group member on an end-to-end server ------------------------------------------------------
+
+  private val groupPair get() = engine.keyPairFor("PUB-GROUP")
+  private fun asMember() {
+    sessions.signInAs(me.paxana.abcmailbox.data.session.SessionUser(9, "member1", "Sam", null, "chapter", 1))
+    keyring.state.value = GroupKeyState.Ready(GroupKey(1, groupPair, "PUB-GROUP", 3))
+  }
+  private fun publicKey(body: String) = MockResponse().setBody("""{"data":$body,"success":true,"status":200}""")
+
+  @Test
+  fun `an anonymous group letter has one envelope, the group's own, and asks for no other key`() = runTest {
+    asMember()
+    val request = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "From a friend", null, relayChapter = 1)) as ApiResult.Success).value.first
+    assertEquals(listOf(EnvelopeDto("chapter", 1, "sealed(KEY)to(PUB-GROUP)", keyVersion = 3)), request.envelopes)
+    assertNull(request.user); assertEquals("user", request.sender)
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `a letter for a managed writer is sealed to the writer, the managing group, and a different relay group`() = runTest {
+    asMember(); keyring.custody[44] = engine.keyPairFor("PUB-ALEX")
+    server.enqueue(publicKey("""{"user":44,"publicKey":"PUB-ALEX"}"""))
+    server.enqueue(publicKey("""{"chapter":2,"publicKey":"PUB-RELAY","keyVersion":7}"""))
+    val request = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Hi", "note", relayChapter = 2, asWriterId = 44)) as ApiResult.Success).value.first
+    assertEquals("/auth/public-key?user=44", server.takeRequest().path)
+    assertEquals("/auth/public-key?chapter=2", server.takeRequest().path)
+    assertEquals(listOf(
+      EnvelopeDto("user", 44, "sealed(KEY)to(PUB-ALEX)"),
+      EnvelopeDto("chapter", 1, "sealed(KEY)to(PUB-GROUP)", keyVersion = 3),
+      EnvelopeDto("chapter", 2, "sealed(KEY)to(PUB-RELAY)", keyVersion = 7)), request.envelopes)
+    assertEquals(44, request.user); assertEquals("enc[note]", request.relayNoteCiphertext)
+  }
+
+  @Test
+  fun `a recorded reply is sealed to the writer, and to the group only where the server would allow it`() = runTest {
+    asMember()
+    server.enqueue(publicKey("""{"user":4,"publicKey":"PUB-WRITER"}"""))
+    val stranger = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Thank you", "ignored", relayChapter = null, asWriterId = 4, fromPrisoner = true)) as ApiResult.Success).value.first
+    assertEquals(listOf(EnvelopeDto("user", 4, "sealed(KEY)to(PUB-WRITER)")), stranger.envelopes)
+    assertEquals("prisoner", stranger.sender); assertNull(stranger.relayChapter); assertNull(stranger.relayNoteCiphertext)
+
+    server.enqueue(publicKey("""{"user":4,"publicKey":"PUB-WRITER"}"""))
+    val relayed = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Thank you", null, relayChapter = null, asWriterId = 4, fromPrisoner = true, groupRelaysFacility = true)) as ApiResult.Success).value.first
+    assertEquals(listOf("user" to 4, "chapter" to 1), relayed.envelopes!!.map { it.readerType to it.readerId })
+  }
+
+  @Test
+  fun `a member without the group key is told why, and nothing is sent anywhere`() = runTest {
+    asMember(); keyring.state.value = GroupKeyState.NotHeld(1)
+    val r = codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Hi", null, 1)) as ApiResult.Failure
+    assertTrue((r.error as AppError.Forbidden).info.contains("not been given your group's key"))
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `a writer with no key yet cannot be written for`() = runTest {
+    asMember()
+    server.enqueue(publicKey("""{"user":44,"publicKey":null}"""))
+    assertTrue(codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Hi", null, 1, asWriterId = 44)) is ApiResult.Failure)
+  }
+
+  @Test
+  fun `a member reads through the group's envelope, or through a writer's key held in custody, but not a stranger's`() = runTest {
+    asMember(); val c = codec(EncryptionMode.E2E)
+    fun dto(vararg envelopes: EnvelopeDto) = MessageDto(id = 7, chat = 1, sender = "user", prisoner = 3, ciphertext = "enc[Dear Jane]", nonce = "n", envelopes = envelopes.toList())
+    assertEquals("Dear Jane", c.incoming(dto(EnvelopeDto("chapter", 1, engine.sealedTo(groupPair)))).body)
+
+    val alex = engine.keyPairFor("PUB-ALEX")
+    assertTrue("custody key not loaded yet", c.incoming(dto(EnvelopeDto("user", 44, engine.sealedTo(alex)))).locked)
+    keyring.custody[44] = alex
+    assertEquals("Dear Jane", c.incoming(dto(EnvelopeDto("user", 44, engine.sealedTo(alex)))).body)
+
+    assertTrue(c.incoming(dto(EnvelopeDto("chapter", 2, "sealed(KEY)to(another group)"))).locked)
+  }
+
+  @Test
+  fun `ready loads the keyring for members only, and a rotation forces a second look`() = runTest {
+    val c = codec(EncryptionMode.E2E)
+    c.ready(); assertEquals("a writer never touches the keyring", 0, keyring.loads)
+    asMember(); c.ready(); c.refreshKeys()
+    assertEquals(2, keyring.loads); assertEquals(1, keyring.forced)
+  }
+
+  @Test
+  fun `sharing seals the letter's own content key to the partner, with the partner's key version`() = runTest {
+    asMember(); val c = codec(EncryptionMode.E2E)
+    server.enqueue(publicKey("""{"chapter":2,"publicKey":"PUB-PARTNER","keyVersion":5}"""))
+    val dto = MessageDto(id = 7, chat = 1, sender = "user", prisoner = 3, ciphertext = "enc[x]", nonce = "n", envelopes = listOf(EnvelopeDto("chapter", 1, engine.sealedTo(groupPair))))
+    assertEquals(EnvelopeDto("chapter", 2, "sealed(KEY)to(PUB-PARTNER)", keyVersion = 5), (c.envelopeFor(dto, 2) as ApiResult.Success).value)
   }
 }
