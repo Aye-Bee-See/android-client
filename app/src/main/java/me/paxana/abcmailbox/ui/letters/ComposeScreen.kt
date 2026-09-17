@@ -37,6 +37,7 @@ import me.paxana.abcmailbox.domain.RelayChoice
 import me.paxana.abcmailbox.ui.common.AlertBanner
 import me.paxana.abcmailbox.ui.common.DetailScaffold
 import me.paxana.abcmailbox.ui.common.LoadingBox
+import me.paxana.abcmailbox.ui.common.MailRulesList
 import me.paxana.abcmailbox.ui.common.SectionTitle
 
 /**
@@ -81,8 +82,7 @@ fun ComposeScreen(
 
         ui.facility?.let { f ->
           SectionTitle("Facility rules · ${f.name}")
-          if (f.rules.isEmpty()) Text("No rules recorded for this facility. Confirm with a support group before writing.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-          f.rules.forEach { r -> Text("• ${r.title}" + (r.description?.let { d -> ": $d" } ?: ""), style = MaterialTheme.typography.bodyMedium) }
+          MailRulesList(f.rules, emptyText = "No rules recorded for this facility. Confirm with a support group before writing.")
         }
 
         RelaySection(ui.relay, ui.selectedRelay, viewModel::onSelectRelay)
@@ -99,6 +99,11 @@ fun ComposeScreen(
           "${ui.characters} characters · ~${ui.pages} page${if (ui.pages == 1) "" else "s"}",
           style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        // What the rules mean for this particular letter: warnings in red, the rest as notes.
+        ui.advice.forEach { a ->
+          if (a.warning) AlertBanner("⚠ ${a.text}") else Text(a.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 
         if (ui.showNote) {
           OutlinedTextField(
@@ -122,7 +127,7 @@ fun ComposeScreen(
             TextButton(onClick = { viewModel.removeAttachment(f) }, enabled = !ui.sending) { Text("Remove") }
           }
         }
-        OutlinedButton(onClick = { picker.launch(ATTACHMENT_MIME_TYPES) }, enabled = !ui.sending) { Text("Attach a file") }
+        OutlinedButton(onClick = { picker.launch(ui.allowedAttachmentTypes) }, enabled = !ui.sending) { Text(if (ui.allowedAttachmentTypes.size == 1) "Attach a PDF" else "Attach a file") }
         Text("PDF, JPG, PNG, or WebP · max 20 MB. A scan of a handwritten letter works well.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }

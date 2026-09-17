@@ -12,6 +12,8 @@ import me.paxana.abcmailbox.data.api.map
 import me.paxana.abcmailbox.data.api.toPage
 import me.paxana.abcmailbox.domain.Facility
 import me.paxana.abcmailbox.domain.Group
+import me.paxana.abcmailbox.domain.MailRule
+import me.paxana.abcmailbox.domain.MailRuleCatalog
 import me.paxana.abcmailbox.domain.Prisoner
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,6 +60,23 @@ class DefaultDirectoryRepository @Inject constructor(
   private val json: Json,
 ) : DirectoryRepository {
 
+  @Volatile private var liveCatalog: MailRuleCatalog? = null
+
+  /**
+   * The live vocabulary, fetched once per process; the compiled-in copy if the
+   * server cannot be reached. It only changes with an API release, so there is
+   * no invalidation beyond restarting the app.
+   */
+  private suspend fun catalog(): MailRuleCatalog {
+    liveCatalog?.let { return it }
+    val fetched = (apiCall(json) { api.mailRuleVocabulary() } as? ApiResult.Success)?.value?.data ?: return MailRuleCatalog.Compiled
+    val compiled = MailRuleCatalog.Compiled
+    return MailRuleCatalog(
+      categories = fetched.categories,
+      rules = fetched.rules.map { r -> MailRule(r.tag, r.category, r.label ?: compiled.resolve(r.tag).label, r.description) },
+    ).also { liveCatalog = it }
+  }
+
   private val config = PagingConfig(pageSize = PAGE_SIZE, initialLoadSize = PAGE_SIZE, prefetchDistance = 5)
 
   override fun prisoners(filter: PrisonerFilter): Flow<PagingData<Prisoner>> = Pager(config) {
@@ -67,7 +86,7 @@ class DefaultDirectoryRepository @Inject constructor(
           q = filter.query.ifBlank { null }, prison = filter.facilityId, status = filter.status,
           country = filter.country, featured = filter.featured, sort = filter.sort, page = page, pageSize = size,
         )
-      }.map { env -> env.toPage().map { it.toDomain() } }
+      }.map { env -> val c = catalog(); env.toPage().map { it.toDomain(c) } }
     }
   }.flow
 
@@ -78,7 +97,7 @@ class DefaultDirectoryRepository @Inject constructor(
           q = filter.query.ifBlank { null }, country = filter.country, routing = filter.routing,
           relay = filter.relay, sort = filter.sort, page = page, pageSize = size,
         )
-      }.map { env -> env.toPage().map { it.toDomain() } }
+      }.map { env -> val c = catalog(); env.toPage().map { it.toDomain(c) } }
     }
   }.flow
 
@@ -89,22 +108,22 @@ class DefaultDirectoryRepository @Inject constructor(
           q = filter.query.ifBlank { null }, country = filter.country, service = filter.service,
           networkRole = filter.networkRole, sort = filter.sort, page = page, pageSize = size,
         )
-      }.map { env -> env.toPage().map { it.toDomain() } }
+      }.map { env -> val c = catalog(); env.toPage().map { it.toDomain(c) } }
     }
   }.flow
 
   override suspend fun featuredPrisoners(limit: Int): ApiResult<List<Prisoner>> =
     apiCall(json) { api.prisoners(featured = true, sort = "newest", pageSize = limit) }
-      .map { it.data.orEmpty().map { dto -> dto.toDomain() } }
+      .map { val c = catalog(); it.data.orEmpty().map { dto -> dto.toDomain(c) } }
 
   override suspend fun prisoner(id: Int): ApiResult<Prisoner> =
-    apiCall(json) { api.prisoner(id) }.map { checkNotNull(it.data).toDomain() }
+    apiCall(json) { api.prisoner(id) }.map { checkNotNull(it.data).toDomain(catalog()) }
 
   override suspend fun facility(id: Int): ApiResult<Facility> =
-    apiCall(json) { api.prison(id) }.map { checkNotNull(it.data).toDomain() }
+    apiCall(json) { api.prison(id) }.map { checkNotNull(it.data).toDomain(catalog()) }
 
   override suspend fun group(id: Int): ApiResult<Group> =
-    apiCall(json) { api.chapter(id) }.map { checkNotNull(it.data).toDomain() }
+    apiCall(json) { api.chapter(id) }.map { checkNotNull(it.data).toDomain(catalog()) }
 
   private companion object {
     // page_size is capped at 100 by the API; 20 keeps first paint quick on a phone.

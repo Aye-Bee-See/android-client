@@ -17,7 +17,7 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 - **Claim deep link.** Confirm the URL (`abcmailbox.net/claim?token=`) and host an `assetlinks.json` on that domain so Android can verify the link. Until then the link opens through a chooser.
 - **Recovery copy.** `forgot-password.html` still says there is no recovery path. With recovery codes built, both clients should say: independent accounts recover with the recovery code; unclaimed managed accounts get a new claim token from their group.
 - ~~Recovery rate limiting~~ **Done (API PR #84):** sign-in, claim checks, and recovery answer 429 with `Retry-After`; the app shows the server's sentence.
-- **Rule tags (agreed, not built yet):** publish the tag vocabulary early, and clients must ignore unknown tags.
+- ~~Rule tags~~ **Done (API PR #86):** tags plus three typed values, a public vocabulary endpoint, and clients ignore unknown tags. The Android app acts on `no_photos`, `pageLimit`, languages, and a few advisory tags.
 - **Self-registration.** The API allows public `POST /auth/user`; the site says accounts come from groups. Android hides registration behind a flag. Decide whether it should ever be exposed.
 
 ## Letters (API, affects phase 3)
@@ -27,7 +27,7 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 ## Sessions (API)
 
-- **Tokens outlive the database.** After `DB_RESET=true` with the same `JWT_SECRET`, a token issued before the reset still works, and it maps to whichever reseeded account now has that id (observed 13 Sep 2026: the phone stayed "signed in" across a reset). Harmless in development, but the same holds after a restore from backup or a rebuild in production. Ask: on boot, if the database is new or restored, bump the sessions revocation marker so everything issued before is refused. Cheap and closes the gap without rotating the secret.
+- ~~Tokens outlive the database~~ **Done (API PR #90).** Previously: After `DB_RESET=true` with the same `JWT_SECRET`, a token issued before the reset still works, and it maps to whichever reseeded account now has that id (observed 13 Sep 2026: the phone stayed "signed in" across a reset). Harmless in development, but the same holds after a restore from backup or a rebuild in production. Ask: on boot, if the database is new or restored, bump the sessions revocation marker so everything issued before is refused. Cheap and closes the gap without rotating the secret.
 
 ## Letters, small (API)
 

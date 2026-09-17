@@ -44,7 +44,10 @@ class DirectoryMappersTest {
   fun `prison full read maps rules, relay groups and prisoners`() {
     val f = json.decodeFromString<ApiEnvelope<PrisonDto>>(fixture("prison-full.json")).data!!.toDomain()
     assertEquals("Alpha Prison", f.name)
-    assertEquals(listOf("No smoking", "No pets"), f.rules.map { it.title })
+    assertEquals(listOf("full_name_and_number", "ink_blue_or_black", "no_polaroids"), f.rules.rules.map { it.tag })
+    assertEquals("Blue or black ink only", f.rules.rules[1].label)
+    assertEquals(3, f.rules.photoLimit)
+    assertEquals(listOf("English", "Spanish"), f.rules.languageNames)
     assertEquals(listOf("Test Chapter", "Relay Test Chapter"), f.relayGroups.map { it.name })
     assertEquals(1, f.prisoners.size)
     assertEquals("JPay, \$0.35 per page, account required", f.scanService)
@@ -77,7 +80,7 @@ class DirectoryMappersTest {
       val f = p.facility
       assertTrue("row ${p.id} has no facility summary", f != null && f.name.isNotBlank())
       assertEquals(p.facilityId, f?.id)
-      assertTrue(f!!.rules.isEmpty()) // the summary is light: no rules, no relay groups
+      assertTrue(f!!.rules.isEmpty) // the summary is light: no rules, no relay groups
     }
   }
 

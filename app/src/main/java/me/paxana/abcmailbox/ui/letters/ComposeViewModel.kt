@@ -27,7 +27,10 @@ import me.paxana.abcmailbox.data.repo.LettersRepository
 import me.paxana.abcmailbox.data.repo.NewLetter
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
+import me.paxana.abcmailbox.domain.ComposeAdvice
 import me.paxana.abcmailbox.domain.Facility
+import me.paxana.abcmailbox.domain.MailRules
+import me.paxana.abcmailbox.domain.composeAdvice
 import me.paxana.abcmailbox.domain.Prisoner
 import me.paxana.abcmailbox.domain.RelayChoice
 import me.paxana.abcmailbox.domain.estimatePages
@@ -60,6 +63,11 @@ data class ComposeUiState(
   val pages: Int get() = estimatePages(characters)
   val relayIsBlocked: Boolean get() = relay is RelayChoice.Blocked
   val needsRelayChoice: Boolean get() = (relay as? RelayChoice.Choose)?.required == true && selectedRelay == null
+  private val mailRules: MailRules get() = facility?.rules ?: MailRules()
+  /** What the facility's rules mean for this letter; recomputed as the writer types. */
+  val advice: List<ComposeAdvice> get() = composeAdvice(mailRules, pages, attachments.count { it.mimeType.startsWith("image/") })
+  /** Where pictures are refused only a PDF may be attached (API guidance for `no_photos`). */
+  val allowedAttachmentTypes: Array<String> get() = if (mailRules.forbidsPhotos) arrayOf("application/pdf") else ATTACHMENT_MIME_TYPES
   val canSend: Boolean get() = !loading && !sending && !relayIsBlocked && !needsRelayChoice && (body.isNotBlank() || attachments.isNotEmpty())
 }
 
@@ -152,6 +160,7 @@ class ComposeViewModel(
         _ui.update { s -> s.copy(error = "Could not read that file.") }; return@launch
       }
       when {
+        staged.mimeType.startsWith("image/") && _ui.value.facility?.rules?.forbidsPhotos == true -> { files.discard(staged); _ui.update { it.copy(error = "This facility refuses pictures, so an image cannot be attached. A PDF can.") } }
         staged.mimeType !in ATTACHMENT_MIME_TYPES -> { files.discard(staged); _ui.update { it.copy(error = "Only PDF, JPEG, PNG, or WebP files can be attached.") } }
         staged.size > MAX_ATTACHMENT_BYTES -> { files.discard(staged); _ui.update { it.copy(error = "That file is over 20 MB.") } }
         else -> _ui.update { it.copy(attachments = it.attachments + staged, error = null) }

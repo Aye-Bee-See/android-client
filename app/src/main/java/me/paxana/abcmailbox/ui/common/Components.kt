@@ -217,3 +217,12 @@ object UppercaseTransformation : androidx.compose.ui.text.input.VisualTransforma
   override fun filter(text: androidx.compose.ui.text.AnnotatedString) =
     androidx.compose.ui.text.input.TransformedText(androidx.compose.ui.text.AnnotatedString(text.text.uppercase()), androidx.compose.ui.text.input.OffsetMapping.Identity)
 }
+
+/** A facility's mail rules as a bulleted list, tags first, then page and photo limits and languages. */
+@Composable
+fun MailRulesList(rules: me.paxana.abcmailbox.domain.MailRules, emptyText: String, modifier: Modifier = Modifier) {
+  Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    if (rules.isEmpty) Text(emptyText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    rules.lines().forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+  }
+}

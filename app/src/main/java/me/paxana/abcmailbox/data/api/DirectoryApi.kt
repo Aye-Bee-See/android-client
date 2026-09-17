@@ -39,6 +39,10 @@ interface DirectoryApi {
     @Query("page_size") pageSize: Int = 20,
   ): ApiEnvelope<List<PrisonDto>>
 
+  /** Public, and only changes with an API release: the tag vocabulary with default English labels. */
+  @GET("prison/mail-rules")
+  suspend fun mailRuleVocabulary(): ApiEnvelope<MailRuleVocabularyDto>
+
   @GET("prison/prison")
   suspend fun prison(@Query("id") id: Int, @Query("full") full: Boolean = true): ApiEnvelope<PrisonDto>
 
@@ -98,17 +102,20 @@ data class PrisonDto(
   val verifiedBy: Int? = null,
   val verifiedAt: String? = null,
   val recordStatus: String? = null,
+  /** Tags from the mail-rule vocabulary (API PR #86); the three valued rules sit beside them. */
+  val mailRules: List<String>? = null,
+  val pageLimit: Int? = null,
+  val photoLimit: Int? = null,
+  val mailLanguages: List<String>? = null,
   val prisoners: List<PrisonerDto>? = null,
-  val rules: List<RuleDto>? = null,
   @SerialName("relay_groups") val relayGroups: List<ChapterDto>? = null,
 )
 
 @Serializable
-data class RuleDto(
-  val id: Int,
-  val title: String,
-  val description: String? = null,
-)
+data class MailRuleVocabularyDto(val categories: List<String> = emptyList(), val rules: List<MailRuleDto> = emptyList())
+
+@Serializable
+data class MailRuleDto(val tag: String, val category: String = "other", val label: String? = null, val description: String? = null)
 
 @Serializable
 data class ChapterDto(

@@ -33,6 +33,8 @@ import me.paxana.abcmailbox.domain.Facility
 import me.paxana.abcmailbox.domain.Group
 import me.paxana.abcmailbox.domain.Letter
 import me.paxana.abcmailbox.domain.LetterStatus
+import me.paxana.abcmailbox.domain.MailRuleCatalog
+import me.paxana.abcmailbox.domain.MailRules
 import me.paxana.abcmailbox.domain.Prisoner
 import me.paxana.abcmailbox.domain.RelayChoice
 import me.paxana.abcmailbox.domain.Routing
@@ -57,7 +59,8 @@ class ComposeViewModelTest {
   @After fun resetMainDispatcher() = Dispatchers.resetMain()
 
   private fun group(id: Int) = Group(id, "Group $id", "Town", null, null, null, null, emptyMap(), emptyList(), null, "relay", "active", emptyList(), emptyList(), null)
-  private fun facility(routing: Routing, groups: List<Group>) = Facility(10, "Facility", emptyList(), null, routing, null, null, Verification(null, null), emptyList(), emptyList(), groups)
+  private var rules = MailRules()
+  private fun facility(routing: Routing, groups: List<Group>) = Facility(10, "Facility", emptyList(), null, routing, null, null, Verification(null, null), emptyList(), rules, groups)
   private fun prisoner() = Prisoner(3, "Alex", null, emptyList(), 10, null, null, null, null, null, null, null, null, emptyList(), null, null, null, null, null, false, Verification(null, null), emptyList())
 
   private fun vm(routing: Routing, groups: List<Group>, letters: FakeLetters = FakeLetters(), drafts: FakeDrafts = FakeDrafts(), edit: Int? = null) =
@@ -123,6 +126,19 @@ class ComposeViewModelTest {
     assertEquals("Choose a relay group.", vm.ui.value.error)
     assertEquals("Hello", vm.ui.value.body)
     assertNull(vm.ui.value.sentChatId)
+  }
+
+  @Test
+  fun `a facility that refuses pictures only offers PDF attachments and says why`() = runTest {
+    rules = MailRules(rules = MailRuleCatalog.Compiled.resolveAll(listOf("no_photos")), pageLimit = 1)
+    val vm = vm(Routing.DIRECT, emptyList())
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf("application/pdf"), vm.ui.value.allowedAttachmentTypes.toList())
+    assertTrue(vm.ui.value.advice.any { it.text.contains("refuses pictures") })
+    assertFalse("one page is within the limit", vm.ui.value.advice.any { it.warning })
+    vm.onBodyChange("x".repeat(3500))
+    assertTrue("two pages against a limit of one", vm.ui.value.advice.any { it.warning && it.text.contains("at most 1") })
+    assertTrue("advice never blocks sending", vm.ui.value.canSend)
   }
 
   @Test

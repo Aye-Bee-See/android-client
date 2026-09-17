@@ -10,7 +10,8 @@ Idempotent: every step checks before it creates. What it adds, and why:
   * activates the seeded group and creates a second, relay-only group, so
     relay-group resolution has all three cases to exercise (one group, two
     groups, relay_only);
-  * attaches rules to a few prisons so the "facility rules" card has content;
+  * gives a few prisons mail-rule tags, page and photo limits, and languages, so the
+    rules card and the compose advice (page warning, no image attachments) have content;
   * marks prisoners featured and gives one a status notice for the list banner;
   * a `chapter` member account (member1 / password1) in the seeded group, which
     the seed lacks, so group-side screens can be tried;
@@ -102,14 +103,13 @@ step(f"prison {p2['id']} '{p2['prisonName']}': two relay groups (writer must cho
 step(f"prison {p3['id']} '{p3['prisonName']}': relay_only with one relay group")
 step(f"prison {p4['id']} '{p4['prisonName']}': no relay group (direct mail)")
 
-# 3. Rules ---------------------------------------------------------------
-_, r = call("GET", "/rule/rules?page_size=100", token=admin)
-rules = sorted(r["data"], key=lambda x: x["id"])
-for rule in rules[:4]:
-    call("PUT", "/prison/rule", {"prison": p1["id"], "rule": rule["id"]}, token=admin)
-for rule in rules[4:6]:
-    call("PUT", "/prison/rule", {"prison": p2["id"], "rule": rule["id"]}, token=admin)
-step(f"attached {min(4, len(rules))} rules to prison {p1['id']} and 2 to prison {p2['id']}")
+# 3. Mail rules: tags and the three valued rules (API PR #86) ------------------------
+call("PUT", "/prison/prison", {"id": p1["id"], "mailRules": ["return_address_required", "plain_envelopes", "no_photos", "no_enclosures", "mail_read_by_staff"],
+                                "pageLimit": 4, "mailLanguages": ["en"]}, token=admin)
+call("PUT", "/prison/prison", {"id": p2["id"], "mailRules": ["full_name_and_number", "ink_blue_or_black", "no_polaroids"],
+                                "photoLimit": 3, "mailLanguages": ["en", "es"]}, token=admin)
+call("PUT", "/prison/prison", {"id": p3["id"], "mailRules": ["handwritten_only", "originals_destroyed", "delivery_not_confirmed"]}, token=admin)
+step(f"prison {p1['id']}: no pictures, 4-page limit, English; prison {p2['id']}: 3 photos, English or Spanish; prison {p3['id']}: handwritten only")
 
 # 4. Prisoners: featured and a status notice --------------------------------
 _, r = call("GET", "/prisoner/prisoners?page_size=100", token=admin)

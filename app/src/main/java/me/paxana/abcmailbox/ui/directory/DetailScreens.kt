@@ -34,6 +34,7 @@ import me.paxana.abcmailbox.ui.common.DetailScaffold
 import me.paxana.abcmailbox.ui.common.ErrorBox
 import me.paxana.abcmailbox.ui.common.KeyValue
 import me.paxana.abcmailbox.ui.common.LoadingBox
+import me.paxana.abcmailbox.ui.common.MailRulesList
 import me.paxana.abcmailbox.ui.common.SectionTitle
 import me.paxana.abcmailbox.ui.common.TagRow
 import me.paxana.abcmailbox.ui.common.long
@@ -101,11 +102,9 @@ private fun PrisonerBody(p: Prisoner, facilityDetail: Facility?, onFacility: (In
     if (p.interests.isNotEmpty()) { SectionTitle("Interests"); TagRow(p.interests) }
 
     facility?.let { f ->
-      if (f.rules.isNotEmpty()) {
+      if (!f.rules.isEmpty) {
         SectionTitle("Facility mail rules")
-        f.rules.forEach { r ->
-          Text("• " + r.title + (r.description?.let { d -> ": $d" } ?: ""), style = MaterialTheme.typography.bodyMedium)
-        }
+        MailRulesList(f.rules, emptyText = "")
       }
       if (f.routing.explanation.isNotBlank()) {
         Text("${f.routing.label}. ${f.routing.explanation}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -176,8 +175,11 @@ private fun FacilityBody(f: Facility, onPrisoner: (Int) -> Unit, onGroup: (Int) 
     Text(verificationLine(f.verification.at), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
     SectionTitle("Mail rules")
-    if (f.rules.isEmpty()) Text("No rules recorded. Confirm with a support group before writing.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-    f.rules.forEach { r -> Text("• " + r.title + (r.description?.let { d -> ": $d" } ?: ""), style = MaterialTheme.typography.bodyMedium) }
+    MailRulesList(f.rules, emptyText = "No rules recorded. Confirm with a support group before writing.")
+    f.rules.rules.filter { !it.description.isNullOrBlank() }.takeIf { it.isNotEmpty() }?.let { explained ->
+      Text("What these mean", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+      explained.forEach { Text("${it.label}: ${it.description}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
 
     SectionTitle("Relay groups")
     if (f.relayGroups.isEmpty()) Text("No relay group. Letters go directly to the facility.", color = MaterialTheme.colorScheme.onSurfaceVariant)

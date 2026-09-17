@@ -9,7 +9,8 @@ import org.junit.Test
 class RelayResolutionTest {
 
   private fun group(id: Int, status: String? = "active") = Group(id, "Group $id", null, null, null, null, null, emptyMap(), emptyList(), null, "relay", status, emptyList(), emptyList(), null)
-  private fun facility(routing: Routing, groups: List<Group>) = Facility(1, "F", emptyList(), null, routing, null, null, Verification(null, null), emptyList(), emptyList(), groups)
+  private val rules = MailRules()
+  private fun facility(routing: Routing, groups: List<Group>) = Facility(1, "F", emptyList(), null, routing, null, null, Verification(null, null), emptyList(), rules, groups)
 
   @Test
   fun `one relay group is automatic`() {

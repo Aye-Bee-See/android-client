@@ -6,10 +6,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.paxana.abcmailbox.data.api.ChapterDto
 import me.paxana.abcmailbox.data.api.PrisonDto
 import me.paxana.abcmailbox.data.api.PrisonerDto
-import me.paxana.abcmailbox.data.api.RuleDto
 import me.paxana.abcmailbox.domain.Facility
 import me.paxana.abcmailbox.domain.Group
-import me.paxana.abcmailbox.domain.MailRule
+import me.paxana.abcmailbox.domain.MailRuleCatalog
+import me.paxana.abcmailbox.domain.MailRules
 import me.paxana.abcmailbox.domain.Prisoner
 import me.paxana.abcmailbox.domain.Routing
 import me.paxana.abcmailbox.domain.Verification
@@ -37,9 +37,8 @@ internal fun JsonObject?.toAddressLines(): List<String> {
 private fun kotlinx.serialization.json.JsonElement.asText(): String? =
   (this as? JsonPrimitive)?.takeIf { it !is kotlinx.serialization.json.JsonNull }?.jsonPrimitive?.content
 
-fun RuleDto.toDomain() = MailRule(id = id, title = title, description = description?.takeIf { it.isNotBlank() })
-
-fun PrisonDto.toDomain(): Facility = Facility(
+/** `catalog` supplies labels for the rule tags; the default is the compiled-in vocabulary. */
+fun PrisonDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): Facility = Facility(
   id = id,
   name = prisonName,
   addressLines = address.toAddressLines(),
@@ -48,18 +47,23 @@ fun PrisonDto.toDomain(): Facility = Facility(
   scanService = scanService?.takeIf { it.isNotBlank() },
   notes = notes?.takeIf { it.isNotBlank() },
   verification = Verification(verifiedBy, verifiedAt.toInstantOrNull()),
-  prisoners = prisoners.orEmpty().map { it.toDomain() },
-  rules = rules.orEmpty().map { it.toDomain() },
-  relayGroups = relayGroups.orEmpty().map { it.toDomain() },
+  prisoners = prisoners.orEmpty().map { it.toDomain(catalog) },
+  rules = MailRules(
+    rules = catalog.resolveAll(mailRules.orEmpty()),
+    pageLimit = pageLimit?.takeIf { it > 0 },
+    photoLimit = photoLimit?.takeIf { it > 0 },
+    languages = mailLanguages.orEmpty().map { it.lowercase() },
+  ),
+  relayGroups = relayGroups.orEmpty().map { it.toDomain(catalog) },
 )
 
-fun PrisonerDto.toDomain(): Prisoner = Prisoner(
+fun PrisonerDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): Prisoner = Prisoner(
   id = id,
   name = chosenName?.takeIf { it.isNotBlank() } ?: birthName?.takeIf { it.isNotBlank() } ?: "Unnamed",
   birthName = birthName?.takeIf { it.isNotBlank() && it != chosenName },
   aliases = aliases.orEmpty().filter { it.isNotBlank() },
   facilityId = prison,
-  facility = prisonDetails?.toDomain(),
+  facility = prisonDetails?.toDomain(catalog),
   country = country ?: prisonDetails?.country,
   detainedSince = detainedSince.toLocalDateOrNull(),
   releaseDate = releaseDate.toLocalDateOrNull(),
@@ -75,10 +79,10 @@ fun PrisonerDto.toDomain(): Prisoner = Prisoner(
   statusNotice = statusNotice?.takeIf { it.isNotBlank() },
   featured = featured,
   verification = Verification(verifiedBy, verifiedAt.toInstantOrNull()),
-  supportGroups = supportGroups.orEmpty().map { it.toDomain() },
+  supportGroups = supportGroups.orEmpty().map { it.toDomain(catalog) },
 )
 
-fun ChapterDto.toDomain(): Group = Group(
+fun ChapterDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): Group = Group(
   id = id,
   name = name,
   subregion = subregion?.takeIf { it.isNotBlank() } ?: location.toAddressLines().firstOrNull(),
@@ -91,7 +95,7 @@ fun ChapterDto.toDomain(): Group = Group(
   announcement = announcement?.takeIf { it.isNotBlank() },
   networkRole = networkRole,
   accountStatus = accountStatus,
-  supportedPrisoners = supportedPrisoners.orEmpty().map { it.toDomain() },
-  relayPrisons = relayPrisons.orEmpty().map { it.toDomain() },
+  supportedPrisoners = supportedPrisoners.orEmpty().map { it.toDomain(catalog) },
+  relayPrisons = relayPrisons.orEmpty().map { it.toDomain(catalog) },
   supportDescription = prisonerSupport?.description?.takeIf { it.isNotBlank() },
 )

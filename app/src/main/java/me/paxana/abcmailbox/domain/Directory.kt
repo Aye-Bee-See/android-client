@@ -29,8 +29,6 @@ enum class Routing(val key: String, val label: String, val explanation: String) 
   }
 }
 
-data class MailRule(val id: Int, val title: String, val description: String?)
-
 data class Facility(
   val id: Int,
   val name: String,
@@ -41,7 +39,7 @@ data class Facility(
   val notes: String?,
   val verification: Verification,
   val prisoners: List<Prisoner>,
-  val rules: List<MailRule>,
+  val rules: MailRules,
   val relayGroups: List<Group>,
 ) {
   val shortLocation: String get() = listOfNotNull(addressLines.lastOrNull(), country).joinToString(", ")
