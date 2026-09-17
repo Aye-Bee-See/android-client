@@ -1,0 +1,9 @@
+{
+  "name": "abcmailbox-android-tools",
+  "private": true,
+  "type": "module",
+  "description": "Interop tooling: fixtures made with libsodium.js (sumo build, which has Argon2id) for the Kotlin crypto tests, and a verifier for fixtures the Kotlin side writes.",
+  "dependencies": {
+    "libsodium-wrappers-sumo": "^0.8.4"
+  }
+}

@@ -2,6 +2,14 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-17: call `crypto_pwhash` directly, normalise secrets to NFKC
+
+**Context.** The Kotlin-to-Node interop test failed for a password containing "ä" while ASCII passwords passed. The ionspin binding's `PasswordHash.pwhash` passes `String.length` (UTF-16 units) as the password's byte length, so libsodium hashes a truncated UTF-8 sequence for any non-ASCII password and derives a different key than libsodium.js.
+
+**Decision.** `Sodium.deriveKey` calls the binding's JNA interface directly with the real UTF-8 byte length (JNA as a compile-only dependency; `jna.encoding` pinned to UTF-8), and normalises the secret to Unicode NFKC first, because one visible password can be several code point sequences. Fixtures in both directions use non-ASCII passwords so a regression cannot hide.
+
+**Consequences.** The web client must apply NFKC too (see `docs/MEETING-ITEMS.md`). Worth reporting upstream to the binding. If the binding is ever swapped, this function is the one place to revisit.
+
 ## 2026-09-12: minSdk 26
 
 **Context.** The scaffold chose 25 (Android 7.1). API 26 adds `java.time` and `java.util.Base64`, both used by the session and crypto code; below 26 they need backports or `android.util` equivalents.

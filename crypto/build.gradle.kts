@@ -19,6 +19,10 @@ kotlin {
 
 dependencies {
   api(libs.libsodium.bindings)
+  // Sodium.deriveKey calls the binding's JNA interface directly (see the comment there), which needs
+  // JNA's types at compile time only; at runtime the binding brings the right JNA for each platform.
+  compileOnly(libs.jna)
+  testImplementation(libs.jna)
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.kotlinx.coroutines.core)
 

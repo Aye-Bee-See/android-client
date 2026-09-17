@@ -5,7 +5,6 @@ import com.ionspin.kotlin.crypto.aead.AuthenticatedEncryptionWithAssociatedData
 import com.ionspin.kotlin.crypto.aead.crypto_aead_xchacha20poly1305_ietf_KEYBYTES
 import com.ionspin.kotlin.crypto.aead.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
 import com.ionspin.kotlin.crypto.box.Box
-import com.ionspin.kotlin.crypto.pwhash.PasswordHash
 import com.ionspin.kotlin.crypto.pwhash.crypto_pwhash_MEMLIMIT_INTERACTIVE
 import com.ionspin.kotlin.crypto.pwhash.crypto_pwhash_OPSLIMIT_INTERACTIVE
 import com.ionspin.kotlin.crypto.pwhash.crypto_pwhash_SALTBYTES
@@ -13,6 +12,7 @@ import com.ionspin.kotlin.crypto.pwhash.crypto_pwhash_argon2id_ALG_ARGON2ID13
 import com.ionspin.kotlin.crypto.util.Base64Variants
 import com.ionspin.kotlin.crypto.util.LibsodiumRandom
 import com.ionspin.kotlin.crypto.util.LibsodiumUtil
+import java.text.Normalizer
 
 /**
  * The only file that talks to the libsodium binding. Everything else in this
@@ -44,6 +44,9 @@ object Sodium {
 
   /** Loads the native library. Safe to call more than once; cheap after the first. */
   fun initialize() {
+    // JNA marshals Java strings to C strings with this encoding; pin it so a password
+    // is the same bytes on every JVM and on Android.
+    System.setProperty("jna.encoding", "UTF-8")
     if (!LibsodiumInitializer.isInitialized()) {
       LibsodiumInitializer.initializeWithCallback { }
     }
@@ -95,7 +98,21 @@ object Sodium {
       ciphertext.asUByteArray(), ubyteArrayOf(), nonce.asUByteArray(), key.asUByteArray()
     ).asByteArray()
 
-  /** Argon2id, 32 bytes out. The caller stores `salt` and the three cost values as `kdfParams`. */
+  /**
+   * Argon2id, 32 bytes out. The caller stores `salt` and the three cost values as `kdfParams`.
+   *
+   * Two things every client must do identically, or the same password derives
+   * different keys on web and phone:
+   *
+   * 1. Normalise the secret to Unicode NFKC, because one visible password can
+   *    be typed as different code point sequences ("ä" precomposed, or "a"
+   *    plus a combining diaeresis) depending on the keyboard.
+   * 2. Hash its UTF-8 bytes, all of them. The binding's own `PasswordHash.pwhash`
+   *    passes `String.length` (UTF-16 units) as the byte length, which silently
+   *    truncates any non-ASCII password, so the native function is called
+   *    directly here with the real byte length. Found by the Kotlin-to-Node
+   *    interop test, 17 September 2026.
+   */
   fun deriveKey(
     secret: String,
     salt: ByteArray,
@@ -104,8 +121,12 @@ object Sodium {
     algorithm: Int = ALG_ARGON2ID13,
   ): ByteArray {
     require(salt.size == SALT_BYTES) { "salt must be $SALT_BYTES bytes" }
-    return PasswordHash.pwhash(
-      KEY_BYTES, secret, salt.asUByteArray(), opslimit.toULong(), memlimit, algorithm
-    ).asByteArray()
+    initialize()
+    val normalised = Normalizer.normalize(secret, Normalizer.Form.NFKC)
+    val byteLength = normalised.toByteArray(Charsets.UTF_8).size.toLong()
+    val out = ByteArray(KEY_BYTES)
+    val rc = LibsodiumInitializer.sodiumJna.crypto_pwhash(out, KEY_BYTES.toLong(), normalised, byteLength, salt, opslimit, memlimit.toLong(), algorithm)
+    check(rc == 0) { "crypto_pwhash failed (out of memory?)" }
+    return out
   }
 }

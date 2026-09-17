@@ -4,6 +4,10 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 ## Encryption contract (web + Android, README on the API side)
 
+- **Passwords must be hashed identically on both clients (found 17 Sep 2026).** Two rules, both now implemented on Android and proven against libsodium.js in both directions: normalise every secret to Unicode **NFKC** before key derivation (`secret.normalize('NFKC')` in JavaScript), and hash its full **UTF-8** bytes. Without the first, the same visible password typed on two keyboards derives two keys. The second is where the Android libsodium binding had a bug (it passed the UTF-16 length, truncating any non-ASCII password); the app now calls the native function directly. Ask: the web client adopts NFKC, and the README states both rules next to the `kdfParams` schema.
+- **Typed codes are normalised before derivation.** Claim tokens and recovery codes go into Argon2id as upper case, letters and digits only. "abcd-efgh" and "ABCDEFGH" must be one code on both clients. The token hash the server stores already uses the same normalisation.
+- **The web client needs `libsodium-wrappers-sumo`.** The API's own `libsodium-wrappers` build has no `crypto_pwhash`, which is fine server-side because the server never derives keys. A browser client built on the same package would have no Argon2id.
+
 - ~~`kdfParams` schema~~ **Decided 12 Sep 2026 (API PR #80):** `{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}`; the server checks it is an object with a string `kdf`. The web developer still needs to hear it.
 - ~~Encryption mode discovery~~ **Decided (API PR #80):** `GET /health` returns `encryptionMode`.
 - **Cipher change notice for the web developer.** The design document now names `crypto_aead_xchacha20poly1305_ietf`, not `crypto_secretbox`. The two will not interoperate. Confirm the web client is on the corrected function.
