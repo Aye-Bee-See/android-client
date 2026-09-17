@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.repo.LettersRepository
+import me.paxana.abcmailbox.data.session.SessionRepository
+import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.Attachment
 import me.paxana.abcmailbox.domain.Thread
 import me.paxana.abcmailbox.ui.directory.Loadable
@@ -32,6 +34,9 @@ data class ThreadUiState(
   val thread: Loadable<Thread> = Loadable.Loading,
   val retentionDays: Int? = null,
   val busyMessageId: Int? = null,
+  /** Set for group members: the group they act for. Null for writers. */
+  val staffGroupId: Int? = null,
+  val isStaff: Boolean = false,
   val notice: String? = null,
   /** A downloaded attachment ready to open, consumed by the screen. */
   val openFile: Pair<File, String>? = null,
@@ -40,12 +45,17 @@ data class ThreadUiState(
 @HiltViewModel
 class ThreadViewModel(
   private val repo: LettersRepository,
+  sessions: SessionRepository,
   private val route: ThreadRoute,
 ) : ViewModel() {
 
   @Inject
-  constructor(repo: LettersRepository, savedStateHandle: SavedStateHandle) : this(repo, savedStateHandle.toRoute<ThreadRoute>())
-  private val _ui = MutableStateFlow(ThreadUiState())
+  constructor(repo: LettersRepository, sessions: SessionRepository, savedStateHandle: SavedStateHandle) :
+    this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>())
+
+  // Who is looking decides what the screen offers: a group member records replies and writes for its writers.
+  private val viewer = (sessions.state.value as? SessionState.SignedIn)?.session?.user
+  private val _ui = MutableStateFlow(ThreadUiState(isStaff = viewer?.isStaff == true, staffGroupId = viewer?.takeIf { it.isStaff }?.chapterId))
   val ui: StateFlow<ThreadUiState> = _ui.asStateFlow()
 
   init {

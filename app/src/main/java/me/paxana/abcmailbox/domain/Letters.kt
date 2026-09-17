@@ -27,6 +27,8 @@ data class StatusChange(val from: LetterStatus?, val to: LetterStatus, val at: I
 data class Letter(
   val id: Int,
   val threadId: Int?,
+  val prisonerId: Int? = null,
+  val writerId: Int? = null,
   val fromPrisoner: Boolean,
   val status: LetterStatus,
   val body: String,
@@ -54,6 +56,8 @@ data class Thread(
   val lastMessage: LastMessage?,
   val lastActivity: Instant?,
   val letters: List<Letter>,
+  /** The account on the writer's side; groups use it to label threads and to know if they may write in them. */
+  val writer: ThreadWriter? = null,
 ) {
   val title: String get() = prisoner?.name ?: "Prisoner #$prisonerId"
 }

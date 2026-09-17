@@ -68,6 +68,8 @@ data class Prisoner(
   val featured: Boolean,
   val verification: Verification,
   val supportGroups: List<Group>,
+  /** The facility-issued number; most facilities refuse mail without it on the envelope. */
+  val inmateId: String? = null,
 ) {
   /** "Est. release" as the site shows it: the free-text estimate wins, then the date's year. */
   val releaseSummary: String get() = estimatedRelease?.takeIf { it.isNotBlank() } ?: releaseDate?.year?.toString() ?: "Unknown"

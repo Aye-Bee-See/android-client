@@ -58,6 +58,8 @@ fun ThreadScreen(
   onPrisoner: (Int) -> Unit,
   onWrite: (Int) -> Unit,
   onEdit: (prisonerId: Int, messageId: Int) -> Unit,
+  onGroupWrite: (prisonerId: Int, writerId: Int, writerName: String) -> Unit = { _, _, _ -> },
+  onRecordReply: (prisonerId: Int, writerUserId: Int) -> Unit = { _, _ -> },
   viewModel: ThreadViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -92,15 +94,25 @@ fun ThreadScreen(
           onDelete = { confirmDelete = it },
         )
       }
-      thread?.let {
-        ExtendedFloatingActionButton(
-          onClick = { onWrite(it.prisonerId) },
-          icon = { Icon(Icons.Default.Edit, contentDescription = null) },
-          text = { Text("Write") },
-          containerColor = MaterialTheme.colorScheme.primary,
-          contentColor = MaterialTheme.colorScheme.onPrimary,
-          modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-        )
+      thread?.let { t ->
+        val writer = t.writer
+        Column(Modifier.align(Alignment.BottomEnd).padding(20.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+          // A group records what came back from the prisoner, on any thread it can see.
+          if (ui.isStaff && writer != null) ExtendedFloatingActionButton(
+            onClick = { onRecordReply(t.prisonerId, writer.id) },
+            icon = { Text("←") }, text = { Text("Record reply") },
+            containerColor = MaterialTheme.colorScheme.secondary, contentColor = MaterialTheme.colorScheme.onSecondary,
+          )
+          // A writer writes in their own thread; a group only for writers it manages or as its anonymous writer.
+          val groupMayWrite = ui.isStaff && writer?.canBeWrittenForBy(ui.staffGroupId) == true
+          if (!ui.isStaff || groupMayWrite) ExtendedFloatingActionButton(
+            onClick = { if (groupMayWrite && writer != null && writer.anonymousForGroupId == null) onGroupWrite(t.prisonerId, writer.id, writer.name) else onWrite(t.prisonerId) },
+            icon = { Icon(Icons.Default.Edit, contentDescription = null) },
+            text = { Text("Write") },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+          )
+        }
       }
       SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter)) { Snackbar(it) }
     }
@@ -127,7 +139,7 @@ private fun ThreadBody(
   onEdit: (Int) -> Unit,
   onDelete: (Int) -> Unit,
 ) {
-  LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp)) {
+  LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 170.dp)) {
     item("header") {
       Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         thread.prisoner?.let { p ->
@@ -135,6 +147,7 @@ private fun ThreadBody(
             Text(p.name + (p.facility?.let { " · ${it.name}" } ?: ""), color = MaterialTheme.colorScheme.secondary)
           }
         }
+        thread.writer?.let { w -> Text("Writer: ${w.label}", style = MaterialTheme.typography.bodyMedium) }
         val sent = thread.letters.count { !it.fromPrisoner }
         val received = thread.letters.size - sent
         Text("${thread.letters.size} letters · $sent sent · $received received", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

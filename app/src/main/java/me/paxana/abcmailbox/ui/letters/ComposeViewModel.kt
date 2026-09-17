@@ -44,6 +44,12 @@ val ATTACHMENT_MIME_TYPES = arrayOf("application/pdf", "image/jpeg", "image/png"
 
 data class ComposeUiState(
   val editing: Boolean = false,
+  /** Group accounts: who the letter is from ("Anonymous writer" or a managed writer's name). */
+  val writingAs: String? = null,
+  /** Group accounts: recording a prisoner's reply rather than writing a letter. */
+  val recordingReply: Boolean = false,
+  /** Set while the camera app is open; the shot lands in this file. */
+  val cameraTarget: java.io.File? = null,
   val prisoner: Prisoner? = null,
   val facility: Facility? = null,
   val relay: RelayChoice = RelayChoice.Direct,
@@ -62,13 +68,14 @@ data class ComposeUiState(
   val characters: Int get() = body.length
   val pages: Int get() = estimatePages(characters)
   val relayIsBlocked: Boolean get() = relay is RelayChoice.Blocked
-  val needsRelayChoice: Boolean get() = (relay as? RelayChoice.Choose)?.required == true && selectedRelay == null
+  val needsRelayChoice: Boolean get() = !recordingReply && (relay as? RelayChoice.Choose)?.required == true && selectedRelay == null
   private val mailRules: MailRules get() = facility?.rules ?: MailRules()
   /** What the facility's rules mean for this letter; recomputed as the writer types. */
   val advice: List<ComposeAdvice> get() = composeAdvice(mailRules, pages, attachments.count { it.mimeType.startsWith("image/") })
   /** Where pictures are refused only a PDF may be attached (API guidance for `no_photos`). */
   val allowedAttachmentTypes: Array<String> get() = if (mailRules.forbidsPhotos) arrayOf("application/pdf") else ATTACHMENT_MIME_TYPES
-  val canSend: Boolean get() = !loading && !sending && !relayIsBlocked && !needsRelayChoice && (body.isNotBlank() || attachments.isNotEmpty())
+  // A recorded reply is not mailed anywhere, so the facility's routing cannot block it.
+  val canSend: Boolean get() = !loading && !sending && (recordingReply || (!relayIsBlocked && !needsRelayChoice)) && (body.isNotBlank() || attachments.isNotEmpty())
 }
 
 /**
@@ -102,7 +109,22 @@ class ComposeViewModel(
   ) : this(letters, directory, drafts, files, sessions, savedStateHandle.toRoute<ComposeRoute>())
   private val userId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
 
-  private val _ui = MutableStateFlow(ComposeUiState(editing = route.editMessageId != null))
+  private val isStaff: Boolean = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.isStaff == true
+  // Drafts belong to a writer's own letters; a group's letters for others are not drafted on this phone.
+  private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && !isStaff
+
+  private val _ui = MutableStateFlow(
+    ComposeUiState(
+      editing = route.editMessageId != null,
+      recordingReply = route.replyForUserId != null,
+      writingAs = when {
+        route.replyForUserId != null -> null
+        route.writerName != null -> route.writerName
+        isStaff && route.editMessageId == null -> "Anonymous writer"
+        else -> null
+      },
+    )
+  )
   val ui: StateFlow<ComposeUiState> = _ui.asStateFlow()
 
   init {
@@ -115,7 +137,7 @@ class ComposeViewModel(
         .debounce(600)
         .collect { (body, note, relay) ->
           val uid = userId ?: return@collect
-          if (route.editMessageId != null || _ui.value.loading || _ui.value.sentChatId != null) return@collect
+          if (!usesDrafts || _ui.value.loading || _ui.value.sentChatId != null) return@collect
           if (body.isBlank() && note.isBlank()) drafts.delete(uid, route.prisonerId)
           else drafts.save(uid, route.prisonerId, Draft(body, note.ifBlank { null }, relay, System.currentTimeMillis()))
         }
@@ -134,7 +156,7 @@ class ComposeViewModel(
       (letters.letter(id) as? ApiResult.Success)?.value?.let { l ->
         body = l.body; note = l.relayNote.orEmpty(); selected = l.relayGroupId ?: selected
       }
-    } ?: userId?.let { uid ->
+    } ?: userId?.takeIf { usesDrafts }?.let { uid ->
       drafts.load(uid, route.prisonerId)?.let { d ->
         body = d.body; note = d.note.orEmpty(); selected = d.relayChapter ?: selected; restored = true
       }
@@ -168,6 +190,24 @@ class ComposeViewModel(
     }
   }
 
+  /** Step one of taking a photo: a file for the camera app to fill, and the Uri to give it. */
+  fun prepareCamera(): Uri {
+    val (file, uri) = files.newCameraTarget()
+    _ui.update { it.copy(cameraTarget = file) }
+    return uri
+  }
+
+  fun onPhotoResult(taken: Boolean) {
+    val file = _ui.value.cameraTarget ?: return
+    _ui.update { it.copy(cameraTarget = null) }
+    if (!taken || file.length() == 0L) { file.delete(); return }
+    val shot = files.stageCameraShot(file)
+    when {
+      shot.size > MAX_ATTACHMENT_BYTES -> { files.discard(shot); _ui.update { it.copy(error = "That photo is over 20 MB. Try a lower camera resolution.") } }
+      else -> _ui.update { it.copy(attachments = it.attachments + shot, error = null) }
+    }
+  }
+
   fun removeAttachment(staged: StagedFile) {
     files.discard(staged)
     _ui.update { it.copy(attachments = it.attachments - staged) }
@@ -190,10 +230,14 @@ class ComposeViewModel(
         }
         return@launch
       }
-      when (val r = letters.send(NewLetter(route.prisonerId, s.body, s.note.ifBlank { null }, relayChapter))) {
+      val letter = NewLetter(
+        prisonerId = route.prisonerId, body = s.body, relayNote = s.note.ifBlank { null }, relayChapter = relayChapter,
+        asWriterId = route.replyForUserId ?: route.writerId, fromPrisoner = route.replyForUserId != null,
+      )
+      when (val r = letters.send(letter)) {
         is ApiResult.Failure -> _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric("Could not send the letter.")) }
         is ApiResult.Success -> {
-          userId?.let { drafts.delete(it, route.prisonerId) }
+          if (usesDrafts) userId?.let { drafts.delete(it, route.prisonerId) }
           uploadThen(r.value.id, s.attachments, r.value.threadId)
         }
       }

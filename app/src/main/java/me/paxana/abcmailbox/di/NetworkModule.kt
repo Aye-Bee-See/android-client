@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.BuildConfig
 import me.paxana.abcmailbox.data.api.AuthApi
 import me.paxana.abcmailbox.data.api.DirectoryApi
+import me.paxana.abcmailbox.data.api.GroupApi
 import me.paxana.abcmailbox.data.api.HealthApi
 import me.paxana.abcmailbox.data.api.LettersApi
 import me.paxana.abcmailbox.data.api.SessionInterceptor
@@ -77,6 +78,10 @@ object NetworkModule {
   @Provides
   @Singleton
   fun lettersApi(retrofit: Retrofit): LettersApi = retrofit.create(LettersApi::class.java)
+
+  @Provides
+  @Singleton
+  fun groupApi(retrofit: Retrofit): GroupApi = retrofit.create(GroupApi::class.java)
 
   @Provides
   @Singleton

@@ -31,7 +31,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** What the compose screen sends. `relayChapter` null lets the server resolve it. */
-data class NewLetter(val prisonerId: Int, val body: String, val relayNote: String?, val relayChapter: Int?)
+data class NewLetter(
+  val prisonerId: Int,
+  val body: String,
+  val relayNote: String?,
+  val relayChapter: Int?,
+  /** Group accounts: the managed writer this letter is from; null means the group's anonymous writer (or, for a writer, themselves). */
+  val asWriterId: Int? = null,
+  /** Group accounts: this is a prisoner's reply being recorded on `asWriterId`'s thread. */
+  val fromPrisoner: Boolean = false,
+)
 
 data class LetterEdit(val messageId: Int, val body: String, val relayNote: String?, val relayChapter: Int?)
 

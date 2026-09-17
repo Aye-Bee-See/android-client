@@ -56,11 +56,12 @@ fun ComposeScreen(
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val snackbar = remember { SnackbarHostState() }
   val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(viewModel::attach) }
+  val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken -> viewModel.onPhotoResult(taken) }
 
   LaunchedEffect(ui.sentChatId) { ui.sentChatId?.let { if (ui.error == null) onSent(it) } }
   LaunchedEffect(ui.draftRestored) { if (ui.draftRestored) { snackbar.showSnackbar("Draft restored."); viewModel.draftNoticeShown() } }
 
-  DetailScaffold(title = if (ui.editing) "Edit letter" else "New letter", onBack = onBack) { padding ->
+  DetailScaffold(title = when { ui.recordingReply -> "Record a reply"; ui.editing -> "Edit letter"; else -> "New letter" }, onBack = onBack) { padding ->
     Column(Modifier.fillMaxSize().padding(padding)) {
       if (sessionState is SessionState.SignedOut) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -76,21 +77,23 @@ fun ComposeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         ui.prisoner?.let { p ->
-          Text("To: ${p.name}", style = MaterialTheme.typography.titleLarge)
+          Text(if (ui.recordingReply) "From: ${p.name}" else "To: ${p.name}", style = MaterialTheme.typography.titleLarge)
+          ui.writingAs?.let { Text("Writing as: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary) }
+          if (ui.recordingReply) Text("Type what the prisoner wrote, attach a scan or a photo of the letter, or both. The writer will see it in their thread.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ui.facility?.let { f -> Text(f.name + f.shortLocation.takeIf { it.isNotBlank() }?.let { ", $it" }.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
 
-        ui.facility?.let { f ->
+        if (!ui.recordingReply) ui.facility?.let { f ->
           SectionTitle("Facility rules · ${f.name}")
           MailRulesList(f.rules, emptyText = "No rules recorded for this facility. Confirm with a support group before writing.")
         }
 
-        RelaySection(ui.relay, ui.selectedRelay, viewModel::onSelectRelay)
+        if (!ui.recordingReply) RelaySection(ui.relay, ui.selectedRelay, viewModel::onSelectRelay)
 
         OutlinedTextField(
           value = ui.body,
           onValueChange = viewModel::onBodyChange,
-          placeholder = { Text("Write your letter here. Paragraph breaks will be preserved when printed.") },
+          placeholder = { Text(if (ui.recordingReply) "Type the prisoner's letter here, if you are transcribing it." else "Write your letter here. Paragraph breaks will be preserved when printed.") },
           minLines = 8,
           enabled = !ui.sending,
           modifier = Modifier.fillMaxWidth(),
@@ -101,11 +104,13 @@ fun ComposeScreen(
         )
 
         // What the rules mean for this particular letter: warnings in red, the rest as notes.
-        ui.advice.forEach { a ->
+        if (!ui.recordingReply) ui.advice.forEach { a ->
           if (a.warning) AlertBanner("⚠ ${a.text}") else Text(a.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        if (ui.showNote) {
+        if (ui.recordingReply) {
+          // No note to a relay group on a reply: it is not being mailed anywhere.
+        } else if (ui.showNote) {
           OutlinedTextField(
             value = ui.note,
             onValueChange = viewModel::onNoteChange,
@@ -127,15 +132,23 @@ fun ComposeScreen(
             TextButton(onClick = { viewModel.removeAttachment(f) }, enabled = !ui.sending) { Text("Remove") }
           }
         }
-        OutlinedButton(onClick = { picker.launch(ui.allowedAttachmentTypes) }, enabled = !ui.sending) { Text(if (ui.allowedAttachmentTypes.size == 1) "Attach a PDF" else "Attach a file") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          OutlinedButton(onClick = { picker.launch(if (ui.recordingReply) ATTACHMENT_MIME_TYPES else ui.allowedAttachmentTypes) }, enabled = !ui.sending) {
+            Text(if (!ui.recordingReply && ui.allowedAttachmentTypes.size == 1) "Attach a PDF" else "Attach a file")
+          }
+          // The phone's camera is the natural scanner for a handwritten letter or a prisoner's reply.
+          if (ui.recordingReply || ui.allowedAttachmentTypes.size > 1) {
+            OutlinedButton(onClick = { camera.launch(viewModel.prepareCamera()) }, enabled = !ui.sending) { Text("Take a photo") }
+          }
+        }
         Text("PDF, JPG, PNG, or WebP · max 20 MB. A scan of a handwritten letter works well.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
 
         Button(onClick = viewModel::send, enabled = ui.canSend, modifier = Modifier.fillMaxWidth()) {
-          Text(ui.progress ?: if (ui.editing) "Save changes" else "Send letter")
+          Text(ui.progress ?: when { ui.recordingReply -> "Save reply"; ui.editing -> "Save changes"; else -> "Send letter" })
         }
-        Text(
+        if (!ui.recordingReply) Text(
           "Your letter won't be sent immediately. It goes to your relay group's queue, where they will print and physically mail it on your behalf.",
           style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -24,8 +24,21 @@ import kotlinx.serialization.Serializable
 @Serializable data object InboxRoute
 @Serializable data class ThreadRoute(val chatId: Int)
 /** `editMessageId` set means "edit this queued letter" instead of "write a new one". */
-@Serializable data class ComposeRoute(val prisonerId: Int, val editMessageId: Int? = null)
-@Serializable data object PickPrisonerRoute
+@Serializable data class ComposeRoute(
+  val prisonerId: Int,
+  val editMessageId: Int? = null,
+  /** Group accounts: the managed writer this letter is from. Null means anonymous for a group, or yourself for a writer. */
+  val writerId: Int? = null,
+  val writerName: String? = null,
+  /** Group accounts: record a prisoner's reply on this writer's thread instead of writing a letter. */
+  val replyForUserId: Int? = null,
+)
+@Serializable data class PickPrisonerRoute(val writerId: Int? = null, val writerName: String? = null)
+
+// Group member screens
+@Serializable data class LetterWorkRoute(val messageId: Int)
+@Serializable data object AddWriterRoute
+@Serializable data class HandoffRoute(val writerId: Int, val writerName: String)
 @Serializable data object AccountRoute
 @Serializable data object LoginRoute
 /** `token` is set when the screen was opened by a claim link. */

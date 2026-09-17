@@ -15,6 +15,10 @@ data class StagedFile(val file: File, val name: String, val mimeType: String, va
 
 /** The file operations the repositories and ViewModels need; an interface so JVM tests can fake them. */
 interface LocalFilesContract {
+  /** A fresh file for the camera app to write into, and the content Uri to hand it. */
+  fun newCameraTarget(): Pair<File, Uri>
+  /** Turns a finished camera shot into an attachment. */
+  fun stageCameraShot(file: File): StagedFile
   suspend fun stage(uri: Uri): StagedFile
   fun discard(staged: StagedFile)
   fun downloadTarget(attachmentId: Int, name: String): File
@@ -42,6 +46,13 @@ class LocalFiles @Inject constructor(@ApplicationContext private val context: Co
     resolver.openInputStream(uri)!!.use { input -> target.outputStream().use { input.copyTo(it) } }
     StagedFile(target, name, mime, target.length())
   }
+
+  override fun newCameraTarget(): Pair<File, Uri> {
+    val file = File(File(context.cacheDir, "camera").apply { mkdirs() }, "reply-${System.currentTimeMillis()}.jpg")
+    return file to androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+  }
+
+  override fun stageCameraShot(file: File) = StagedFile(file, file.name, "image/jpeg", file.length())
 
   override fun discard(staged: StagedFile) {
     staged.file.delete()

@@ -53,6 +53,15 @@ class LetterCodecTest {
   }
 
   @Test
+  fun `a group's letter names the managed writer, and a recorded reply is from the prisoner with no relay fields`() = runTest {
+    val c = codec(EncryptionMode.SERVER)
+    val asWriter = (c.outgoing(NewLetter(3, "Hi", "note", 2, asWriterId = 44)) as ApiResult.Success).value.first
+    assertEquals("""{"messageText":"Hi","prisoner":3,"sender":"user","user":44,"relayChapter":2,"relayNote":"note"}""", json.encodeToString(asWriter))
+    val reply = (c.outgoing(NewLetter(3, "Thank you", "ignored", 2, asWriterId = 4, fromPrisoner = true)) as ApiResult.Success).value.first
+    assertEquals("""{"messageText":"Thank you","prisoner":3,"sender":"prisoner","user":4}""", json.encodeToString(reply))
+  }
+
+  @Test
   fun `end-to-end seals to the writer and to the relay group with its key version`() = runTest {
     server.enqueue(MockResponse().setBody("""{"data":{"chapter":2,"publicKey":"PUB-GROUP","keyVersion":4},"success":true,"status":200}"""))
     val (request, key) = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Dear friend", "two pages", 2)) as ApiResult.Success).value

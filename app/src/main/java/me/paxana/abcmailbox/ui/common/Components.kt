@@ -89,14 +89,15 @@ fun <T> ChipRow(
   onSelect: (T?) -> Unit,
   allLabel: String = "All",
   modifier: Modifier = Modifier,
+  showAll: Boolean = true,
 ) {
   Row(
     modifier = modifier.horizontalScroll(rememberScrollState()),
     horizontalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    FilterChip(selected = selected == null, onClick = { onSelect(null) }, label = { Text(allLabel) })
+    if (showAll) FilterChip(selected = selected == null, onClick = { onSelect(null) }, label = { Text(allLabel) })
     options.forEach { (value, label) ->
-      FilterChip(selected = selected == value, onClick = { onSelect(if (selected == value) null else value) }, label = { Text(label) })
+      FilterChip(selected = selected == value, onClick = { onSelect(if (selected == value && showAll) null else value) }, label = { Text(label) })
     }
   }
 }

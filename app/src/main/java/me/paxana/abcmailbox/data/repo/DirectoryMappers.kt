@@ -80,6 +80,7 @@ fun PrisonerDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): P
   featured = featured,
   verification = Verification(verifiedBy, verifiedAt.toInstantOrNull()),
   supportGroups = supportGroups.orEmpty().map { it.toDomain(catalog) },
+  inmateId = inmateID?.takeIf { it.isNotBlank() },
 )
 
 fun ChapterDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): Group = Group(

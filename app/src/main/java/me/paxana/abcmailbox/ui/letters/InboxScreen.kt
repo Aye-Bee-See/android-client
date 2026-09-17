@@ -44,6 +44,10 @@ fun InboxScreen(
   onSignIn: () -> Unit,
   onThread: (Int) -> Unit,
   onNewLetter: () -> Unit,
+  onQueueLetter: (Int) -> Unit = {},
+  onAddWriter: () -> Unit = {},
+  onGroupLetter: (writerId: Int?, writerName: String?) -> Unit = { _, _ -> },
+  onHandoff: (me.paxana.abcmailbox.domain.ManagedWriter) -> Unit = {},
 ) {
   Column(Modifier.fillMaxSize()) {
     Text("Inbox", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
@@ -53,27 +57,35 @@ fun InboxScreen(
         Text("Sign in to see your conversations and write letters.")
         Button(onClick = onSignIn) { Text("Sign in") }
       }
-      is SessionState.SignedIn -> if (keysLocked) UnlockPrompt() else SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter)
+      is SessionState.SignedIn -> when {
+        keysLocked -> UnlockPrompt()
+        // Group members get the queue, the conversations they can see, and their writers.
+        sessionState.session.user.isStaff -> me.paxana.abcmailbox.ui.group.GroupInbox(
+          conversations = { SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter = null) },
+          onLetter = onQueueLetter, onAddWriter = onAddWriter, onNewLetter = onGroupLetter, onHandoff = onHandoff,
+        )
+        else -> SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter)
+      }
     }
   }
 }
 
 @Composable
-private fun SignedInInbox(name: String, onThread: (Int) -> Unit, onNewLetter: () -> Unit, viewModel: InboxViewModel = hiltViewModel()) {
+private fun SignedInInbox(name: String, onThread: (Int) -> Unit, onNewLetter: (() -> Unit)?, viewModel: InboxViewModel = hiltViewModel()) {
   val items = viewModel.threads.collectAsLazyPagingItems()
   // Coming back from compose or a thread: reload so new letters and status changes show.
   LifecycleResumeEffect(Unit) { items.refresh(); onPauseOrDispose { } }
   Box(Modifier.fillMaxSize()) {
     PagedList(
       items = items,
-      emptyText = "No conversations yet. Start one with the button below.",
+      emptyText = if (onNewLetter != null) "No conversations yet. Start one with the button below." else "No conversations yet. Start one from the Writers tab.",
       header = {
         item("who") {
           Text("Signed in as $name", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp))
         }
       },
-    ) { t -> ThreadRow(t, onClick = { onThread(t.id) }) }
-    ExtendedFloatingActionButton(
+    ) { t -> ThreadRow(t, onClick = { onThread(t.id) }, showWriter = onNewLetter == null) }
+    if (onNewLetter != null) ExtendedFloatingActionButton(
       onClick = onNewLetter,
       icon = { Icon(Icons.Default.Edit, contentDescription = null) },
       text = { Text("New letter") },
@@ -85,7 +97,7 @@ private fun SignedInInbox(name: String, onThread: (Int) -> Unit, onNewLetter: ()
 }
 
 @Composable
-fun ThreadRow(t: Thread, onClick: () -> Unit) {
+fun ThreadRow(t: Thread, onClick: () -> Unit, showWriter: Boolean = false) {
   val last = t.lastMessage
   val direction = when {
     last == null -> "No letters yet"
@@ -94,7 +106,7 @@ fun ThreadRow(t: Thread, onClick: () -> Unit) {
   }
   RecordRow(
     title = t.title,
-    secondary = t.prisoner?.facility?.let { f -> f.name + (f.country?.let { ", $it" } ?: "") },
+    secondary = listOfNotNull(t.writer?.takeIf { showWriter }?.let { "Writer: ${it.label}" }, t.prisoner?.facility?.let { f -> f.name + (f.country?.let { ", $it" } ?: "") }).joinToString(" · ").ifBlank { null },
     subtitle = direction + (t.lastActivity?.let { " · ${it.shortDate()}" } ?: ""),
     onClick = onClick,
   )

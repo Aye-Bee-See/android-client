@@ -48,6 +48,8 @@ class LettersRepositoryE2eTest {
     vault.store(1, engine.keyPairFor("PUB-ME"))
     val codec = LetterCodec(FixedMode(EncryptionMode.E2E), engine, vault, sessions, retrofit.create(AuthApi::class.java), json)
     repo = DefaultLettersRepository(retrofit.create(LettersApi::class.java), json, object : LocalFilesContract {
+      override fun newCameraTarget(): Pair<File, Uri> = error("not used")
+      override fun stageCameraShot(file: File): StagedFile = StagedFile(file, file.name, "image/jpeg", file.length())
       override suspend fun stage(uri: Uri): StagedFile = error("not used")
       override fun discard(staged: StagedFile) = Unit
       override fun downloadTarget(attachmentId: Int, name: String) = File(tmp, "${attachmentId}_$name")

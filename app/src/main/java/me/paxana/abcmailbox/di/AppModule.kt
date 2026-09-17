@@ -27,6 +27,8 @@ import me.paxana.abcmailbox.data.files.LocalFilesContract
 import me.paxana.abcmailbox.data.db.DraftDao
 import me.paxana.abcmailbox.data.repo.DefaultDirectoryRepository
 import me.paxana.abcmailbox.data.repo.DefaultDraftsRepository
+import me.paxana.abcmailbox.data.repo.DefaultGroupRepository
+import me.paxana.abcmailbox.data.repo.GroupRepository
 import me.paxana.abcmailbox.data.repo.DefaultLettersRepository
 import me.paxana.abcmailbox.data.repo.DraftsRepository
 import me.paxana.abcmailbox.data.repo.LettersRepository
@@ -83,6 +85,9 @@ abstract class BindingsModule {
 
   @Binds
   abstract fun lettersRepository(impl: DefaultLettersRepository): LettersRepository
+
+  @Binds
+  abstract fun groupRepository(impl: DefaultGroupRepository): GroupRepository
 
   @Binds
   abstract fun draftsRepository(impl: DefaultDraftsRepository): DraftsRepository

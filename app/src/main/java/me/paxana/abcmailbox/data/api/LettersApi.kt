@@ -88,6 +88,11 @@ data class SendMessageRequest(
   val prisoner: Int,
   /** Required by the API; `@EncodeDefault` because defaults are otherwise omitted from the JSON. */
   @EncodeDefault val sender: String = "user",
+  /**
+   * Group accounts only: a managed writer to send as (omit for the group's anonymous writer),
+   * or, with `sender = "prisoner"`, the writer whose thread a reply belongs to. Ignored for writers.
+   */
+  val user: Int? = null,
   /** Omitted (not null) when unset, so the server resolves the relay group itself. */
   val relayChapter: Int? = null,
   val relayNote: String? = null,

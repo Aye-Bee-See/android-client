@@ -63,11 +63,9 @@ class ComposeViewModelTest {
   private fun facility(routing: Routing, groups: List<Group>) = Facility(10, "Facility", emptyList(), null, routing, null, null, Verification(null, null), emptyList(), rules, groups)
   private fun prisoner() = Prisoner(3, "Alex", null, emptyList(), 10, null, null, null, null, null, null, null, null, emptyList(), null, null, null, null, null, false, Verification(null, null), emptyList())
 
-  private fun vm(routing: Routing, groups: List<Group>, letters: FakeLetters = FakeLetters(), drafts: FakeDrafts = FakeDrafts(), edit: Int? = null) =
-    ComposeViewModel(
-      letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(),
-      FakeSession(), ComposeRoute(prisonerId = 3, editMessageId = edit),
-    )
+  private fun vm(routing: Routing, groups: List<Group>, letters: FakeLetters = FakeLetters(), drafts: FakeDrafts = FakeDrafts(), edit: Int? = null,
+                 route: ComposeRoute = ComposeRoute(prisonerId = 3, editMessageId = edit), session: SessionRepository = FakeSession()) =
+    ComposeViewModel(letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(), session, route)
 
   @Test
   fun `one relay group is automatic and sent explicitly`() = runTest {
@@ -142,6 +140,42 @@ class ComposeViewModelTest {
   }
 
   @Test
+  fun `a group writes as a managed writer, and never drafts someone else's letter on this phone`() = runTest {
+    val letters = FakeLetters(); val drafts = FakeDrafts()
+    val vm = vm(Routing.DIRECT, listOf(group(7)), letters, drafts, route = ComposeRoute(3, writerId = 44, writerName = "Maria T."), session = FakeSession(role = "chapter", chapterId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Maria T.", vm.ui.value.writingAs)
+    vm.onBodyChange("Written at letter night"); dispatcher.scheduler.advanceTimeBy(700); dispatcher.scheduler.runCurrent()
+    assertTrue("no draft for a letter written on someone's behalf", drafts.store.isEmpty())
+    vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(NewLetter(3, "Written at letter night", null, 7, asWriterId = 44, fromPrisoner = false), letters.sent.single())
+  }
+
+  @Test
+  fun `a group with no writer chosen sends as its anonymous writer`() = runTest {
+    val letters = FakeLetters()
+    val vm = vm(Routing.DIRECT, emptyList(), letters, session = FakeSession(role = "chapter", chapterId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Anonymous writer", vm.ui.value.writingAs)
+    vm.onBodyChange("From a friend"); vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertNull(letters.sent.single().asWriterId)
+  }
+
+  @Test
+  fun `recording a reply ignores routing, is from the prisoner, and lands on the writer's thread`() = runTest {
+    val letters = FakeLetters()
+    // Relay-only with no group would block a letter; a reply is not mailed anywhere, so it must not be blocked.
+    val vm = vm(Routing.RELAY_ONLY, emptyList(), letters, route = ComposeRoute(3, replyForUserId = 4), session = FakeSession(role = "chapter", chapterId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(vm.ui.value.recordingReply)
+    vm.onBodyChange("Dear friend, thank you.")
+    assertTrue(vm.ui.value.canSend)
+    vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    val sent = letters.sent.single()
+    assertTrue(sent.fromPrisoner); assertEquals(4, sent.asWriterId); assertNull(sent.relayChapter)
+  }
+
+  @Test
   fun `edit mode loads the letter and saves through edit`() = runTest {
     val letters = FakeLetters()
     val vm = vm(Routing.DIRECT, emptyList(), letters, edit = 41)
@@ -157,7 +191,7 @@ class ComposeViewModelTest {
   class FakeLetters(private val fail: AppError? = null) : LettersRepository {
     val sent = mutableListOf<NewLetter>()
     val edits = mutableListOf<LetterEdit>()
-    private fun stub(id: Int) = Letter(id, 41, false, LetterStatus.QUEUED, "probe", null, null, null, false, null, null, emptyList(), emptyList())
+    private fun stub(id: Int) = Letter(id, 41, 3, 1, false, LetterStatus.QUEUED, "probe", null, null, null, false, null, null, emptyList(), emptyList())
     override fun threads(): Flow<PagingData<Thread>> = emptyFlow()
     override suspend fun thread(chatId: Int) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun threadForPrisoner(prisonerId: Int) = ApiResult.Success(null)
@@ -187,8 +221,8 @@ class ComposeViewModelTest {
     override suspend fun delete(userId: Int, prisonerId: Int) { store.remove(userId to prisonerId) }
   }
 
-  class FakeSession : SessionRepository {
-    override val state: StateFlow<SessionState> = MutableStateFlow(SessionState.SignedIn(Session("t", 0, SessionUser(1, "user1", null, null, "user", null))))
+  class FakeSession(role: String = "user", chapterId: Int? = null) : SessionRepository {
+    override val state: StateFlow<SessionState> = MutableStateFlow(SessionState.SignedIn(Session("t", 0, SessionUser(1, "user1", null, null, role, chapterId))))
     override suspend fun login(username: String, password: String) = ApiResult.Failure(AppError.Unauthorized(null))
     override suspend fun logout(everywhere: Boolean) = ApiResult.Success(Unit)
     override val expired = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
@@ -203,6 +237,8 @@ class ComposeViewModelTest {
   }
 
   class FakeLocalFiles : me.paxana.abcmailbox.data.files.LocalFilesContract {
+    override fun newCameraTarget(): Pair<File, android.net.Uri> = error("not used")
+    override fun stageCameraShot(file: File): StagedFile = StagedFile(file, file.name, "image/jpeg", 3)
     override suspend fun stage(uri: android.net.Uri): StagedFile = error("not used")
     override fun discard(staged: StagedFile) = Unit
     override fun downloadTarget(attachmentId: Int, name: String) = File("x")

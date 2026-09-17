@@ -23,6 +23,8 @@ fun StatusHistoryDto.toDomain() = StatusChange(
 fun MessageDto.toDomain(): Letter = Letter(
   id = id,
   threadId = chat,
+  prisonerId = prisoner,
+  writerId = user,
   fromPrisoner = sender == "prisoner",
   status = LetterStatus.fromKey(status),
   // In e2e mode messageText is null and the body arrives as ciphertext; phase 5 decrypts here.
@@ -57,4 +59,7 @@ fun ChatDto.toDomain(
   lastActivity = lastMessageAt.toInstantOrNull() ?: updatedAt.toInstantOrNull(),
   // Oldest first for a conversation view; the API returns them in insertion order already.
   letters = messages.orEmpty().map(letter).sortedBy { it.createdAt },
+  writer = userDetails?.let { u ->
+    me.paxana.abcmailbox.domain.ThreadWriter(u.id, u.name?.takeIf { it.isNotBlank() } ?: u.username, u.managedBy, u.anonymousForChapter)
+  },
 )

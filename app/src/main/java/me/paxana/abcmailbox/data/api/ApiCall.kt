@@ -30,7 +30,8 @@ fun HttpException.toAppError(json: Json): AppError {
     401 -> AppError.Unauthorized(info)
     403 -> AppError.Forbidden(info ?: "You are not allowed to do that.")
     404 -> AppError.NotFound(info)
-    409 -> AppError.Conflict(info)
+    // Lifecycle refusals put the useful sentence in `error` ("A printed letter cannot move to queued"); `info` is generic.
+    409 -> AppError.Conflict(envelope?.error ?: info)
     410 -> AppError.Gone(info)
     429 -> AppError.RateLimited(info, response()?.headers()?.get("Retry-After")?.toLongOrNull())
     else -> AppError.Server(code(), info)

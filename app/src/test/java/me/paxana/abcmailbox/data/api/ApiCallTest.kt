@@ -49,6 +49,12 @@ class ApiCallTest {
   }
 
   @Test
+  fun `a lifecycle 409 shows the specific sentence from error, not the generic info`() = runTest {
+    val r = apiCall(json) { throw http(409, """{"success":false,"name":"LetterStatusError","info":"Error updating letter status.","status":409,"error":"A printed letter cannot move to queued."}""") }
+    assertEquals("A printed letter cannot move to queued.", (r as ApiResult.Failure).error.userMessage)
+  }
+
+  @Test
   fun `429 becomes RateLimited with the Retry-After seconds`() = runTest {
     val response = Response.error<Any>(
       """{"success":false,"name":"RateLimitError","info":"Too many sign-in attempts. Try again in 15 minute(s).","status":429}""".toResponseBody("application/json".toMediaType()),

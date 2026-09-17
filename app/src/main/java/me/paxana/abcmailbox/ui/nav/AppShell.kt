@@ -42,6 +42,9 @@ import me.paxana.abcmailbox.ui.auth.RecoverScreen
 import me.paxana.abcmailbox.ui.auth.RecoveryCodeScreen
 import me.paxana.abcmailbox.ui.auth.LoginScreen
 import me.paxana.abcmailbox.ui.directory.DirectoryHomeScreen
+import me.paxana.abcmailbox.ui.group.AddWriterScreen
+import me.paxana.abcmailbox.ui.group.HandoffScreen
+import me.paxana.abcmailbox.ui.group.LetterWorkScreen
 import me.paxana.abcmailbox.ui.directory.FacilitiesScreen
 import me.paxana.abcmailbox.ui.directory.FacilityScreen
 import me.paxana.abcmailbox.ui.directory.GroupScreen
@@ -169,16 +172,35 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
             keysLocked = keysLocked,
             onSignIn = { navController.navigate(LoginRoute) },
             onThread = { navController.navigate(ThreadRoute(it)) },
-            onNewLetter = { navController.navigate(PickPrisonerRoute) },
+            onNewLetter = { navController.navigate(PickPrisonerRoute()) },
+            onQueueLetter = { navController.navigate(LetterWorkRoute(it)) },
+            onAddWriter = { navController.navigate(AddWriterRoute) },
+            onGroupLetter = { writerId, writerName -> navController.navigate(PickPrisonerRoute(writerId, writerName)) },
+            onHandoff = { navController.navigate(HandoffRoute(it.id, it.name)) },
           )
         }
-        composable<PickPrisonerRoute> {
+        composable<PickPrisonerRoute> { entry ->
+          val pick = entry.toRoute<PickPrisonerRoute>()
           PrisonersScreen(
-            title = "Write to…",
+            title = pick.writerName?.let { "Write as $it to…" } ?: "Write to…",
             onBack = { navController.popBackStack() },
-            onPrisoner = { navController.navigate(ComposeRoute(it)) { popUpTo<PickPrisonerRoute> { inclusive = true } } },
+            onPrisoner = { navController.navigate(ComposeRoute(it, writerId = pick.writerId, writerName = pick.writerName)) { popUpTo<PickPrisonerRoute> { inclusive = true } } },
           )
         }
+        composable<LetterWorkRoute> {
+          LetterWorkScreen(onBack = { navController.popBackStack() }, onThread = { navController.navigate(ThreadRoute(it)) })
+        }
+        composable<AddWriterRoute> {
+          AddWriterScreen(
+            onBack = { navController.popBackStack() },
+            onDone = { writer, thenWrite ->
+              navController.popBackStack()
+              if (thenWrite) navController.navigate(PickPrisonerRoute(writer.id, writer.name))
+              else scope.launch { snackbar.showSnackbar("${writer.name} added.") }
+            },
+          )
+        }
+        composable<HandoffRoute> { HandoffScreen(onBack = { navController.popBackStack() }) }
       }
       // Reachable from both tabs, so they live outside either graph.
       composable<ThreadRoute> {
@@ -187,6 +209,8 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           onPrisoner = { navController.navigate(PrisonerRoute(it)) },
           onWrite = { navController.navigate(ComposeRoute(it)) },
           onEdit = { prisonerId, messageId -> navController.navigate(ComposeRoute(prisonerId, messageId)) },
+          onGroupWrite = { prisonerId, writerId, writerName -> navController.navigate(ComposeRoute(prisonerId, writerId = writerId, writerName = writerName)) },
+          onRecordReply = { prisonerId, writerUserId -> navController.navigate(ComposeRoute(prisonerId, replyForUserId = writerUserId)) },
         )
       }
       composable<ComposeRoute> {
@@ -194,7 +218,13 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           sessionState = sessionState,
           onSignIn = { navController.navigate(LoginRoute) },
           onBack = { navController.popBackStack() },
-          onSent = { chatId -> navController.navigate(ThreadRoute(chatId)) { popUpTo<ComposeRoute> { inclusive = true } } },
+          onSent = { chatId ->
+            // Opened from that very thread: go back to it (it reloads on resume) rather than stacking a second copy.
+            val from = navController.previousBackStackEntry
+            val cameFromThisThread = from != null && from.destination.hasRoute<ThreadRoute>() && from.toRoute<ThreadRoute>().chatId == chatId
+            if (cameFromThisThread) navController.popBackStack()
+            else navController.navigate(ThreadRoute(chatId)) { popUpTo<ComposeRoute> { inclusive = true } }
+          },
         )
       }
       composable<AccountRoute> {

@@ -43,8 +43,18 @@ class LetterCodec @Inject constructor(
 
   /** The request for a new letter; in end-to-end mode also the content key, for encrypting its attachments. */
   suspend fun outgoing(letter: NewLetter): ApiResult<Pair<SendMessageRequest, ByteArray?>> {
+    val sender = if (letter.fromPrisoner) "prisoner" else "user"
     if (!isEndToEnd()) {
-      return ApiResult.Success(SendMessageRequest(messageText = letter.body, prisoner = letter.prisonerId, relayChapter = letter.relayChapter, relayNote = letter.relayNote?.takeIf { it.isNotBlank() }) to null)
+      return ApiResult.Success(
+        SendMessageRequest(
+          messageText = letter.body, prisoner = letter.prisonerId, sender = sender, user = letter.asWriterId,
+          // A reply is not relayed anywhere, so it carries no relay group or note.
+          relayChapter = letter.relayChapter.takeIf { !letter.fromPrisoner }, relayNote = letter.relayNote?.takeIf { it.isNotBlank() && !letter.fromPrisoner },
+        ) to null
+      )
+    }
+    if (letter.asWriterId != null || letter.fromPrisoner) {
+      return ApiResult.Failure(AppError.Validation(listOf("On an end-to-end server, letters written by a group need the group's key. That arrives in the next build.")))
     }
     val me = myId ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
     val keyPair = vault.keyPair(me) ?: return ApiResult.Failure(LOCKED)
