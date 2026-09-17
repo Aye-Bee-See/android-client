@@ -54,6 +54,17 @@ class SessionInterceptorTest {
   }
 
   @Test
+  fun `public auth endpoints get no token and their 401 is not a session event`() {
+    cache.token = "live-session"
+    for (path in listOf("/auth/login", "/auth/claim", "/auth/recover")) {
+      server.enqueue(MockResponse().setResponseCode(401).setBody("""{"info":"Incorrect username or password."}"""))
+      client.newCall(Request.Builder().url(server.url(path)).build()).execute().close()
+      assertNull("token leaked to $path", server.takeRequest().getHeader("Authorization"))
+    }
+    assertEquals(0, cache.unauthorized.replayCache.size)
+  }
+
+  @Test
   fun `401 without a token is not a session event`() {
     server.enqueue(MockResponse().setResponseCode(401).setBody("""{"info":"Incorrect username or password."}"""))
     val response = get()

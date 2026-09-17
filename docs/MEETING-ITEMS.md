@@ -12,12 +12,13 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 - **Claim deep link.** Confirm the URL (`abcmailbox.net/claim?token=`) and host an `assetlinks.json` on that domain so Android can verify the link. Until then the link opens through a chooser.
 - **Recovery copy.** `forgot-password.html` still says there is no recovery path. With recovery codes built, both clients should say: independent accounts recover with the recovery code; unclaimed managed accounts get a new claim token from their group.
-- **Recovery rate limiting** is not built. The phone app adds no client-side throttling, so this should exist before e2e goes live.
+- ~~Recovery rate limiting~~ **Done (API PR #84):** sign-in, claim checks, and recovery answer 429 with `Retry-After`; the app shows the server's sentence.
+- **Rule tags (agreed, not built yet):** publish the tag vocabulary early, and clients must ignore unknown tags.
 - **Self-registration.** The API allows public `POST /auth/user`; the site says accounts come from groups. Android hides registration behind a flag. Decide whether it should ever be exposed.
 
 ## Letters (API, affects phase 3)
 
-- **Attachment limit and types.** Templates say 20 MB; the API caps at 10 MiB. Multi-page scans from a phone camera are large. Android will always convert to JPEG or PDF, so HEIC is not needed server-side. Ask: raise to 20 MB.
+- ~~Attachment limit~~ **Done (API PR #84): 20 MiB.** Previously: templates say 20 MB; the API capped at 10 MiB. Multi-page scans from a phone camera are large. Android will always convert to JPEG or PDF, so HEIC is not needed server-side. Ask: raise to 20 MB.
 - **Retention.** API PR #78 purges mailed letters and replies after a per-writer window. Decide what a thread should show in place of purged letters (a count, a date, nothing). Android will show a one-line note.
 
 ## Sessions (API)

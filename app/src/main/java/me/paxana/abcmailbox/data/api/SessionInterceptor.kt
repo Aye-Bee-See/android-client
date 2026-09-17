@@ -20,7 +20,12 @@ import java.net.HttpURLConnection
 class SessionInterceptor(private val cache: SessionCache) : Interceptor {
 
   override fun intercept(chain: Interceptor.Chain): Response {
-    val token = cache.token
+    // Sign-in, claim, and recovery are public. Sending a token there is pointless, and
+    // worse, their 401 ("wrong password") would be mistaken for "your session was
+    // revoked": checking the current password before a password change would sign
+    // the user out on a typo.
+    val path = chain.request().url.encodedPath
+    val token = if (PUBLIC_AUTH_PATHS.any { path.endsWith(it) }) null else cache.token
     val request = if (token != null) {
       chain.request().newBuilder().header("Authorization", "Bearer $token").build()
     } else {
@@ -31,5 +36,9 @@ class SessionInterceptor(private val cache: SessionCache) : Interceptor {
       cache.reportUnauthorized(token)
     }
     return response
+  }
+
+  private companion object {
+    val PUBLIC_AUTH_PATHS = listOf("/auth/login", "/auth/claim", "/auth/recover")
   }
 }

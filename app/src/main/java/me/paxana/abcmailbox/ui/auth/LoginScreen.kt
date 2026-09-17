@@ -44,6 +44,8 @@ fun LoginScreen(
   sessionState: SessionState,
   onSignedIn: () -> Unit,
   onCancel: () -> Unit,
+  onClaim: () -> Unit,
+  onForgot: () -> Unit,
   viewModel: LoginViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.uiState.collectAsStateWithLifecycle()
@@ -113,11 +115,8 @@ fun LoginScreen(
       style = MaterialTheme.typography.bodyMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Text(
-      "Forgot your password? Recovery arrives with account claiming in a later build.",
-      style = MaterialTheme.typography.bodyMedium,
-      color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    TextButton(onClick = onClaim, modifier = Modifier.align(Alignment.Start)) { Text("I have a claim token") }
+    TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.Start)) { Text("Forgot your password?") }
     TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.Start)) { Text("Back") }
   }
 }

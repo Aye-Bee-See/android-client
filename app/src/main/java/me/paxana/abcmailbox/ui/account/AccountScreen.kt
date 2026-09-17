@@ -32,6 +32,7 @@ import me.paxana.abcmailbox.data.session.SessionState
 fun AccountScreen(
   sessionState: SessionState,
   onSignIn: () -> Unit,
+  onChangePassword: () -> Unit,
   viewModel: AccountViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.uiState.collectAsStateWithLifecycle()
@@ -65,6 +66,7 @@ fun AccountScreen(
           style = MaterialTheme.typography.bodyMedium,
         )
         HorizontalDivider()
+        TextButton(onClick = onChangePassword) { Text("Change password") }
         OutlinedButton(
           onClick = { viewModel.signOut(everywhere = false) },
           enabled = !ui.signingOut,

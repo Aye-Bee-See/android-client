@@ -24,6 +24,9 @@ sealed class AppError : Exception() {
   /** A used or expired claim token (410). */
   data class Gone(val info: String?) : AppError()
 
+  /** 429: too many sign-in, claim, or recovery attempts. `retryAfterSeconds` comes from the `Retry-After` header. */
+  data class RateLimited(val info: String?, val retryAfterSeconds: Long?) : AppError()
+
   data class Server(val status: Int, val info: String?) : AppError()
 
   /** Could not reach the server at all. */
@@ -40,6 +43,7 @@ sealed class AppError : Exception() {
       is NotFound -> info
       is Conflict -> info
       is Gone -> info
+      is RateLimited -> info ?: retryAfterSeconds?.let { "Too many attempts. Try again in ${(it + 59) / 60} minute(s)." } ?: "Too many attempts. Try again later."
       is Server -> info
       is Network -> null
       is Unexpected -> null

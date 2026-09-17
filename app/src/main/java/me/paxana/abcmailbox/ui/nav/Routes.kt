@@ -28,3 +28,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object PickPrisonerRoute
 @Serializable data object AccountRoute
 @Serializable data object LoginRoute
+/** `token` is set when the screen was opened by a claim link. */
+@Serializable data class ClaimRoute(val token: String? = null)
+@Serializable data object RecoverRoute
+@Serializable data object ChangePasswordRoute

@@ -32,6 +32,7 @@ fun HttpException.toAppError(json: Json): AppError {
     404 -> AppError.NotFound(info)
     409 -> AppError.Conflict(info)
     410 -> AppError.Gone(info)
+    429 -> AppError.RateLimited(info, response()?.headers()?.get("Retry-After")?.toLongOrNull())
     else -> AppError.Server(code(), info)
   }
 }

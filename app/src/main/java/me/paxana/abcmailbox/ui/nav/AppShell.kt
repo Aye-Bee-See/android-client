@@ -10,9 +10,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -25,9 +31,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
+import kotlinx.coroutines.launch
 import androidx.navigation.toRoute
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.ui.account.AccountScreen
+import me.paxana.abcmailbox.ui.account.ChangePasswordScreen
+import me.paxana.abcmailbox.ui.auth.ClaimScreen
+import me.paxana.abcmailbox.ui.auth.RecoverScreen
 import me.paxana.abcmailbox.ui.auth.LoginScreen
 import me.paxana.abcmailbox.ui.directory.DirectoryHomeScreen
 import me.paxana.abcmailbox.ui.directory.FacilitiesScreen
@@ -58,11 +69,19 @@ private val tabs = listOf(
 fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val sessionState by viewModel.state.collectAsStateWithLifecycle()
   val navController = rememberNavController()
+  val scope = rememberCoroutineScope()
   val backStackEntry by navController.currentBackStackEntryAsState()
   val destination = backStackEntry?.destination
-  val showBars = destination?.hasRoute(LoginRoute::class) != true
+  val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, RecoverRoute::class)
+  val showBars = fullScreen.none { destination?.hasRoute(it) == true }
+  val snackbar = remember { SnackbarHostState() }
+
+  LaunchedEffect(Unit) {
+    viewModel.expired.collect { snackbar.showSnackbar("Your session ended. Please sign in again.") }
+  }
 
   Scaffold(
+    snackbarHost = { SnackbarHost(snackbar) { Snackbar(it) } },
     bottomBar = {
       AnimatedVisibility(visible = showBars) {
         NavigationBar {
@@ -168,14 +187,44 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
         )
       }
       composable<AccountRoute> {
-        AccountScreen(sessionState = sessionState, onSignIn = { navController.navigate(LoginRoute) })
+        AccountScreen(
+          sessionState = sessionState,
+          onSignIn = { navController.navigate(LoginRoute) },
+          onChangePassword = { navController.navigate(ChangePasswordRoute) },
+        )
+      }
+      composable<ChangePasswordRoute> {
+        ChangePasswordScreen(
+          onBack = { navController.popBackStack() },
+          onDone = {
+            navController.popBackStack()
+            scope.launch { snackbar.showSnackbar("Password changed. Other devices were signed out.") }
+          },
+        )
       }
       composable<LoginRoute> {
         LoginScreen(
           sessionState = sessionState,
           onSignedIn = { navController.popBackStack() },
           onCancel = { navController.popBackStack() },
+          onClaim = { navController.navigate(ClaimRoute()) },
+          onForgot = { navController.navigate(RecoverRoute) },
         )
+      }
+      // abcmailbox://claim?token=… opens this screen with the token filled in. The https
+      // form (App Links) waits for a domain; see docs/PLAN.md section 8.
+      composable<ClaimRoute>(deepLinks = listOf(navDeepLink<ClaimRoute>(basePath = "abcmailbox://claim"))) {
+        ClaimScreen(
+          sessionState = sessionState,
+          onClaimed = {
+            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            scope.launch { snackbar.showSnackbar("Account claimed. You are signed in.") }
+          },
+          onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
+        )
+      }
+      composable<RecoverRoute> {
+        RecoverScreen(onBack = { navController.popBackStack() }, onClaim = { navController.navigate(ClaimRoute()) })
       }
     }
   }

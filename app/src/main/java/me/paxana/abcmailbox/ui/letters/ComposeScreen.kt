@@ -123,7 +123,7 @@ fun ComposeScreen(
           }
         }
         OutlinedButton(onClick = { picker.launch(ATTACHMENT_MIME_TYPES) }, enabled = !ui.sending) { Text("Attach a file") }
-        Text("PDF, JPG, PNG, or WebP · max 10 MB. A scan of a handwritten letter works well.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("PDF, JPG, PNG, or WebP · max 20 MB. A scan of a handwritten letter works well.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
 

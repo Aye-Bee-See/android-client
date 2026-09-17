@@ -49,6 +49,20 @@ class ApiCallTest {
   }
 
   @Test
+  fun `429 becomes RateLimited with the Retry-After seconds`() = runTest {
+    val response = Response.error<Any>(
+      """{"success":false,"name":"RateLimitError","info":"Too many sign-in attempts. Try again in 15 minute(s).","status":429}""".toResponseBody("application/json".toMediaType()),
+      okhttp3.Response.Builder().code(429).message("Too Many Requests").protocol(okhttp3.Protocol.HTTP_1_1)
+        .request(okhttp3.Request.Builder().url("http://localhost/auth/login").build()).header("Retry-After", "900").build(),
+    )
+    val r = apiCall(json) { throw HttpException(response) }
+    val e = (r as ApiResult.Failure).error as AppError.RateLimited
+    assertEquals(900L, e.retryAfterSeconds)
+    assertEquals("Too many sign-in attempts. Try again in 15 minute(s).", e.userMessage)
+    assertEquals("Too many attempts. Try again in 15 minute(s).", AppError.RateLimited(null, 900).userMessage)
+  }
+
+  @Test
   fun `an unparseable error body still maps by status`() = runTest {
     val r = apiCall(json) { throw http(500, "<html>nope</html>") }
     assertEquals(AppError.Server(500, null), (r as ApiResult.Failure).error)

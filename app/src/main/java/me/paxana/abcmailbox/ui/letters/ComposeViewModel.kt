@@ -35,7 +35,8 @@ import me.paxana.abcmailbox.domain.resolveRelay
 import me.paxana.abcmailbox.ui.nav.ComposeRoute
 import javax.inject.Inject
 
-const val MAX_ATTACHMENT_BYTES = 10L * 1024 * 1024
+/** The API's default since PR #84 (`UPLOAD_MAX_BYTES`, 20 MiB). */
+const val MAX_ATTACHMENT_BYTES = 20L * 1024 * 1024
 val ATTACHMENT_MIME_TYPES = arrayOf("application/pdf", "image/jpeg", "image/png", "image/webp")
 
 data class ComposeUiState(
@@ -152,7 +153,7 @@ class ComposeViewModel(
       }
       when {
         staged.mimeType !in ATTACHMENT_MIME_TYPES -> { files.discard(staged); _ui.update { it.copy(error = "Only PDF, JPEG, PNG, or WebP files can be attached.") } }
-        staged.size > MAX_ATTACHMENT_BYTES -> { files.discard(staged); _ui.update { it.copy(error = "That file is over 10 MB.") } }
+        staged.size > MAX_ATTACHMENT_BYTES -> { files.discard(staged); _ui.update { it.copy(error = "That file is over 20 MB.") } }
         else -> _ui.update { it.copy(attachments = it.attachments + staged, error = null) }
       }
     }

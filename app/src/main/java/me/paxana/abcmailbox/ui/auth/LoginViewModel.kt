@@ -56,6 +56,7 @@ class LoginViewModel @Inject constructor(
 
 internal fun AppError.toLoginMessage(): String = when (this) {
   is AppError.Unauthorized -> "Incorrect username or password."
+  is AppError.RateLimited -> userMessage ?: "Too many sign-in attempts. Try again later."
   is AppError.Validation -> errors.joinToString(" ")
   is AppError.Network -> "Can't reach the server. Check your connection and try again."
   else -> userMessage ?: "Something went wrong. Please try again."
