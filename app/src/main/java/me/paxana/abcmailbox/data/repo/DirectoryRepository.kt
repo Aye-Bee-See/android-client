@@ -63,9 +63,10 @@ class DefaultDirectoryRepository @Inject constructor(
   @Volatile private var liveCatalog: MailRuleCatalog? = null
 
   /**
-   * The live vocabulary, fetched once per process; the compiled-in copy if the
-   * server cannot be reached. It only changes with an API release, so there is
-   * no invalidation beyond restarting the app.
+   * The live master list, fetched once per process; the compiled-in copy if the
+   * server cannot be reached. Admins can change the list at any time (API PR #93),
+   * so it is only the fallback: each facility read carries the wording of its own
+   * rules (`mail_rule_details`), which the mapper prefers.
    */
   private suspend fun catalog(): MailRuleCatalog {
     liveCatalog?.let { return it }

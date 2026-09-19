@@ -102,8 +102,13 @@ data class PrisonDto(
   val verifiedBy: Int? = null,
   val verifiedAt: String? = null,
   val recordStatus: String? = null,
-  /** Tags from the mail-rule vocabulary (API PR #86); the three valued rules sit beside them. */
+  /** Tags from the master list of mail rules (API PRs #86, #93); the three valued rules sit beside them. */
   val mailRules: List<String>? = null,
+  /**
+   * The same rules with their wording (API PR #93). The master list can change while the app runs,
+   * since admins add and retire rules, so this is the authority for how a facility's rules read.
+   */
+  @SerialName("mail_rule_details") val mailRuleDetails: List<MailRuleDto>? = null,
   val pageLimit: Int? = null,
   val photoLimit: Int? = null,
   val mailLanguages: List<String>? = null,

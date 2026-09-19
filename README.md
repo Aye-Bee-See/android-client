@@ -12,7 +12,7 @@ The Android client for Aye Bee See, a correspondence network for political priso
 | --- | --- |
 | `:app` | The Android app: Compose UI, Hilt, Retrofit, Room. Package `me.paxana.abcmailbox`. |
 | `:crypto` | Plain JVM Kotlin. Every libsodium call goes through `Sodium.kt`; tests run on the development machine and include fixtures produced by the API's own crypto code. |
-| `tools/` | `dev-seed.py` adds development data to a seeded API; `make-interop-fixture.mjs` regenerates the crypto test fixture. |
+| `tools/` | `dev-seed.py` adds development data to a seeded API; `capture-contract.py` with `ContractCheckTest` checks the app against a running API after the API changes; `make-interop-fixture.mjs` regenerates the crypto test fixture. |
 
 ## Build
 

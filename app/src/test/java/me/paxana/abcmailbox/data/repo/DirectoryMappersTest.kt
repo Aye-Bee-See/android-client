@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.domain.MailRuleCatalog
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -105,5 +106,26 @@ class DirectoryMappersTest {
     val f = dto.toDomain()
     assertEquals(Routing.UNKNOWN, f.routing)
     assertNull(f.verification.at)
+  }
+
+  @Test
+  fun `a rule an admin added after the app was built reads in the server's words, not words made from its tag`() {
+    // Captured 19 Sep 2026 from API main after PR #93, with `no_glitter_or_stickers` (rule 40) added by an admin.
+    val dto = json.decodeFromString<ApiEnvelope<PrisonDto>>(fixture("prison-rules-pr93.json")).data!!
+    // The compiled catalog stands for an app whose list is older than the rule: the worst case.
+    val rule = dto.toDomain(MailRuleCatalog.Compiled).rules.rules.single { it.tag == "no_glitter_or_stickers" }
+    assertEquals("No glitter or stickers", rule.label)
+    assertEquals("content", rule.category)
+    assertEquals("Letters decorated with glitter, stickers or tape are returned to sender.", rule.description)
+    // And it sorts with its category, not at the end with the unknowns.
+    val tags = dto.toDomain(MailRuleCatalog.Compiled).rules.rules.map { it.tag }
+    assertTrue(tags.indexOf("no_glitter_or_stickers") < tags.indexOf("mail_read_by_staff"))
+  }
+
+  @Test
+  fun `a server from before PR 93, which sends tags only, still maps`() {
+    val dto = PrisonDto(id = 1, prisonName = "Old", mailRules = listOf("no_photos", "brand_new_tag"))
+    val labels = dto.toDomain().rules.rules.associate { it.tag to it.label }
+    assertEquals(mapOf("no_photos" to "No pictures", "brand_new_tag" to "Brand new tag"), labels)
   }
 }

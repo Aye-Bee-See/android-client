@@ -17,9 +17,16 @@ class MailRuleCatalog(private val categories: List<String>, rules: List<MailRule
   fun resolve(tag: String): MailRule = byTag[tag]
     ?: MailRule(tag, "other", tag.replace('_', ' ').replaceFirstChar { it.uppercase() }, null)
 
-  /** Rules in the vocabulary's display order, unknown tags last. */
-  fun resolveAll(tags: List<String>): List<MailRule> =
-    tags.distinct().map(::resolve).sortedBy { r -> categories.indexOf(r.category).let { if (it < 0) Int.MAX_VALUE else it } }
+  /**
+   * Rules in the vocabulary's display order, unknown tags last. [details] is what the facility itself
+   * says about its rules, and wins: admins add and retire rules while the app is running, so a tag can
+   * be newer than the list this catalog was built from, or retired and no longer on it at all.
+   */
+  fun resolveAll(tags: List<String>, details: List<MailRule> = emptyList()): List<MailRule> {
+    val fromFacility = details.associateBy { it.tag }
+    return tags.distinct().map { fromFacility[it] ?: resolve(it) }
+      .sortedBy { r -> categories.indexOf(r.category).let { if (it < 0) Int.MAX_VALUE else it } }
+  }
 
   companion object {
     val Compiled = MailRuleCatalog(CompiledMailRules.categories, CompiledMailRules.rules)

@@ -8,6 +8,7 @@ import me.paxana.abcmailbox.data.api.PrisonDto
 import me.paxana.abcmailbox.data.api.PrisonerDto
 import me.paxana.abcmailbox.domain.Facility
 import me.paxana.abcmailbox.domain.Group
+import me.paxana.abcmailbox.domain.MailRule
 import me.paxana.abcmailbox.domain.MailRuleCatalog
 import me.paxana.abcmailbox.domain.MailRules
 import me.paxana.abcmailbox.domain.Prisoner
@@ -49,7 +50,11 @@ fun PrisonDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): Fac
   verification = Verification(verifiedBy, verifiedAt.toInstantOrNull()),
   prisoners = prisoners.orEmpty().map { it.toDomain(catalog) },
   rules = MailRules(
-    rules = catalog.resolveAll(mailRules.orEmpty()),
+    rules = catalog.resolveAll(
+      mailRules.orEmpty(),
+      // A detail with no label of its own falls back to what the catalog knows for that tag.
+      mailRuleDetails.orEmpty().map { d -> MailRule(d.tag, d.category, d.label?.takeIf { it.isNotBlank() } ?: catalog.resolve(d.tag).label, d.description) },
+    ),
     pageLimit = pageLimit?.takeIf { it > 0 },
     photoLimit = photoLimit?.takeIf { it > 0 },
     languages = mailLanguages.orEmpty().map { it.lowercase() },

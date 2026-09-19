@@ -55,7 +55,8 @@ fun DevServerDialog(
     confirmButton = { TextButton(onClick = { onSave(text) }, enabled = !checking) { Text(if (checking) "Checking…" else "Save and check") } },
     dismissButton = {
       Column {
-        TextButton(onClick = onReset, enabled = !checking) { Text("Use default") }
+        // Show the address now in force; the field is local state and would otherwise keep the old one.
+        TextButton(onClick = { text = default; onReset() }, enabled = !checking) { Text("Use default") }
         TextButton(onClick = onDismiss) { Text("Close") }
       }
     },
