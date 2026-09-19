@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+: what may leave this phone in a cloud backup or a phone-to-phone transfer. Nothing.
+  The session and the letter key are encrypted under an Android Keystore key that never leaves the
+  device, so a copy would be useless on another phone anyway; drafts are private letters. A new
+  phone starts clean: sign in (and, on an end-to-end server, the password unlocks the key again).
+  `allowBackup="false"` says the same for Android 11 and older.
+-->
+<data-extraction-rules>
+    <cloud-backup><exclude domain="root" /><exclude domain="file" /><exclude domain="database" /><exclude domain="sharedpref" /><exclude domain="external" /></cloud-backup>
+    <device-transfer><exclude domain="root" /><exclude domain="file" /><exclude domain="database" /><exclude domain="sharedpref" /><exclude domain="external" /></device-transfer>
+</data-extraction-rules>

@@ -16,8 +16,9 @@ import android.webkit.WebViewClient
  * `context` must be an Activity: the print service refuses anything else. In
  * Compose, `LocalContext.current` is the Activity.
  */
+@android.annotation.SuppressLint("StaticFieldLeak") // `pending` is built from the application context and cleared once printing starts
 object PrintLetter {
-  // The WebView must outlive this call, until the print adapter has read it.
+  // The WebView must outlive this call, until the print adapter has read it; then it is let go.
   private var pending: WebView? = null
 
   fun print(context: Context, jobName: String, body: String) {
@@ -27,7 +28,9 @@ object PrintLetter {
         p { white-space: pre-wrap; margin: 0; }
       </style></head><body><p>${escape(body)}</p></body></html>
     """.trimIndent()
-    val webView = WebView(context)
+    // Laid out off-screen, so it needs no Activity: the application context means the short-lived static
+    // reference below can never hold a screen in memory. Only the print service needs the Activity.
+    val webView = WebView(context.applicationContext)
     webView.webViewClient = object : WebViewClient() {
       override fun onPageFinished(view: WebView, url: String?) {
         val manager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager

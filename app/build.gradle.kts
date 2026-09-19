@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -22,18 +24,64 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  // Release signing reads an untracked file (see keystore.properties.example) or, on CI, environment
+  // variables. Neither the keystore nor its passwords ever belong in the repository. Without them the
+  // release build still assembles, unsigned, which is enough to check that it builds and shrinks.
+  val keystoreProps = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.reader(Charsets.UTF_8)?.use { load(it) }
+  }
+  fun signingValue(key: String, env: String): String? = keystoreProps.getProperty(key) ?: System.getenv(env)
+  val releaseStoreFile = signingValue("storeFile", "ABC_KEYSTORE_FILE")
+
+  signingConfigs {
+    if (releaseStoreFile != null) create("release") {
+      storeFile = rootProject.file(releaseStoreFile)
+      storePassword = signingValue("storePassword", "ABC_KEYSTORE_PASSWORD")
+      keyAlias = signingValue("keyAlias", "ABC_KEY_ALIAS")
+      keyPassword = signingValue("keyPassword", "ABC_KEY_PASSWORD")
+    }
+  }
+
   buildTypes {
     debug {
       // 10.0.2.2 is the emulator's alias for the host machine's localhost.
       buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+      // The hidden server dialog on the Account tab (five taps on the build line).
+      buildConfigField("boolean", "DEV_TOOLS", "true")
     }
     release {
-      isMinifyEnabled = false
+      // R8 removes unused code, renames what is left, and optimises; resource shrinking then drops
+      // resources nothing refers to. Keep rules for the reflective parts are in proguard-rules.pro.
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // Placeholder until there is a deployed API.
-      buildConfigField("String", "API_BASE_URL", "\"https://api.abcmailbox.net/\"")
+      // Placeholder until there is a deployed API; override with -PapiBaseUrl=https://… for a real one.
+      val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "https://api.abcmailbox.net/"
+      buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+      buildConfigField("boolean", "DEV_TOOLS", "false")
+      signingConfig = signingConfigs.findByName("release")
+    }
+    // What testers get before there is a domain: shrunk and optimised exactly like release (so it
+    // proves the release build works), but with the developer tools of debug, plain HTTP allowed so
+    // it can reach a laptop on the same Wi-Fi, and its own application id so it installs beside the others.
+    create("internal") {
+      initWith(getByName("release"))
+      applicationIdSuffix = ".internal"
+      versionNameSuffix = "-internal"
+      buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+      buildConfigField("boolean", "DEV_TOOLS", "true")
+      signingConfig = signingConfigs.getByName("debug")
+      matchingFallbacks += "release"
     }
   }
+
+  // The internal build shares debug's resources (the network security config that allows plain HTTP)
+  // rather than keeping a copy that could drift.
+  sourceSets.getByName("internal").res.srcDir("src/debug/res")
+
+  // Processor architectures that Android 8+ devices and emulators actually have. A library ships
+  // native code for mips and armeabi too, which no supported device can run.
+  defaultConfig.ndk.abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
 
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17

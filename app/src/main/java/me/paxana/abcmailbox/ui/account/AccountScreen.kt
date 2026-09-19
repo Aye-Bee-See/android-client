@@ -88,9 +88,9 @@ fun AccountScreen(
       style = MaterialTheme.typography.labelSmall,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       // Debug builds: five taps open the hidden server dialog.
-      modifier = if (BuildConfig.DEBUG) Modifier.clickable(onClick = viewModel::onBuildLineTap) else Modifier,
+      modifier = if (BuildConfig.DEV_TOOLS) Modifier.clickable(onClick = viewModel::onBuildLineTap) else Modifier,
     )
-    if (BuildConfig.DEBUG && ui.serverDialog) {
+    if (BuildConfig.DEV_TOOLS && ui.serverDialog) {
       DevServerDialog(
         current = ui.serverUrl,
         default = ui.serverDefault,

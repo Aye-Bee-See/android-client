@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!--
+      Lint says the -v26 qualifier is unnecessary because minSdk is 26, and suggests `mipmap-anydpi`.
+      Tried on 19 Sep 2026 (AGP 9.3.2): aapt2 then cannot find the adaptive icons at all and the
+      build fails. The qualifier stays; the check stays on for everything else.
+    -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+    <!-- The debug (and internal) network config allows plain HTTP on purpose, to reach a laptop. The main one does not. -->
+    <issue id="InsecureBaseConfiguration">
+        <ignore path="src/debug/res/xml/network_security_config.xml" />
+    </issue>
+</lint>

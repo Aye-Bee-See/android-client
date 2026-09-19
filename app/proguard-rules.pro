@@ -1,21 +1,20 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 keep rules. Most libraries here (Retrofit, OkHttp, kotlinx.serialization, Room, Hilt, Compose)
+# ship their own rules inside their artifacts; only what they cannot know about is listed.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# libsodium through JNA. JNA finds native functions by the *names* of the methods on a Kotlin/Java
+# interface, and reads structure fields by reflection, so none of it may be renamed or removed.
+# Without these, encryption fails at runtime in a release build and works in debug: the worst kind of bug.
+-keep class com.sun.jna.** { *; }
+-keep class * implements com.sun.jna.Library { *; }
+-keep class * implements com.sun.jna.Callback { *; }
+-keepclassmembers class * extends com.sun.jna.Structure { *; }
+-keep class com.ionspin.kotlin.crypto.** { *; }
+# JNA's desktop-only parts refer to AWT, which Android does not have.
+-dontwarn java.awt.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Navigation's type-safe routes are @Serializable classes looked up by name when a back stack is restored.
+-keep class me.paxana.abcmailbox.ui.nav.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Readable stack traces from the field: keep line numbers, hide original file names.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

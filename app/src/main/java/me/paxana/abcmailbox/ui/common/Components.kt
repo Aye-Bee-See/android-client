@@ -87,8 +87,8 @@ fun <T> ChipRow(
   options: List<Pair<T, String>>,
   selected: T?,
   onSelect: (T?) -> Unit,
-  allLabel: String = "All",
   modifier: Modifier = Modifier,
+  allLabel: String = "All",
   showAll: Boolean = true,
 ) {
   Row(
