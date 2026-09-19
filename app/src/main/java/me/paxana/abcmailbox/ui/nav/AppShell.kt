@@ -27,6 +27,14 @@ import me.paxana.abcmailbox.ui.common.longDate
 import me.paxana.abcmailbox.data.repo.DirectorySource
 import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.R
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.os.Build
+import android.Manifest
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -87,16 +95,39 @@ private val tabs = listOf(
 private const val ACCOUNT_UNKNOWN = Int.MIN_VALUE
 private const val NO_ACCOUNT = -1
 
-/** Screens that show one account's data. They are closed when the account changes. */
-private val accountScreens = listOf(
-  ThreadRoute::class, ComposeRoute::class, PickPrisonerRoute::class, LetterWorkRoute::class,
-  AddWriterRoute::class, HandoffRoute::class, GroupKeyRoute::class, ChangePasswordRoute::class,
-)
-
 @Composable
 fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val sessionState by viewModel.state.collectAsStateWithLifecycle()
+
+  // When the account changes (sign-out, an expired session, or a different person signing in), nothing the
+  // previous account had open may stay reachable: not a thread on the Inbox tab's saved back stack, not a
+  // half-written letter in a ViewModel. The whole navigation state is thrown away and built again, which is
+  // what `key` does to everything inside it when its value changes.
+  //
+  // (Until 19 Sep 2026 this called `clearBackStack` for each tab instead. For the tab that is the start
+  // destination that removes the start destination itself, and the Directory tab then led to the Account page.)
+  val accountId = (sessionState as? SessionState.SignedIn)?.session?.user?.id ?: NO_ACCOUNT
+  var lastAccountId by rememberSaveable { mutableIntStateOf(ACCOUNT_UNKNOWN) }
+  var generation by rememberSaveable { mutableIntStateOf(0) }
+  LaunchedEffect(accountId, sessionState is SessionState.Loading) {
+    if (sessionState is SessionState.Loading) return@LaunchedEffect
+    // Signing in from signed-out changes nothing that was private; every other change does.
+    if (lastAccountId != ACCOUNT_UNKNOWN && lastAccountId != NO_ACCOUNT && lastAccountId != accountId) generation++
+    lastAccountId = accountId
+  }
+  key(generation) { Shell(viewModel, sessionState, landOnAccount = generation > 0) }
+}
+
+@Composable
+private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landOnAccount: Boolean) {
   val navController = rememberNavController()
+  // A rebuilt shell starts on the Directory like a fresh launch. Whoever just signed out (or was signed
+  // out) is better served by the Account page, where signing in again is one tap. Once, not on every rotation.
+  var landed by rememberSaveable { mutableStateOf(false) }
+  LaunchedEffect(Unit) {
+    if (landOnAccount && !landed) navController.navigate(AccountRoute) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true }
+    landed = true
+  }
   val scope = rememberCoroutineScope()
   val backStackEntry by navController.currentBackStackEntryAsState()
   val destination = backStackEntry?.destination
@@ -114,25 +145,14 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val keysLocked by viewModel.keysLocked.collectAsStateWithLifecycle()
   val mode by viewModel.mode.collectAsStateWithLifecycle()
   val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
+  val unsentCount by viewModel.unsentCount.collectAsStateWithLifecycle()
+  val letterQueued = stringResource(R.string.notice_letter_queued)
+  // Android 13+ asks the user before an app may post notifications. Asked here, the first time it matters
+  // (a letter was just queued and its fate will be decided while they are not looking), not at first launch.
+  val askToNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
   LaunchedEffect(Unit) {
     viewModel.expired.collect { snackbar.showSnackbar(sessionEnded) }
-  }
-  // When the account changes (sign-out, an expired session, or a different person signing in), nothing the
-  // previous account had open may stay reachable. Tabs keep a saved back stack each, so a thread opened by
-  // one account would otherwise still be sitting on the Inbox tab for the next one.
-  val accountId = (sessionState as? SessionState.SignedIn)?.session?.user?.id ?: NO_ACCOUNT
-  var lastAccountId by rememberSaveable { mutableIntStateOf(ACCOUNT_UNKNOWN) }
-  LaunchedEffect(accountId, sessionState is SessionState.Loading) {
-    if (sessionState is SessionState.Loading) return@LaunchedEffect
-    // Signing in from signed-out changes nothing that was private; every other change does.
-    if (lastAccountId != ACCOUNT_UNKNOWN && lastAccountId != NO_ACCOUNT && lastAccountId != accountId) {
-      navController.clearBackStack<DirectoryGraph>()
-      navController.clearBackStack<InboxGraph>()
-      navController.clearBackStack<AccountRoute>()
-      while (accountScreens.any { navController.currentDestination?.hasRoute(it) == true }) if (!navController.popBackStack()) break
-    }
-    lastAccountId = accountId
   }
 
   // A recovery code was just created (first sign-in on an end-to-end server, or a claim):
@@ -159,7 +179,11 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
                   restoreState = true
                 }
               },
-              icon = { Icon(tab.icon, contentDescription = null) },
+              icon = {
+                // The Inbox tab counts unsent letters, so they are not forgotten on another tab.
+                if (tab.routeClass == InboxGraph::class && unsentCount > 0) BadgedBox(badge = { Badge { Text(unsentCount.toString()) } }) { Icon(tab.icon, contentDescription = null) }
+                else Icon(tab.icon, contentDescription = null)
+              },
               label = { Text(stringResource(tab.label)) },
             )
           }
@@ -232,6 +256,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
             onGroupLetter = { writerId, writerName -> navController.navigate(PickPrisonerRoute(writerId, writerName)) },
             onHandoff = { navController.navigate(HandoffRoute(it.id, it.name)) },
             onGroupKey = { navController.navigate(GroupKeyRoute) },
+            onEditQueued = { q -> navController.navigate(ComposeRoute(q.payload.prisonerId, writerId = q.payload.asWriterId.takeIf { !q.payload.fromPrisoner }, writerName = q.payload.writingAs, replyForUserId = q.payload.asWriterId.takeIf { q.payload.fromPrisoner }, outboxId = q.id)) },
           )
         }
         composable<PickPrisonerRoute> { entry ->
@@ -274,6 +299,11 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           sessionState = sessionState,
           onSignIn = { navController.navigate(LoginRoute) },
           onBack = { navController.popBackStack() },
+          onQueued = {
+            navController.popBackStack()
+            scope.launch { snackbar.showSnackbar(letterQueued) }
+            if (Build.VERSION.SDK_INT >= 33) askToNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
+          },
           onSent = { chatId ->
             // Opened from that very thread: go back to it (it reloads on resume) rather than stacking a second copy.
             val from = navController.previousBackStackEntry

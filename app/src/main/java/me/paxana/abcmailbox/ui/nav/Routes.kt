@@ -32,6 +32,8 @@ import kotlinx.serialization.Serializable
   val writerName: String? = null,
   /** Group accounts: record a prisoner's reply on this writer's thread instead of writing a letter. */
   val replyForUserId: Int? = null,
+  /** Reopening a letter from the outbox: compose starts from it, and sending (or queueing) again replaces it. */
+  val outboxId: Long? = null,
 )
 @Serializable data class PickPrisonerRoute(val writerId: Int? = null, val writerName: String? = null)
 

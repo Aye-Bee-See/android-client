@@ -2,6 +2,16 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-19: the outbox never posts a letter twice, and prefers waiting to guessing
+
+**Context.** Letters written offline are sent later by a background worker. A request that times out may or may not have arrived, and the API cannot deduplicate.
+
+**Decision.** Record each step (letter, then each file) the moment it succeeds. After an attempt with an unknown outcome, look for the letter on the server before posting again; if the server cannot be asked, wait. Queue from the compose screen only when the request certainly never left the phone. Keep queued letters encrypted under the Keystore key, and in end-to-end mode seal them at send time. Notifications name nobody.
+
+**Consequences.** A letter can be delayed by caution but not doubled by haste. In end-to-end mode the look-up can miss a letter it cannot open, which leaves a small window for a duplicate; an idempotency key on the API would close it (plan, ask 14). WorkManager's minimum back-off means a letter typically leaves within a minute of the network returning, not instantly; "Try to send now" covers someone who is watching.
+
+**Rejected.** Queueing on any network error (a timeout would then create a queued copy of a letter that may already be there). Sealing end-to-end letters when they are written (needs the relay group's public key and key version, which may be missing or rotated by the time there is a connection). Deleting queued letters at sign-out (the writer would lose an evening's letters to a tap).
+
 ## 2026-09-19: offline means a downloaded public copy, not an HTTP cache
 
 **Context.** Volunteers write letters together in rooms with no signal and need addresses and mail rules there.

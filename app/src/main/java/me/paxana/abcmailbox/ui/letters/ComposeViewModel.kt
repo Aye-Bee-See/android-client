@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.data.api.AppError
+import me.paxana.abcmailbox.data.repo.OutboxRepository
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -64,6 +66,8 @@ data class ComposeUiState(
   val error: String? = null,
   val draftRestored: Boolean = false,
   val sentChatId: Int? = null,
+  /** The server could not be reached, so the letter went to the outbox instead. The screen closes and says so. */
+  val queuedOffline: Boolean = false,
 ) {
   val characters: Int get() = body.length
   val pages: Int get() = estimatePages(characters)
@@ -92,6 +96,7 @@ class ComposeViewModel(
   private val files: LocalFilesContract,
   sessions: SessionRepository,
   private val route: ComposeRoute,
+  private val outbox: OutboxRepository,
 ) : ViewModel() {
 
   /**
@@ -105,14 +110,15 @@ class ComposeViewModel(
     drafts: DraftsRepository,
     files: LocalFilesContract,
     sessions: SessionRepository,
+    outbox: OutboxRepository,
     savedStateHandle: SavedStateHandle,
-  ) : this(letters, directory, drafts, files, sessions, savedStateHandle.toRoute<ComposeRoute>())
+  ) : this(letters, directory, drafts, files, sessions, savedStateHandle.toRoute<ComposeRoute>(), outbox)
   private val userId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
 
   private val isStaff: Boolean = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.isStaff == true
   private val staffGroupId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.takeIf { it.isStaff }?.chapterId
   // Drafts belong to a writer's own letters; a group's letters for others are not drafted on this phone.
-  private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && !isStaff
+  private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && route.outboxId == null && !isStaff
 
   private val _ui = MutableStateFlow(
     ComposeUiState(
@@ -156,6 +162,11 @@ class ComposeViewModel(
     route.editMessageId?.let { id ->
       (letters.letter(id) as? ApiResult.Success)?.value?.let { l ->
         body = l.body; note = l.relayNote.orEmpty(); selected = l.relayGroupId ?: selected
+      }
+    } ?: route.outboxId?.let { id ->
+      outbox.open(id)?.let { (queued, staged) ->
+        body = queued.body; note = queued.relayNote.orEmpty(); selected = queued.relayChapter ?: selected
+        _ui.update { it.copy(attachments = staged) }
       }
     } ?: userId?.takeIf { usesDrafts }?.let { uid ->
       drafts.load(uid, route.prisonerId)?.let { d ->
@@ -238,14 +249,36 @@ class ComposeViewModel(
         groupRelaysFacility = staffGroupId != null && s.facility?.relayGroups?.any { it.id == staffGroupId } == true,
       )
       when (val r = letters.send(letter)) {
-        is ApiResult.Failure -> _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric("Could not send the letter.")) }
+        is ApiResult.Failure ->
+          // No connection is not a reason to lose the evening's letter: it goes to the outbox and is sent
+          // when the phone is next online. Only a failure to *reach* the server qualifies; if the server
+          // answered "no", the writer needs to see that now, while they can still fix the letter.
+          if (r.error.neverReachedTheServer()) {
+            outbox.queue(s.prisoner?.name ?: "Prisoner #${route.prisonerId}", s.writingAs.takeIf { route.writerId != null }, letter, s.attachments)
+            finishedWith(queued = true)
+          } else _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric("Could not send the letter.")) }
         is ApiResult.Success -> {
-          if (usesDrafts) userId?.let { drafts.delete(it, route.prisonerId) }
+          finishedWith(queued = false)
           uploadThen(r.value.id, s.attachments, r.value.threadId)
         }
       }
     }
   }
+
+  /** The letter has left this screen, to the server or to the outbox: the draft and any outbox copy it came from are done with. */
+  private suspend fun finishedWith(queued: Boolean) {
+    if (usesDrafts) userId?.let { drafts.delete(it, route.prisonerId) }
+    route.outboxId?.let { old -> outbox.forget(old) }
+    if (queued) _ui.update { it.copy(sending = false, progress = null, attachments = emptyList(), queuedOffline = true) }
+  }
+
+  /**
+   * Certain that nothing arrived: there was no route to the server at all. A timeout is different
+   * (the letter may be there), and sending it to the outbox as well would risk a second copy, so
+   * that case stays an error the writer can retry from here.
+   */
+  private fun AppError.neverReachedTheServer(): Boolean =
+    this is AppError.Network && (cause is java.net.UnknownHostException || cause is java.net.ConnectException)
 
   private suspend fun chatIdOf(messageId: Int): Int? = (letters.letter(messageId) as? ApiResult.Success)?.value?.threadId
 

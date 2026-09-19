@@ -31,6 +31,7 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 ## Letters, small (API)
 
+- **Idempotency for sending letters (API).** Android now sends letters written offline when the phone is back online, and retries after lost connections. It works hard not to mail a prisoner two copies, but only the server can make that certain: an `Idempotency-Key` header on `POST /messaging/message` (Android plan, ask 14). The web "Send" button has the same exposure on a double click or a flaky connection.
 - ~~Thread reads~~ **Done (API PR #82):** messages in thread reads carry `relay_group`, chat rows carry the facility summary.
 
 ## Directory (API)

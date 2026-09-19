@@ -15,6 +15,11 @@
 # Navigation's type-safe routes are @Serializable classes looked up by name when a back stack is restored.
 -keep class me.paxana.abcmailbox.ui.nav.** { *; }
 
+# WorkManager remembers a queued job by its worker's class name, in its own database, across app updates.
+# If R8 gave the class a different short name in the next release, a letter queued by the old version
+# would have nothing to send it. The name stays as written.
+-keepnames class me.paxana.abcmailbox.data.outbox.OutboxWorker
+
 # Readable stack traces from the field: keep line numbers, hide original file names.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile

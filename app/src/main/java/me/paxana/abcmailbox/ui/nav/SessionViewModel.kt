@@ -1,5 +1,10 @@
 package me.paxana.abcmailbox.ui.nav
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
+import me.paxana.abcmailbox.data.repo.OutboxScheduler
+import me.paxana.abcmailbox.data.repo.OutboxRepository
 import me.paxana.abcmailbox.data.offline.OfflineDirectory
 import me.paxana.abcmailbox.data.repo.DirectoryRepository
 import me.paxana.abcmailbox.data.repo.DirectorySource
@@ -22,7 +27,11 @@ class SessionViewModel @Inject constructor(
   modes: EncryptionModeRepository,
   directory: DirectoryRepository,
   offline: OfflineDirectory,
+  outbox: OutboxRepository,
+  outboxScheduler: OutboxScheduler,
 ) : ViewModel() {
+  /** Letters waiting in the outbox, for the badge on the Inbox tab. */
+  val unsentCount: StateFlow<Int> = outbox.items().map { it.size }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
   /** Live, or the copy saved on the phone: the shell says so above the directory when it is the copy. */
   val directorySource: StateFlow<DirectorySource> = directory.source
   val state: StateFlow<SessionState> = repository.state
@@ -36,6 +45,8 @@ class SessionViewModel @Inject constructor(
     viewModelScope.launch { modes.refresh() }
     // Keep the offline copy of the directory fresh: at most one quiet download a day, and only if the server answers.
     viewModelScope.launch { offline.downloadIfOlderThan(maxAgeHours = 24) }
+    // Letters queued under this account wait through sign-outs and restarts; whenever someone is signed in, make sure a send is scheduled.
+    viewModelScope.launch { repository.state.collect { if (it is SessionState.SignedIn && outbox.hasWaiting()) outboxScheduler.schedule() } }
   }
 
   fun recoveryCodeSaved() = repository.recoveryCodeSaved()

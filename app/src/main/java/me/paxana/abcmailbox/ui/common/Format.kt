@@ -11,6 +11,7 @@ private val shortDate = DateTimeFormatter.ofPattern("d MMM yyyy")
 
 fun LocalDate.long(): String = format(longDate)
 fun Instant.shortDate(): String = atZone(ZoneId.systemDefault()).toLocalDate().format(shortDate)
+fun Instant.shortDateTime(): String = atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, HH:mm"))
 fun Instant.longDate(): String = atZone(ZoneId.systemDefault()).toLocalDate().format(longDate)
 
 /** "Verified 12 Jun 2026" or "Not yet verified", plus how long ago when it matters. */

@@ -70,6 +70,9 @@ object AppModule {
   fun draftDao(db: AppDatabase): DraftDao = db.drafts()
 
   @Provides
+  fun outboxDao(db: AppDatabase): me.paxana.abcmailbox.data.db.OutboxDao = db.outbox()
+
+  @Provides
   fun directoryCacheDao(db: AppDatabase): me.paxana.abcmailbox.data.db.DirectoryCacheDao = db.directoryCache()
 }
 
@@ -91,6 +94,12 @@ abstract class BindingsModule {
 
   @Binds
   abstract fun groupRepository(impl: DefaultGroupRepository): GroupRepository
+
+  @Binds
+  abstract fun outboxRepository(impl: me.paxana.abcmailbox.data.repo.DefaultOutboxRepository): me.paxana.abcmailbox.data.repo.OutboxRepository
+
+  @Binds
+  abstract fun outboxScheduler(impl: me.paxana.abcmailbox.data.outbox.WorkManagerOutboxScheduler): me.paxana.abcmailbox.data.repo.OutboxScheduler
 
   @Binds
   abstract fun offlineDirectory(impl: me.paxana.abcmailbox.data.offline.RoomOfflineDirectory): me.paxana.abcmailbox.data.offline.OfflineDirectory

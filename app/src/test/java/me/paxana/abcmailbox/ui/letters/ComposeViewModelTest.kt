@@ -1,5 +1,10 @@
 package me.paxana.abcmailbox.ui.letters
 
+import org.junit.Assert.assertNotNull
+import me.paxana.abcmailbox.data.repo.FlushOutcome
+import me.paxana.abcmailbox.data.repo.OutboxItem
+import me.paxana.abcmailbox.data.repo.OutboxPayload
+import me.paxana.abcmailbox.data.repo.OutboxRepository
 import androidx.paging.PagingData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -63,9 +68,23 @@ class ComposeViewModelTest {
   private fun facility(routing: Routing, groups: List<Group>) = Facility(10, "Facility", emptyList(), null, routing, null, null, Verification(null, null), emptyList(), rules, groups)
   private fun prisoner() = Prisoner(3, "Alex", null, emptyList(), 10, null, null, null, null, null, null, null, null, emptyList(), null, null, null, null, null, false, Verification(null, null), emptyList())
 
+  /** Records what compose hands to the outbox. */
+  class FakeOutbox : OutboxRepository {
+    val queued = mutableListOf<Triple<String, String?, NewLetter>>(); val forgotten = mutableListOf<Long>()
+    var stored: Pair<OutboxPayload, List<StagedFile>>? = null
+    override fun items(): Flow<List<OutboxItem>> = emptyFlow()
+    override suspend fun queue(prisonerName: String, writingAs: String?, letter: NewLetter, attachments: List<StagedFile>): Long { queued += Triple(prisonerName, writingAs, letter); return 1 }
+    override suspend fun open(id: Long) = stored
+    override suspend fun delete(id: Long) { forgotten += id }
+    override suspend fun retry(id: Long) = Unit
+    override suspend fun flush() = FlushOutcome()
+    override suspend fun hasWaiting() = queued.isNotEmpty()
+  }
+  private val outbox = FakeOutbox()
+
   private fun vm(routing: Routing, groups: List<Group>, letters: FakeLetters = FakeLetters(), drafts: FakeDrafts = FakeDrafts(), edit: Int? = null,
                  route: ComposeRoute = ComposeRoute(prisonerId = 3, editMessageId = edit), session: SessionRepository = FakeSession()) =
-    ComposeViewModel(letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(), session, route)
+    ComposeViewModel(letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(), session, route, outbox)
 
   @Test
   fun `one relay group is automatic and sent explicitly`() = runTest {
@@ -188,6 +207,42 @@ class ComposeViewModelTest {
   }
 
   // Fakes ---------------------------------------------------------------
+
+  @Test
+  fun `with no route to the server the letter goes to the outbox, the draft is cleared, and the screen closes`() = runTest {
+    val drafts = FakeDrafts()
+    val model = vm(Routing.DIRECT, emptyList(), letters = FakeLetters(fail = AppError.Network(java.net.UnknownHostException())), drafts = drafts)
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onBodyChange("Written in the basement"); dispatcher.scheduler.advanceUntilIdle()
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    val (name, writingAs, letter) = outbox.queued.single()
+    assertEquals("Alex", name); assertNull(writingAs); assertEquals("Written in the basement", letter.body)
+    assertTrue(model.ui.value.queuedOffline); assertNull(model.ui.value.error)
+    assertTrue("the outbox has it now; a draft would offer it a second time", drafts.store.isEmpty())
+  }
+
+  @Test
+  fun `a timeout is not queued, because the letter may have arrived, and the server's no is shown at once`() = runTest {
+    for (error in listOf(AppError.Network(java.net.SocketTimeoutException()), AppError.Forbidden("Your account cannot write to this prisoner."))) {
+      val model = vm(Routing.DIRECT, emptyList(), letters = FakeLetters(fail = error))
+      dispatcher.scheduler.advanceUntilIdle()
+      model.onBodyChange("Hello"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+      assertTrue(outbox.queued.isEmpty()); assertFalse(model.ui.value.queuedOffline)
+      assertNotNull(model.ui.value.error)
+    }
+  }
+
+  @Test
+  fun `a letter reopened from the outbox starts from its text, and sending it removes the queued copy`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", relayNote = "blue paper") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Queued last night", model.ui.value.body); assertEquals("blue paper", model.ui.value.note)
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Queued last night", letters.sent.single().body)
+    assertEquals(listOf(7L), outbox.forgotten)
+  }
 
   class FakeLetters(private val fail: AppError? = null) : LettersRepository {
     val sent = mutableListOf<NewLetter>()

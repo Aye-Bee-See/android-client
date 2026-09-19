@@ -32,8 +32,22 @@
     <string name="notice_account_claimed">Account claimed. You are signed in.</string>
     <string name="notice_password_changed_signed_in">Password changed. You are signed in.</string>
 
+    <!-- Shown after pressing Send with no connection. -->
+    <string name="notice_letter_queued">No connection. Your letter is saved on this phone and will be sent when you are back online.</string>
+
     <!-- Title of the page where a group member picks who a new letter is for. -->
     <string name="title_write_to">Write to…</string>
     <!-- The same, when writing on behalf of a writer. %1$s is the writer\'s name. -->
     <string name="title_write_as_to">Write as %1$s to…</string>
+    <!-- The outbox: letters written without a connection. Notification text shows on lock screens, so it names nobody. -->
+    <string name="outbox_channel_name">Letters written offline</string>
+    <string name="outbox_channel_description">Tells you when a letter written without a connection has been sent, or could not be.</string>
+    <plurals name="outbox_notification_sent">
+        <item quantity="one">A letter you wrote offline has been sent.</item>
+        <item quantity="other">%d letters you wrote offline have been sent.</item>
+    </plurals>
+    <plurals name="outbox_notification_refused">
+        <item quantity="one">A letter could not be sent. Open the app to see why.</item>
+        <item quantity="other">%d letters could not be sent. Open the app to see why.</item>
+    </plurals>
 </resources>

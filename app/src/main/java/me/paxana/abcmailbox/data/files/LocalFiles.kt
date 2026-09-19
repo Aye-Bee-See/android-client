@@ -22,6 +22,10 @@ interface LocalFilesContract {
   suspend fun stage(uri: Uri): StagedFile
   fun discard(staged: StagedFile)
   fun downloadTarget(attachmentId: Int, name: String): File
+  /** Where a queued letter's file waits, encrypted. Not the cache: Android may empty that at any time. */
+  fun newOutboxFile(): File = error("not used")
+  /** A scratch file to decrypt a queued attachment into, just before it is uploaded. */
+  fun newStagingFile(name: String): File = error("not used")
 }
 
 /**
@@ -57,6 +61,9 @@ class LocalFiles @Inject constructor(@ApplicationContext private val context: Co
   override fun discard(staged: StagedFile) {
     staged.file.delete()
   }
+
+  override fun newOutboxFile(): File = File(File(context.filesDir, "outbox").apply { mkdirs() }, "${java.util.UUID.randomUUID()}.bin")
+  override fun newStagingFile(name: String): File = File(staging, "${System.nanoTime()}_${name.replace(File.separatorChar, '_')}")
 
   override fun downloadTarget(attachmentId: Int, name: String): File = File(downloads, "${attachmentId}_${name.replace(File.separatorChar, '_')}")
 }

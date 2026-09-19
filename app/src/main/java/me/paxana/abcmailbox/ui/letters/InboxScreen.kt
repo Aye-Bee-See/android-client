@@ -51,6 +51,7 @@ fun InboxScreen(
   onGroupLetter: (writerId: Int?, writerName: String?) -> Unit = { _, _ -> },
   onHandoff: (me.paxana.abcmailbox.domain.ManagedWriter) -> Unit = {},
   onGroupKey: () -> Unit = {},
+  onEditQueued: (me.paxana.abcmailbox.data.repo.OutboxItem) -> Unit = {},
 ) {
   Column(Modifier.fillMaxSize()) {
     Text("Inbox", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading().padding(horizontal = 20.dp, vertical = 16.dp))
@@ -60,7 +61,10 @@ fun InboxScreen(
         Text("Sign in to see your conversations and write letters.")
         Button(onClick = onSignIn) { Text("Sign in") }
       }
-      is SessionState.SignedIn -> when {
+      is SessionState.SignedIn -> {
+        // Unsent letters come first: they are the one thing here that may need the writer.
+        OutboxSection(onEdit = onEditQueued)
+        when {
         keysLocked -> UnlockPrompt()
         // Group members get the queue, the conversations they can see, and their writers.
         sessionState.session.user.isStaff -> me.paxana.abcmailbox.ui.group.GroupInbox(
@@ -68,6 +72,7 @@ fun InboxScreen(
           onLetter = onQueueLetter, onAddWriter = onAddWriter, onNewLetter = onGroupLetter, onHandoff = onHandoff, onGroupKey = onGroupKey,
         )
         else -> SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter)
+        }
       }
     }
   }

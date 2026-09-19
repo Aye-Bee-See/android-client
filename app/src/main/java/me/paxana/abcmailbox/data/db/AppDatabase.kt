@@ -42,15 +42,16 @@ interface DraftDao {
 /**
  * Version 2 adds the offline directory tables. The change only adds tables, so Room writes the
  * upgrade itself (an auto-migration, generated at compile time by comparing the exported schema
- * files in `app/schemas`); drafts already on a phone are untouched.
+ * files in `app/schemas`); drafts already on a phone are untouched. Version 3 adds the outbox the same way.
  */
 @Database(
-  entities = [DraftEntity::class, CachedPrisoner::class, CachedFacility::class, CachedGroup::class, DirectoryMeta::class],
-  version = 2,
+  entities = [DraftEntity::class, CachedPrisoner::class, CachedFacility::class, CachedGroup::class, DirectoryMeta::class, OutboxEntity::class],
+  version = 3,
   exportSchema = true,
-  autoMigrations = [AutoMigration(from = 1, to = 2)],
+  autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class AppDatabase : RoomDatabase() {
   abstract fun drafts(): DraftDao
   abstract fun directoryCache(): DirectoryCacheDao
+  abstract fun outbox(): OutboxDao
 }

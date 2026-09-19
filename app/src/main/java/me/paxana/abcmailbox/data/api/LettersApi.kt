@@ -43,6 +43,10 @@ interface LettersApi {
   @GET("chat/chat")
   suspend fun chatByPrisoner(@Query("prisoner") prisoner: Int, @Query("full") full: Boolean = true): ApiEnvelope<ChatDto>
 
+  /** Letters to one prisoner that the caller can see. The outbox uses it to check whether a letter already arrived. */
+  @GET("messaging/messages")
+  suspend fun messagesTo(@Query("prisoner") prisoner: Int, @Query("page_size") pageSize: Int = 100): ApiEnvelope<List<MessageDto>>
+
   @POST("messaging/message")
   suspend fun send(@Body body: SendMessageRequest): ApiEnvelope<MessageDto>
 

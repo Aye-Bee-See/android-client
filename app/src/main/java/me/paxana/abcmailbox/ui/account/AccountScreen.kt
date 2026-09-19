@@ -83,6 +83,12 @@ fun AccountScreen(
         }
       }
     }
+    // Signing out does not lose unsent letters, and people should not have to wonder.
+    val unsent by hiltViewModel<me.paxana.abcmailbox.ui.letters.OutboxViewModel>().items.collectAsStateWithLifecycle()
+    if (unsent.isNotEmpty()) Text(
+      "${unsent.size} letter${if (unsent.size == 1) " is" else "s are"} waiting to be sent. If you sign out, ${if (unsent.size == 1) "it stays" else "they stay"} on this phone, encrypted, and ${if (unsent.size == 1) "goes" else "go"} out the next time this account signs in here.",
+      style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     OfflineCopySection()
     Text(
       "Build ${BuildConfig.VERSION_NAME} · " + when (mode) { EncryptionMode.E2E -> "end-to-end encrypted"; EncryptionMode.SERVER -> "server mode"; EncryptionMode.UNKNOWN -> "server not reached" } + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",

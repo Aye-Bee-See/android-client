@@ -12,8 +12,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * A database made by version 1 of the app (drafts only) must open in version 2 (drafts plus the
- * offline directory) with its drafts intact. The helper builds the old database from the schema
+ * A database made by version 1 of the app (drafts only) must open in the current version (drafts, the
+ * offline directory, the outbox) with its drafts intact, by way of every version in between. The helper builds the old database from the schema
  * file Room exported at the time (`app/schemas/.../1.json`), which is why those files are committed.
  */
 @RunWith(AndroidJUnit4::class)
@@ -24,19 +24,21 @@ class MigrationTest {
   val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
   @Test
-  fun a_draft_written_by_version_1_survives_the_upgrade_to_version_2() = runTest {
+  fun a_draft_written_by_version_1_survives_every_upgrade_since() = runTest {
     helper.createDatabase(name, 1).apply {
       execSQL("INSERT INTO drafts (userId, prisonerId, body, note, relayChapter, updatedAt) VALUES (2, 1, 'ciphertext-of-a-half-written-letter', NULL, 1, 1758000000000)")
       close()
     }
-    // Validates the upgraded schema against what version 2 expects, table by table.
+    // Validates the upgraded schema against what each version expects, table by table.
     helper.runMigrationsAndValidate(name, 2, true).close()
+    helper.runMigrationsAndValidate(name, 3, true).close()
 
     val db = Room.databaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, AppDatabase::class.java, name).build()
     try {
       val draft = db.drafts().get(userId = 2, prisonerId = 1)
       assertNotNull(draft); assertEquals("ciphertext-of-a-half-written-letter", draft!!.body)
       assertEquals("the new tables exist and are empty", 0, db.directoryCache().countPrisoners("", null, null, null, null))
+      assertEquals(0, db.outbox().countWaiting())
     } finally { db.close() }
   }
 }
