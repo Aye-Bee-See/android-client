@@ -139,7 +139,7 @@ class DefaultLettersRepository @Inject constructor(
     // The declared type still describes the plaintext; the server does not sniff ciphertext.
     val key = when (val m = apiCall(json) { api.message(messageId) }) {
       is ApiResult.Failure -> return m
-      is ApiResult.Success -> codec.contentKey(checkNotNull(m.value.data)) ?: return ApiResult.Failure(LetterCodec.LOCKED)
+      is ApiResult.Success -> codec.contentKey(checkNotNull(m.value.data)) ?: return ApiResult.Failure(codec.locked)
     }
     return apiCall(json) {
       val (cipherBytes, nonce) = withContext(Dispatchers.Default) { codec.encryptFile(staged.file.readBytes(), key) }
@@ -170,7 +170,7 @@ class DefaultLettersRepository @Inject constructor(
     // End-to-end: what comes down is ciphertext; open it with the letter's content key.
     val key = when (val m = apiCall(json) { api.message(attachment.messageId) }) {
       is ApiResult.Failure -> return m
-      is ApiResult.Success -> codec.contentKey(checkNotNull(m.value.data)) ?: return ApiResult.Failure(LetterCodec.LOCKED)
+      is ApiResult.Success -> codec.contentKey(checkNotNull(m.value.data)) ?: return ApiResult.Failure(codec.locked)
     }
     return apiCall(json) {
       withContext(Dispatchers.IO) {

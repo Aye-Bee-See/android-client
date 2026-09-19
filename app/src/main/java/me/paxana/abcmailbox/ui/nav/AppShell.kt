@@ -147,6 +147,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
   val unsentCount by viewModel.unsentCount.collectAsStateWithLifecycle()
   val letterQueued = stringResource(R.string.notice_letter_queued)
+  val writerAdded = stringResource(R.string.notice_writer_added) // formatted in the callback, where the name is known
   // Android 13+ asks the user before an app may post notifications. Asked here, the first time it matters
   // (a letter was just queued and its fate will be decided while they are not looking), not at first launch.
   val askToNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -276,7 +277,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
             onDone = { writer, thenWrite ->
               navController.popBackStack()
               if (thenWrite) navController.navigate(PickPrisonerRoute(writer.id, writer.name))
-              else scope.launch { snackbar.showSnackbar("${writer.name} added.") }
+              else scope.launch { snackbar.showSnackbar(writerAdded.format(writer.name)) }
             },
           )
         }

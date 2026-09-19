@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.domain
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import java.time.Instant
 
 /**
@@ -20,14 +22,14 @@ object ClaimToken {
   fun isWellFormed(input: String): Boolean = normalise(input).let { t -> t.length == LENGTH && t.all { it in ALPHABET } }
 
   /** The first problem with what was typed, as a sentence, or null when it looks right. */
-  fun problem(input: String): String? {
+  fun problem(input: String, strings: Strings): String? {
     val t = normalise(input)
     val bad = t.firstOrNull { it !in ALPHABET }
     return when {
-      t.isEmpty() -> "Enter the token your group gave you."
-      bad != null -> "Tokens never contain the character $bad. Check for a look-alike (I, L, O, and U are not used)."
-      t.length < LENGTH -> "That is ${t.length} characters; a token has $LENGTH."
-      t.length > LENGTH -> "That is ${t.length} characters; a token has only $LENGTH."
+      t.isEmpty() -> strings.get(R.string.token_empty)
+      bad != null -> strings.get(R.string.token_bad_character, bad.toString())
+      t.length < LENGTH -> strings.plural(R.plurals.token_too_short, t.length, LENGTH)
+      t.length > LENGTH -> strings.plural(R.plurals.token_too_long, t.length, LENGTH)
       else -> null
     }
   }

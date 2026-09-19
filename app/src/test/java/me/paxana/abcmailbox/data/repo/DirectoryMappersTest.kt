@@ -48,7 +48,7 @@ class DirectoryMappersTest {
     assertEquals(listOf("full_name_and_number", "ink_blue_or_black", "no_polaroids"), f.rules.rules.map { it.tag })
     assertEquals("Blue or black ink only", f.rules.rules[1].label)
     assertEquals(3, f.rules.photoLimit)
-    assertEquals(listOf("English", "Spanish"), f.rules.languageNames)
+    assertEquals(listOf("English", "Spanish"), f.rules.languageNames())
     assertEquals(listOf("Test Chapter", "Relay Test Chapter"), f.relayGroups.map { it.name })
     assertEquals(1, f.prisoners.size)
     assertEquals("JPay, \$0.35 per page, account required", f.scanService)

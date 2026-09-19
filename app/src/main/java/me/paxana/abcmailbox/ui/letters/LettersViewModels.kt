@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -47,11 +49,12 @@ class ThreadViewModel(
   private val repo: LettersRepository,
   sessions: SessionRepository,
   private val route: ThreadRoute,
+  private val strings: Strings,
 ) : ViewModel() {
 
   @Inject
-  constructor(repo: LettersRepository, sessions: SessionRepository, savedStateHandle: SavedStateHandle) :
-    this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>())
+  constructor(repo: LettersRepository, sessions: SessionRepository, strings: Strings, savedStateHandle: SavedStateHandle) :
+    this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>(), strings)
 
   // Who is looking decides what the screen offers: a group member records replies and writes for its writers.
   private val viewer = (sessions.state.value as? SessionState.SignedIn)?.session?.user
@@ -80,8 +83,8 @@ class ThreadViewModel(
     _ui.update { it.copy(busyMessageId = messageId) }
     viewModelScope.launch {
       val notice = when (val r = repo.delete(messageId)) {
-        is ApiResult.Success -> "Letter deleted."
-        is ApiResult.Failure -> r.error.userMessage ?: "Could not delete the letter."
+        is ApiResult.Success -> strings.get(R.string.letter_deleted)
+        is ApiResult.Failure -> r.error.userMessage ?: strings.get(R.string.error_delete_letter)
       }
       _ui.update { it.copy(busyMessageId = null, notice = notice) }
       load()
@@ -92,7 +95,7 @@ class ThreadViewModel(
     viewModelScope.launch {
       when (val r = repo.download(attachment)) {
         is ApiResult.Success -> _ui.update { it.copy(openFile = r.value to attachment.mimeType) }
-        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.userMessage ?: "Could not download the file.") }
+        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.userMessage ?: strings.get(R.string.error_download_file)) }
       }
     }
   }
@@ -106,7 +109,7 @@ internal fun AppError.orGeneric(fallback: String) = userMessage ?: fallback
 data class UnlockUiState(val password: String = "", val busy: Boolean = false, val error: String? = null)
 
 @HiltViewModel
-class UnlockViewModel @Inject constructor(private val sessions: me.paxana.abcmailbox.data.session.SessionRepository) : ViewModel() {
+class UnlockViewModel @Inject constructor(private val sessions: me.paxana.abcmailbox.data.session.SessionRepository, private val strings: Strings) : ViewModel() {
   private val _ui = MutableStateFlow(UnlockUiState())
   val ui: StateFlow<UnlockUiState> = _ui.asStateFlow()
   fun onPassword(v: String) = _ui.update { it.copy(password = v, error = null) }
@@ -117,7 +120,7 @@ class UnlockViewModel @Inject constructor(private val sessions: me.paxana.abcmai
     viewModelScope.launch {
       when (val r = sessions.unlock(pw)) {
         is ApiResult.Success -> _ui.update { UnlockUiState() }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: "Could not unlock. Check your connection.") }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_unlock)) }
       }
     }
   }

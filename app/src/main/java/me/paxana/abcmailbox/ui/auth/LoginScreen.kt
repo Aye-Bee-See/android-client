@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -63,9 +65,9 @@ fun LoginScreen(
       .padding(horizontal = 24.dp, vertical = 32.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
-    Text("Sign in", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
+    Text(stringResource(R.string.action_sign_in), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     Text(
-      "Writers and support groups sign in here.",
+      stringResource(R.string.login_who),
       style = MaterialTheme.typography.bodyMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -73,7 +75,7 @@ fun LoginScreen(
     OutlinedTextField(
       value = ui.username,
       onValueChange = viewModel::onUsernameChange,
-      label = { Text("Username") },
+      label = { Text(stringResource(R.string.label_username)) },
       singleLine = true,
       enabled = !ui.submitting,
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
@@ -82,14 +84,14 @@ fun LoginScreen(
     OutlinedTextField(
       value = ui.password,
       onValueChange = viewModel::onPasswordChange,
-      label = { Text("Password") },
+      label = { Text(stringResource(R.string.label_password)) },
       singleLine = true,
       enabled = !ui.submitting,
       visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
       keyboardActions = KeyboardActions(onDone = { viewModel.onSubmit() }),
       trailingIcon = {
-        TextButton(onClick = viewModel::onToggleShowPassword) { Text(if (ui.showPassword) "Hide" else "Show") }
+        TextButton(onClick = viewModel::onToggleShowPassword) { Text(stringResource(if (ui.showPassword) R.string.action_hide else R.string.action_show)) }
       },
       modifier = Modifier.fillMaxWidth().testTag("password"),
     )
@@ -106,18 +108,18 @@ fun LoginScreen(
       if (ui.submitting) {
         CircularProgressIndicator(modifier = Modifier.height(18.dp), strokeWidth = 2.dp)
       } else {
-        Text("Sign in")
+        Text(stringResource(R.string.action_sign_in))
       }
     }
 
     Spacer(Modifier.height(8.dp))
     Text(
-      "Don't have an account? Accounts are created by support group organizers. Ask the group you write through to set one up for you.",
+      stringResource(R.string.login_no_account),
       style = MaterialTheme.typography.bodyMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    TextButton(onClick = onClaim, modifier = Modifier.align(Alignment.Start)) { Text("I have a claim token") }
-    TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.Start)) { Text("Forgot your password?") }
-    TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.Start)) { Text("Back") }
+    TextButton(onClick = onClaim, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_have_token)) }
+    TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_forgot_password)) }
+    TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_back)) }
   }
 }

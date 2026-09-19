@@ -92,7 +92,8 @@ class GroupKeyringTest {
     assertNull(ring.writerKey(45)); assertNull("one unreadable writer must not spoil the rest", ring.writerKey(46))
 
     ring.load(); ring.load()
-    assertEquals("loaded once per sign-in", 2, server.requestCount)
+    // Three requests, once: the key bundle, the writers in custody, and the envelopes waiting to be caught up.
+    assertEquals("loaded once per sign-in", 3, server.requestCount)
   }
 
   @Test
@@ -106,5 +107,22 @@ class GroupKeyringTest {
     assertNull(ring.groupKey())
     assertEquals(GroupKeyState.NotNeeded, ring.state.value)
     assertTrue("the private key is zeroed, not just dropped", key.keyPair.privateKey.all { it == 0.toByte() })
+  }
+
+  @Test
+  fun `after the keys load, a writer who has a key by now is given the envelope they were missing`() = runTest {
+    server.enqueue(bundle(groupPublic, engine.sealPrivateKey("private-of-PUB-GROUP".toByteArray(), engine.publicText(member))))
+    server.enqueue(MockResponse().setBody("""{"data":[],"success":true,"status":200}""")) // writers
+    val group = engine.keyPairFor("PUB-GROUP")
+    server.enqueue(MockResponse().setBody("""{"data":[
+      {"message":12,"chat":3,"readerType":"user","readerId":7,"publicKey":"PUB-LATECOMER","wrappedKey":"${engine.sealedTo(group)}","keyVersion":3},
+      {"message":13,"chat":3,"readerType":"user","readerId":8,"publicKey":"PUB-OTHER","wrappedKey":"sealed to some other key"}],"success":true,"status":200}"""))
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
+    assertTrue(keyring().load() is GroupKeyState.Ready)
+    repeat(3) { server.takeRequest() }
+    val post = server.takeRequest()
+    assertEquals("/messaging/envelope", post.path)
+    assertEquals("""{"message":12,"readerType":"user","readerId":7,"wrappedKey":"sealed(KEY)to(PUB-LATECOMER)"}""", post.body.readUtf8())
+    assertEquals("the envelope this phone cannot open is skipped, not guessed at", 4, server.requestCount)
   }
 }

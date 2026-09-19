@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.group
 
+import androidx.compose.ui.res.pluralStringResource
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -57,7 +60,7 @@ fun GroupInbox(
     // Scrollable, so each tab is as wide as its label: with fixed thirds, "Conversations" broke
     // mid-word at large font sizes. One line per label, always.
     PrimaryScrollableTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background, edgePadding = 8.dp) {
-      listOf("To print", "Conversations", "Writers").forEachIndexed { i, label -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1, softWrap = false) }) }
+      listOf(stringResource(R.string.tab_to_print), stringResource(R.string.tab_conversations), stringResource(R.string.tab_writers)).forEachIndexed { i, label -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1, softWrap = false) }) }
     }
     // When the group key opens, letters that were locked become readable: rebuilding the tab
     // under a new key re-runs its resume effect, which refreshes the list.
@@ -72,7 +75,7 @@ fun GroupInbox(
   }
 }
 
-private val queueStatuses = listOf(LetterStatus.QUEUED to "Queued", LetterStatus.PRINTED to "Printed", LetterStatus.MAILED to "Mailed")
+private val queueStatuses = listOf(LetterStatus.QUEUED, LetterStatus.PRINTED, LetterStatus.MAILED)
 
 @Composable
 private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltViewModel()) {
@@ -80,15 +83,15 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
   val items = viewModel.items.collectAsLazyPagingItems()
   LifecycleResumeEffect(Unit) { items.refresh(); onPauseOrDispose { } }
   if (!viewModel.hasGroup) {
-    Text("This account is not in a group yet. A network admin has to set your group before you can see its letters.", modifier = Modifier.padding(20.dp))
+    Text(stringResource(R.string.not_in_group), modifier = Modifier.padding(20.dp))
     return
   }
   PagedList(
     items = items,
-    emptyText = when (status) { LetterStatus.QUEUED -> "Nothing is waiting to be printed."; LetterStatus.PRINTED -> "Nothing is printed and waiting for the post."; else -> "No mailed letters to show." },
+    emptyText = when (status) { LetterStatus.QUEUED -> stringResource(R.string.queue_empty_queued); LetterStatus.PRINTED -> stringResource(R.string.queue_empty_printed); else -> stringResource(R.string.queue_empty_mailed) },
     header = {
       item("status") {
-        ChipRow(queueStatuses, status, { it?.let(viewModel::setStatus) }, allLabel = "", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), showAll = false)
+        ChipRow(queueStatuses.map { it to stringResource(it.labelRes) }, status, { it?.let(viewModel::setStatus) }, allLabel = "", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), showAll = false)
       }
     },
   ) { q -> QueueRow(q, onClick = { onLetter(q.letter.id) }) }
@@ -98,14 +101,14 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
 private fun QueueRow(q: QueueItem, onClick: () -> Unit) {
   val pages = me.paxana.abcmailbox.domain.estimatePages(q.letter.body.length)
   RecordRow(
-    title = q.prisoner?.name ?: "Prisoner #${q.letter.prisonerId}",
+    title = q.prisoner?.name ?: stringResource(R.string.prisoner_numbered, q.letter.prisonerId ?: 0),
     secondary = q.prisoner?.facility?.let { f -> f.name + (f.country?.let { ", $it" } ?: "") },
     subtitle = listOfNotNull(
-      q.letter.createdAt?.shortDate()?.let { "Written $it" },
-      "~$pages page${if (pages == 1) "" else "s"}",
-      q.letter.attachments.size.takeIf { it > 0 }?.let { "$it file${if (it == 1) "" else "s"}" },
+      q.letter.createdAt?.shortDate()?.let { stringResource(R.string.written_on, it) },
+      pluralStringResource(R.plurals.compose_pages, pages, pages),
+      q.letter.attachments.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.outbox_files, it, it) },
     ).joinToString(" · "),
-    notice = q.letter.relayNote?.let { "Note: $it" },
+    notice = q.letter.relayNote?.let { stringResource(R.string.note_prefixed, it) },
     onClick = onClick,
   )
 }
@@ -117,9 +120,9 @@ private fun WritersTab(onAddWriter: () -> Unit, onNewLetter: (Int?, String?) -> 
   LazyColumn(Modifier.fillMaxSize()) {
     item("anon") {
       Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Anonymous writer", style = MaterialTheme.typography.titleMedium)
-        Text("Letters with no named writer, for example from a letter writing night. They do not need an account.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        TextButton(onClick = { onNewLetter(null, null) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text("New anonymous letter") }
+        Text(stringResource(R.string.writer_anonymous), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.anonymous_explained), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TextButton(onClick = { onNewLetter(null, null) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text(stringResource(R.string.action_new_anonymous)) }
       }
       HorizontalDivider()
     }
@@ -127,24 +130,24 @@ private fun WritersTab(onAddWriter: () -> Unit, onNewLetter: (Int?, String?) -> 
       is Loadable.Loading -> item("loading") { LoadingBox() }
       is Loadable.Failed -> item("error") { ErrorBox(s.error, onRetry = viewModel::load) }
       is Loadable.Loaded -> {
-        if (s.value.isEmpty()) item("none") { Text("No managed writers yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
+        if (s.value.isEmpty()) item("none") { Text(stringResource(R.string.writers_none), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
         items(s.value, key = { it.id }) { w ->
           Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(w.name, style = MaterialTheme.typography.titleMedium)
             w.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(
-              if (w.hasLiveToken) "Claim token pending, expires ${w.tokenExpiresAt?.shortDate()}" else "Unclaimed, no token",
+              if (w.hasLiveToken) stringResource(R.string.writer_token_pending, w.tokenExpiresAt?.shortDate().orEmpty()) else stringResource(R.string.writer_unclaimed),
               style = MaterialTheme.typography.labelSmall, color = if (w.hasLiveToken) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              TextButton(onClick = { onNewLetter(w.id, w.name) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text("New letter") }
-              TextButton(onClick = { onHandoff(w) }) { Text(if (w.hasLiveToken) "Handoff token" else "Hand off account") }
+              TextButton(onClick = { onNewLetter(w.id, w.name) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text(stringResource(R.string.action_new_letter)) }
+              TextButton(onClick = { onHandoff(w) }) { Text(stringResource(if (w.hasLiveToken) R.string.action_handoff_token else R.string.action_hand_off_account)) }
             }
           }
           HorizontalDivider()
         }
       }
     }
-    item("add") { Button(onClick = onAddWriter, modifier = Modifier.padding(20.dp)) { Text("Add a writer") } }
+    item("add") { Button(onClick = onAddWriter, modifier = Modifier.padding(20.dp)) { Text(stringResource(R.string.action_add_a_writer)) } }
   }
 }

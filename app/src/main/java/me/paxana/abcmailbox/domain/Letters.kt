@@ -1,13 +1,16 @@
 package me.paxana.abcmailbox.domain
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
+import androidx.annotation.StringRes
 import java.time.Instant
 
-enum class LetterStatus(val key: String, val label: String, val meaning: String) {
-  QUEUED("queued", "Queued", "Waiting for the relay group to print it"),
-  PRINTED("printed", "Printed", "Printed by the relay group, not yet posted"),
-  MAILED("mailed", "Mailed", "In the post"),
-  RECEIVED("received", "Received", "A reply from the prisoner, recorded by a group"),
-  UNKNOWN("", "Unknown", "");
+enum class LetterStatus(val key: String, @StringRes val labelRes: Int, @StringRes val meaningRes: Int?) {
+  QUEUED("queued", R.string.status_queued, R.string.status_queued_meaning),
+  PRINTED("printed", R.string.status_printed, R.string.status_printed_meaning),
+  MAILED("mailed", R.string.status_mailed, R.string.status_mailed_meaning),
+  RECEIVED("received", R.string.status_received, R.string.status_received_meaning),
+  UNKNOWN("", R.string.status_unknown, null);
 
   companion object {
     fun fromKey(key: String?): LetterStatus = entries.firstOrNull { it.key == key && key.isNotEmpty() } ?: UNKNOWN
@@ -59,7 +62,7 @@ data class Thread(
   /** The account on the writer's side; groups use it to label threads and to know if they may write in them. */
   val writer: ThreadWriter? = null,
 ) {
-  val title: String get() = prisoner?.name ?: "Prisoner #$prisonerId"
+  fun title(strings: Strings): String = prisoner?.name ?: strings.get(R.string.prisoner_numbered, prisonerId)
 }
 
 /** How a letter to this facility will be routed, worked out before sending so the writer sees it. */
@@ -71,7 +74,7 @@ sealed interface RelayChoice {
   /** Several relay groups: the writer may (or, for relay-only facilities, must) choose. */
   data class Choose(val options: List<Group>, val required: Boolean) : RelayChoice
   /** Relay-only facility with no relay group listed: nothing can be sent yet. */
-  data class Blocked(val reason: String) : RelayChoice
+  data class Blocked(val facilityName: String) : RelayChoice
 }
 
 /** Mirrors the API's resolution rules (README, "Relay group") so the UI can explain them up front. */
@@ -81,7 +84,7 @@ fun resolveRelay(facility: Facility?): RelayChoice {
   val relayOnly = facility.routing == Routing.RELAY_ONLY
   return when (groups.size) {
     0 -> if (relayOnly) {
-      RelayChoice.Blocked("${facility.name} only accepts letters through a relay group, and none is listed yet. Ask a support group before writing.")
+      RelayChoice.Blocked(facility.name)
     } else {
       RelayChoice.Direct
     }

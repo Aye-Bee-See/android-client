@@ -1,5 +1,9 @@
 package me.paxana.abcmailbox.ui.letters
 
+import androidx.compose.ui.res.pluralStringResource
+import me.paxana.abcmailbox.text.rememberStrings
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import me.paxana.abcmailbox.ui.common.spokenWithoutArrows
 import me.paxana.abcmailbox.ui.common.AttachmentRow
@@ -68,6 +72,7 @@ fun ThreadScreen(
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val snackbar = remember { SnackbarHostState() }
   val context = LocalContext.current
+  val strings = rememberStrings() // not context.getString: this follows a language change while the screen is open
   var confirmDelete by remember { mutableStateOf<Int?>(null) }
 
   LifecycleResumeEffect(Unit) { viewModel.load(); onPauseOrDispose { } }
@@ -76,13 +81,13 @@ fun ThreadScreen(
     ui.openFile?.let { (file, mime) ->
       val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
       val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-      try { context.startActivity(intent) } catch (e: ActivityNotFoundException) { snackbar.showSnackbar("No app on this phone can open ${mime}.") }
+      try { context.startActivity(intent) } catch (e: ActivityNotFoundException) { snackbar.showSnackbar(strings.get(R.string.no_app_opens, mime)) }
       viewModel.fileOpened()
     }
   }
 
   val thread = (ui.thread as? Loadable.Loaded)?.value
-  DetailScaffold(title = thread?.title ?: "Conversation", onBack = onBack) { padding ->
+  DetailScaffold(title = thread?.title(rememberStrings()) ?: stringResource(R.string.title_conversation), onBack = onBack) { padding ->
     Box(Modifier.fillMaxSize().padding(padding)) {
       when (val t = ui.thread) {
         is Loadable.Loading -> LoadingBox()
@@ -104,7 +109,7 @@ fun ThreadScreen(
           // A group records what came back from the prisoner, on any thread it can see.
           if (ui.isStaff && writer != null) ExtendedFloatingActionButton(
             onClick = { onRecordReply(t.prisonerId, writer.id) },
-            icon = { Text("←", modifier = Modifier.clearAndSetSemantics { }) }, text = { Text("Record reply") },
+            icon = { Text("←", modifier = Modifier.clearAndSetSemantics { }) }, text = { Text(stringResource(R.string.action_record_reply)) },
             containerColor = MaterialTheme.colorScheme.secondary, contentColor = MaterialTheme.colorScheme.onSecondary,
           )
           // A writer writes in their own thread; a group only for writers it manages or as its anonymous writer.
@@ -112,7 +117,7 @@ fun ThreadScreen(
           if (!ui.isStaff || groupMayWrite) ExtendedFloatingActionButton(
             onClick = { if (groupMayWrite && writer != null && writer.anonymousForGroupId == null) onGroupWrite(t.prisonerId, writer.id, writer.name) else onWrite(t.prisonerId) },
             icon = { Icon(Icons.Default.Edit, contentDescription = null) },
-            text = { Text("Write") },
+            text = { Text(stringResource(R.string.action_write)) },
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
           )
@@ -125,10 +130,10 @@ fun ThreadScreen(
   confirmDelete?.let { id ->
     AlertDialog(
       onDismissRequest = { confirmDelete = null },
-      title = { Text("Delete this letter?") },
-      text = { Text("It has not been printed yet, so it can still be withdrawn. This cannot be undone.") },
-      confirmButton = { TextButton(onClick = { viewModel.delete(id); confirmDelete = null }) { Text("Delete") } },
-      dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Keep it") } },
+      title = { Text(stringResource(R.string.delete_letter_title)) },
+      text = { Text(stringResource(R.string.delete_letter_text)) },
+      confirmButton = { TextButton(onClick = { viewModel.delete(id); confirmDelete = null }) { Text(stringResource(R.string.action_delete)) } },
+      dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.action_keep_it)) } },
     )
   }
 }
@@ -152,13 +157,13 @@ private fun ThreadBody(
             Text(p.name + (p.facility?.let { " · ${it.name}" } ?: ""), color = MaterialTheme.colorScheme.secondary)
           }
         }
-        thread.writer?.let { w -> Text("Writer: ${w.label}", style = MaterialTheme.typography.bodyMedium) }
+        thread.writer?.let { w -> Text(stringResource(R.string.writer_named, w.label(rememberStrings())), style = MaterialTheme.typography.bodyMedium) }
         val sent = thread.letters.count { !it.fromPrisoner }
         val received = thread.letters.size - sent
-        Text("${thread.letters.size} letters · $sent sent · $received received", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.thread_counts, pluralStringResource(R.plurals.thread_count_letters, thread.letters.size, thread.letters.size), sent, received), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         retentionDays?.let { d ->
           Text(
-            if (d == 0) "Mailed letters are kept until you delete them." else "Mailed letters and replies are removed after $d days unless you keep them; older ones may already be gone.",
+            if (d == 0) stringResource(R.string.retention_forever) else pluralStringResource(R.plurals.retention_days, d, d),
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
@@ -166,7 +171,7 @@ private fun ThreadBody(
       HorizontalDivider()
     }
     if (thread.letters.isEmpty()) {
-      item("empty") { Text("No letters in this conversation yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
+      item("empty") { Text(stringResource(R.string.thread_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
     }
     items(thread.letters, key = { it.id }) { letter ->
       LetterCard(letter, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) })
@@ -180,8 +185,8 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
   Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(
-        if (letter.fromPrisoner) "← Received" else "→ Sent",
-        modifier = Modifier.spokenWithoutArrows(if (letter.fromPrisoner) "← Received" else "→ Sent"),
+        stringResource(if (letter.fromPrisoner) R.string.letter_received else R.string.letter_sent),
+        modifier = Modifier.spokenWithoutArrows(stringResource(if (letter.fromPrisoner) R.string.letter_received else R.string.letter_sent)),
         style = MaterialTheme.typography.titleMedium,
         color = if (letter.fromPrisoner) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
       )
@@ -190,33 +195,34 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
       StatusChip(letter.status)
     }
     if (letter.locked) {
-      Text("🔒 This letter is encrypted and this device does not hold a key that opens it.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(stringResource(R.string.letter_locked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     } else if (letter.body.isNotBlank()) {
       Text(letter.body, style = MaterialTheme.typography.bodyLarge)
     }
     letter.relayNote?.let {
       Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(10.dp)) {
-        Text("NOTE TO RELAY GROUP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.label_note_to_relay), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(it, style = MaterialTheme.typography.bodyMedium)
       }
     }
     letter.attachments.forEach { a -> AttachmentRow(a.name, a.sizeLabel, onOpen = { onOpen(a) }) }
     val statusLine = when (letter.status) {
       LetterStatus.QUEUED -> when {
-        letter.relayGroupName != null -> "Waiting for ${letter.relayGroupName} to print it"
-        letter.relayGroupId != null -> "Waiting for the relay group to print it"
-        else -> "Queued. No relay group is assigned to this facility yet."
+        letter.relayGroupName != null -> stringResource(R.string.status_waiting_named, letter.relayGroupName)
+        letter.relayGroupId != null -> stringResource(R.string.status_waiting_relay)
+        else -> stringResource(R.string.status_queued_no_relay)
       }
-      LetterStatus.PRINTED -> "Printed by ${letter.relayGroupName ?: "the relay group"}" + (letter.statusChangedAt?.let { " on ${it.longDate()}" } ?: "")
-      LetterStatus.MAILED -> "Mailed by ${letter.relayGroupName ?: "the relay group"}" + (letter.statusChangedAt?.let { " on ${it.longDate()}" } ?: "")
-      LetterStatus.RECEIVED -> "Recorded by a support group"
+      // Whole sentences per case, not pieces glued together: word order differs between languages.
+      LetterStatus.PRINTED -> (letter.relayGroupName ?: stringResource(R.string.the_relay_group)).let { who -> letter.statusChangedAt?.let { stringResource(R.string.status_printed_by_on, who, it.longDate()) } ?: stringResource(R.string.status_printed_by, who) }
+      LetterStatus.MAILED -> (letter.relayGroupName ?: stringResource(R.string.the_relay_group)).let { who -> letter.statusChangedAt?.let { stringResource(R.string.status_mailed_by_on, who, it.longDate()) } ?: stringResource(R.string.status_mailed_by, who) }
+      LetterStatus.RECEIVED -> stringResource(R.string.status_recorded_by_group)
       LetterStatus.UNKNOWN -> ""
     }
     if (statusLine.isNotBlank()) Text(statusLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     if (letter.canEdit && !letter.locked && mayChange) {
       Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }
-        TextButton(onClick = onDelete, enabled = !busy) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+        TextButton(onClick = onEdit, enabled = !busy) { Text(stringResource(R.string.action_edit)) }
+        TextButton(onClick = onDelete, enabled = !busy) { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) }
       }
     }
   }
@@ -224,5 +230,5 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
 
 @Composable
 fun StatusChip(status: LetterStatus) {
-  Tag(status.label)
+  Tag(stringResource(status.labelRes))
 }

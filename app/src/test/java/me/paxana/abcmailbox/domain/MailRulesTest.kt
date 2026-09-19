@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.domain
 
+import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiEnvelope
 import me.paxana.abcmailbox.data.api.MailRuleVocabularyDto
@@ -35,7 +36,7 @@ class MailRulesTest {
   fun `lines show tags then the valued rules`() {
     assertEquals(
       listOf("Return address required", "No pictures", "At most 4 pages per letter", "At most 1 photo per letter", "Accepted languages: English, Spanish"),
-      rules("no_photos", "return_address_required", pages = 4, photos = 1, languages = listOf("en", "es")).lines(),
+      rules("no_photos", "return_address_required", pages = 4, photos = 1, languages = listOf("en", "es")).lines(TestStrings()),
     )
     assertTrue(MailRules().isEmpty)
     assertFalse(rules(pages = 2).isEmpty)
@@ -44,20 +45,20 @@ class MailRulesTest {
   @Test
   fun `page limit warns only when the estimate exceeds it`() {
     val r = rules(pages = 2)
-    assertTrue(composeAdvice(r, estimatedPages = 2, imageAttachments = 0).isEmpty())
-    val over = composeAdvice(r, estimatedPages = 3, imageAttachments = 0).single()
+    assertTrue(composeAdvice(r, estimatedPages = 2, imageAttachments = 0, TestStrings()).isEmpty())
+    val over = composeAdvice(r, estimatedPages = 3, imageAttachments = 0, TestStrings()).single()
     assertTrue(over.warning); assertTrue(over.text.contains("about 3 pages")); assertTrue(over.text.contains("at most 2"))
   }
 
   @Test
   fun `languages, pictures, photo limits and handwriting produce advice`() {
-    val a = composeAdvice(rules("no_photos", "handwritten_only", languages = listOf("es")), 1, 0)
+    val a = composeAdvice(rules("no_photos", "handwritten_only", languages = listOf("es")), 1, 0, TestStrings())
     assertTrue(a.any { it.text.contains("Spanish") && !it.warning })
     assertTrue(a.any { it.text.contains("refuses pictures") })
     assertTrue(a.any { it.text.contains("handwritten") && it.warning })
-    val photos = composeAdvice(rules(photos = 2), 1, imageAttachments = 3).single()
+    val photos = composeAdvice(rules(photos = 2), 1, imageAttachments = 3, TestStrings()).single()
     assertTrue(photos.warning); assertTrue(photos.text.contains("at most 2 photos"))
-    assertTrue(composeAdvice(MailRules(), 10, 5).isEmpty())
+    assertTrue(composeAdvice(MailRules(), 10, 5, TestStrings()).isEmpty())
   }
 
   @Test

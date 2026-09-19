@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.account
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,7 +58,7 @@ data class ChangePasswordUiState(
 }
 
 @HiltViewModel
-class ChangePasswordViewModel @Inject constructor(private val sessions: SessionRepository) : ViewModel() {
+class ChangePasswordViewModel @Inject constructor(private val sessions: SessionRepository, private val strings: Strings) : ViewModel() {
   private val _ui = MutableStateFlow(ChangePasswordUiState())
   val ui: StateFlow<ChangePasswordUiState> = _ui.asStateFlow()
 
@@ -73,8 +76,8 @@ class ChangePasswordViewModel @Inject constructor(private val sessions: SessionR
         is ApiResult.Success -> _ui.update { ChangePasswordUiState(done = true) }
         is ApiResult.Failure -> _ui.update {
           it.copy(busy = false, error = when (val e = r.error) {
-            is AppError.Network -> "Can't reach the server. Your password has not changed."
-            else -> e.userMessage ?: "Could not change the password."
+            is AppError.Network -> strings.get(R.string.error_password_network)
+            else -> e.userMessage ?: strings.get(R.string.error_change_password)
           })
         }
       }
@@ -88,24 +91,24 @@ fun ChangePasswordScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: Chan
   LaunchedEffect(ui.done) { if (ui.done) onDone() }
   val transform = if (ui.show) VisualTransformation.None else PasswordVisualTransformation()
 
-  DetailScaffold(title = "Change password", onBack = onBack) { padding ->
+  DetailScaffold(title = stringResource(R.string.action_change_password), onBack = onBack) { padding ->
     Column(
       Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 8.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-      Text("Changing your password signs out every other device. This one stays signed in.", style = MaterialTheme.typography.bodyLarge)
-      OutlinedTextField(ui.current, viewModel::onCurrent, label = { Text("Current password") }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
+      Text(stringResource(R.string.change_password_intro), style = MaterialTheme.typography.bodyLarge)
+      OutlinedTextField(ui.current, viewModel::onCurrent, label = { Text(stringResource(R.string.label_current_password)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-        trailingIcon = { TextButton(onClick = viewModel::onToggleShow) { Text(if (ui.show) "Hide" else "Show") } },
+        trailingIcon = { TextButton(onClick = viewModel::onToggleShow) { Text(stringResource(if (ui.show) R.string.action_hide else R.string.action_show)) } },
         modifier = Modifier.fillMaxWidth().testTag("pw-current"))
-      OutlinedTextField(ui.new, viewModel::onNew, label = { Text("New password") }, supportingText = { Text("At least 7 characters, different from the current one") }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
+      OutlinedTextField(ui.new, viewModel::onNew, label = { Text(stringResource(R.string.label_new_password)) }, supportingText = { Text(stringResource(R.string.help_new_password)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("pw-new"))
-      OutlinedTextField(ui.confirm, viewModel::onConfirm, label = { Text("Confirm new password") }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
+      OutlinedTextField(ui.confirm, viewModel::onConfirm, label = { Text(stringResource(R.string.label_confirm_new_password)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
         isError = ui.confirm.isNotEmpty() && !ui.matches,
-        supportingText = { if (ui.confirm.isNotEmpty() && !ui.matches) Text("Passwords do not match.") },
+        supportingText = { if (ui.confirm.isNotEmpty() && !ui.matches) Text(stringResource(R.string.error_passwords_differ)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth().testTag("pw-confirm"))
       ui.error?.let { ErrorText(it) }
-      Button(onClick = viewModel::submit, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("pw-submit")) { Text(if (ui.busy) "Changing…" else "Change password") }
+      Button(onClick = viewModel::submit, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("pw-submit")) { Text(stringResource(if (ui.busy) R.string.action_changing else R.string.action_change_password)) }
     }
   }
 }

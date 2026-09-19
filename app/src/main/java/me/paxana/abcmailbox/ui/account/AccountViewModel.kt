@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import me.paxana.abcmailbox.data.offline.OfflineDirectory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,6 +32,7 @@ class AccountViewModel @Inject constructor(
   private val sessions: SessionRepository,
   private val devServer: DevServerRepository,
   private val offline: OfflineDirectory,
+  private val strings: Strings,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(AccountUiState(serverUrl = devServer.baseUrl.value, serverDefault = devServer.default, serverOverridden = devServer.isOverridden))
@@ -77,8 +80,8 @@ class AccountViewModel @Inject constructor(
     viewModelScope.launch {
       val result = sessions.logout(everywhere)
       val notice = when (result) {
-        is ApiResult.Success -> if (everywhere) "Signed out on every device." else "Signed out."
-        is ApiResult.Failure -> "Signed out on this device. The server could not be told: ${result.error.userMessage ?: "no connection"}."
+        is ApiResult.Success -> strings.get(if (everywhere) R.string.notice_signed_out_everywhere else R.string.notice_signed_out)
+        is ApiResult.Failure -> strings.get(R.string.notice_signed_out_server_untold, result.error.userMessage ?: strings.get(R.string.no_connection_short))
       }
       _uiState.update { it.copy(signingOut = false, notice = notice) }
     }

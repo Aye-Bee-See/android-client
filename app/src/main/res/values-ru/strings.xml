@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Русский. Перед публикацией переводы должны проверить носители языка. -->
+<resources>
+
+    <!-- Routing: how mail reaches a facility -->
+    <string name="routing_direct">Прямая почта</string>
+    <string name="routing_direct_explained">Письма отправляются прямо в учреждение.</string>
+    <string name="routing_scan_only">Только через службу сканирования</string>
+    <string name="routing_scan_only_explained">Бумажная почта не принимается; письма проходят через службу сканирования.</string>
+    <string name="routing_direct_and_scan">Прямая почта или служба сканирования</string>
+    <string name="routing_direct_and_scan_explained">Письма можно отправить почтой или через службу сканирования.</string>
+    <string name="routing_relay_only">Только через пересылку</string>
+    <string name="routing_relay_only_explained">Прямая почта не принимается. Письмо должна отправить группа пересылки внутри страны.</string>
+    <string name="routing_unknown">Способ доставки неизвестен</string>
+    <string name="routing_unknown_explained">Перед тем как писать, уточните у группы поддержки.</string>
+
+    <!-- Letter status -->
+    <string name="status_queued">В очереди</string>
+    <string name="status_queued_meaning">Ждёт, пока группа пересылки его напечатает</string>
+    <string name="status_printed">Напечатано</string>
+    <string name="status_printed_meaning">Напечатано группой пересылки, ещё не отправлено</string>
+    <string name="status_mailed">Отправлено почтой</string>
+    <string name="status_mailed_meaning">В пути</string>
+    <string name="status_received">Получено</string>
+    <string name="status_received_meaning">Ответ заключённого, записанный группой</string>
+    <string name="status_unknown">Неизвестно</string>
+
+    <!-- What groups do. The names after service_ are the API's keys; do not change them. -->
+    <string name="service_letter_collection">Сбор писем</string>
+    <string name="service_letter_writing_nights">Вечера написания писем</string>
+    <string name="service_domestic_mailing">Отправка внутри страны</string>
+    <string name="service_international_mailing">Международная отправка</string>
+    <string name="service_international_relay">Международная пересылка</string>
+    <string name="service_translation_assistance">Помощь с переводом</string>
+    <string name="service_legal_support_coordination">Координация юридической помощи</string>
+    <string name="service_book_programs">Книжные программы</string>
+    <string name="role_collecting">Группа сбора: собирает письма и передаёт их группам пересылки</string>
+    <string name="role_relay">Группа пересылки: печатает письма и отправляет их внутри страны</string>
+    <string name="role_both">Собирает письма и пересылает почту</string>
+    <string name="role_not_set">Роль не указана</string>
+
+    <!-- Names used when a record has none -->
+    <string name="prisoner_numbered">Заключённый № %1$d</string>
+    <string name="writer_anonymous">Анонимный автор</string>
+    <string name="release_unknown">Неизвестно</string>
+
+    <!-- Mail rules that carry a number or a list -->
+    <plurals name="rule_page_limit">
+        <item quantity="one">Не более %d страницы на письмо</item>
+        <item quantity="few">Не более %d страниц на письмо</item>
+        <item quantity="many">Не более %d страниц на письмо</item>
+        <item quantity="other">Не более %d страницы на письмо</item>
+    </plurals>
+    <plurals name="rule_photo_limit">
+        <item quantity="one">Не более %d фотографии на письмо</item>
+        <item quantity="few">Не более %d фотографий на письмо</item>
+        <item quantity="many">Не более %d фотографий на письмо</item>
+        <item quantity="other">Не более %d фотографии на письмо</item>
+    </plurals>
+    <string name="rule_languages">Принимаемые языки: %1$s</string>
+    <string name="list_or"> или </string>
+
+    <!-- Advice on the letter being written, from the facility's rules -->
+    <string name="advice_too_long">Здесь примерно %1$d стр., а это учреждение принимает не более %2$d. Возможно, стоит разделить письмо на два.</string>
+    <string name="advice_language">Письма сюда нужно писать на следующем языке: %1$s. Если вы им не владеете, спросите у группы пересылки о переводе.</string>
+    <string name="advice_no_photos">Это учреждение не принимает изображения, поэтому прикреплять картинки нельзя. PDF прикрепить можно.</string>
+    <plurals name="advice_too_many_photos">
+        <item quantity="one">Это учреждение принимает не более %1$d фотографии на письмо; вы прикрепили %2$d.</item>
+        <item quantity="few">Это учреждение принимает не более %1$d фотографий на письмо; вы прикрепили %2$d.</item>
+        <item quantity="many">Это учреждение принимает не более %1$d фотографий на письмо; вы прикрепили %2$d.</item>
+        <item quantity="other">Это учреждение принимает не более %1$d фотографии на письмо; вы прикрепили %2$d.</item>
+    </plurals>
+    <string name="advice_handwritten">Здесь принимают только рукописные письма. Прикрепите скан письма, написанного от руки, или укажите в примечании для группы пересылки, что письмо нужно переписать от руки.</string>
+    <string name="advice_postcards">Здесь принимают только открытки. Пишите коротко, чтобы текст поместился на одной.</string>
+    <string name="advice_originals_destroyed">Здесь почту сканируют, а оригинал уничтожают; заключённый видит копию.</string>
+    <string name="advice_not_confirmed">Доставку в это учреждение подтвердить невозможно. Не отправляйте ничего невосполнимого.</string>
+    <string name="relay_blocked">%1$s принимает письма только через группу пересылки, а ни одной пока не указано. Перед тем как писать, обратитесь в группу поддержки.</string>
+
+    <!-- Checking a claim token as it is typed -->
+    <string name="token_empty">Введите код, который вам дала группа.</string>
+    <string name="token_bad_character">В кодах не бывает символа %1$s. Проверьте, нет ли похожего (буквы I, L, O и U не используются).</string>
+    <plurals name="token_too_short">
+        <item quantity="one">Введено символов: %1$d; в коде их %2$d.</item>
+        <item quantity="few">Введено символов: %1$d; в коде их %2$d.</item>
+        <item quantity="many">Введено символов: %1$d; в коде их %2$d.</item>
+        <item quantity="other">Введено символов: %1$d; в коде их %2$d.</item>
+    </plurals>
+    <plurals name="token_too_long">
+        <item quantity="one">Введено символов: %1$d; в коде их всего %2$d.</item>
+        <item quantity="few">Введено символов: %1$d; в коде их всего %2$d.</item>
+        <item quantity="many">Введено символов: %1$d; в коде их всего %2$d.</item>
+        <item quantity="other">Введено символов: %1$d; в коде их всего %2$d.</item>
+    </plurals>
+
+    <!-- Shell, shared components, outbox -->
+    <string name="tab_directory">Каталог</string>
+    <string name="tab_inbox">Письма</string>
+    <string name="tab_account">Аккаунт</string>
+    <string name="action_back">Назад</string>
+    <string name="action_try_again">Повторить</string>
+    <string name="action_open_file">Открыть файл</string>
+    <string name="filter_all">Все</string>
+    <string name="offline_banner">Нет соединения. Показан каталог, сохранённый на этом телефоне %1$s. Отправлять письма нельзя, пока не появится связь; черновики сохраняются.</string>
+    <string name="error_network">Не удаётся связаться с сервером. Проверьте соединение и попробуйте ещё раз.</string>
+    <string name="error_not_found">Такой записи нет, или она не опубликована.</string>
+    <string name="error_generic">Что-то пошло не так. Попробуйте ещё раз.</string>
+    <string name="notice_session_ended">Сеанс завершён. Войдите снова.</string>
+    <string name="notice_password_changed_elsewhere_signed_out">Пароль изменён. На других устройствах выполнен выход.</string>
+    <string name="notice_account_claimed">Аккаунт активирован. Вы вошли.</string>
+    <string name="notice_password_changed_signed_in">Пароль изменён. Вы вошли.</string>
+    <string name="notice_letter_queued">Нет соединения. Письмо сохранено на этом телефоне и будет отправлено, когда появится связь.</string>
+    <string name="title_write_to">Кому написать…</string>
+    <string name="title_write_as_to">Написать от имени %1$s…</string>
+    <string name="outbox_channel_name">Письма, написанные без связи</string>
+    <string name="outbox_channel_description">Сообщает, когда письмо, написанное без связи, отправлено или не может быть отправлено.</string>
+    <plurals name="outbox_notification_sent">
+        <item quantity="one">Отправлено %d письмо, написанное без связи.</item>
+        <item quantity="few">Отправлено %d письма, написанных без связи.</item>
+        <item quantity="many">Отправлено %d писем, написанных без связи.</item>
+        <item quantity="other">Отправлено %d письма, написанных без связи.</item>
+    </plurals>
+    <plurals name="outbox_notification_refused">
+        <item quantity="one">Не удалось отправить %d письмо. Откройте приложение, чтобы узнать причину.</item>
+        <item quantity="few">Не удалось отправить %d письма. Откройте приложение, чтобы узнать причину.</item>
+        <item quantity="many">Не удалось отправить %d писем. Откройте приложение, чтобы узнать причину.</item>
+        <item quantity="other">Не удалось отправить %d письма. Откройте приложение, чтобы узнать причину.</item>
+    </plurals>
+
+
+    <!-- Verification of a record -->
+    <string name="verified_never">Ещё не проверено</string>
+    <string name="verified_this_month">Проверено %1$s (в этом месяце)</string>
+    <plurals name="verified_months_ago">
+        <item quantity="one">Проверено %2$s (%1$d месяц назад)</item>
+        <item quantity="few">Проверено %2$s (%1$d месяца назад)</item>
+        <item quantity="many">Проверено %2$s (%1$d месяцев назад)</item>
+        <item quantity="other">Проверено %2$s (%1$d месяца назад)</item>
+    </plurals>
+    <string name="not_verified_6_months">⚠ Не проверялось более 6 месяцев</string>
+    <string name="stale_record_banner">⚠ Эта запись не проверялась более 6 месяцев. Правила переписки и способ доставки могли измениться.</string>
+
+    <!-- Directory: home -->
+    <string name="home_headline">Письма важны.</string>
+    <string name="home_subhead">Напишите сегодня.</string>
+    <string name="home_intro">Смотрите профили заключённых, находите группу поддержки рядом с вами и узнавайте, чего именно требует каждое учреждение, прежде чем писать.</string>
+    <string name="home_prisoners">Заключённые</string>
+    <string name="home_prisoners_sub">Профили ведут группы поддержки</string>
+    <string name="home_facilities">Учреждения</string>
+    <string name="home_facilities_sub">Правила переписки и способ доставки для каждой тюрьмы</string>
+    <string name="home_groups">Группы</string>
+    <string name="home_groups_sub">Группы, которые собирают и пересылают письма</string>
+    <string name="home_featured">Заключённые, которые ждут писем</string>
+    <string name="home_no_featured">Пока никого не выделили.</string>
+    <string name="held_at">Содержится: %1$s</string>
+    <string name="detained_since_year">С %1$d г.</string>
+    <string name="est_release_value">Ожидаемое освобождение: %1$s</string>
+
+    <!-- Directory: lists and filters -->
+    <string name="prisoner_status_incarcerated">В заключении</string>
+    <string name="prisoner_status_pretrial">Ожидает суда</string>
+    <string name="prisoner_status_free">На свободе</string>
+    <string name="role_filter_collecting">Собирают письма</string>
+    <string name="role_filter_relay">Пересылают почту</string>
+    <string name="list_prisoners_title">Политзаключённые</string>
+    <string name="list_prisoners_empty">Никого не найдено.</string>
+    <string name="search_by_name">Поиск по имени</string>
+    <string name="filter_featured">Выделенные</string>
+    <string name="filter_everyone">Все</string>
+    <string name="list_facilities_title">Учреждения и правила переписки</string>
+    <string name="list_facilities_empty">Учреждений не найдено.</string>
+    <string name="search_facilities">Поиск учреждений</string>
+    <string name="filter_relay_available">Есть пересылка</string>
+    <string name="filter_any_routing">Любой способ</string>
+    <string name="list_groups_title">Группы поддержки</string>
+    <string name="list_groups_empty">Групп не найдено.</string>
+    <string name="search_groups">Поиск групп</string>
+    <string name="filter_any_service">Любые услуги</string>
+    <string name="routing_via">%1$s · через %2$s</string>
+
+    <!-- Directory: detail pages -->
+    <string name="title_prisoner">Заключённый</string>
+    <string name="title_facility">Учреждение</string>
+    <string name="title_group">Группа</string>
+    <string name="photo_of">Фото: %1$s</string>
+    <string name="action_write_letter">Написать письмо</string>
+    <string name="label_country">Страна</string>
+    <string name="label_current_facility">ТЕКУЩЕЕ УЧРЕЖДЕНИЕ</string>
+    <string name="label_detained_since">В заключении с</string>
+    <string name="label_sentence">Приговор</string>
+    <string name="label_est_release">Ожидаемое освобождение</string>
+    <string name="label_charges">Обвинение(я)</string>
+    <string name="section_about">О себе</string>
+    <string name="section_interests">Интересы</string>
+    <string name="section_facility_rules">Правила переписки учреждения</string>
+    <string name="routing_sentence">%1$s. %2$s</string>
+    <string name="section_support">Поддержка</string>
+    <string name="section_donate">Пожертвования / тюремный магазин</string>
+    <string name="section_support_groups">Группы поддержки</string>
+    <string name="action_view_group">Открыть группу</string>
+    <string name="label_mailing_address">ПОЧТОВЫЙ АДРЕС</string>
+    <string name="label_routing">Способ доставки</string>
+    <string name="label_scan_service">Служба сканирования</string>
+    <string name="label_notes">Примечания</string>
+    <string name="section_mail_rules">Правила переписки</string>
+    <string name="rules_none_recorded">Правила не указаны. Перед тем как писать, уточните у группы поддержки.</string>
+    <string name="rules_what_they_mean">Что это значит</string>
+    <string name="rule_with_meaning">%1$s: %2$s</string>
+    <string name="section_relay_groups">Группы пересылки</string>
+    <string name="relay_none">Группы пересылки нет. Письма идут прямо в учреждение.</string>
+    <string name="section_prisoners_held">Сейчас содержатся</string>
+    <string name="none_listed">Никто не указан.</string>
+    <string name="section_prisoners_we_support">Кого мы поддерживаем</string>
+    <string name="section_facilities_we_mail">Куда мы отправляем письма</string>
+
+    <!-- Inbox -->
+    <string name="title_inbox">Письма</string>
+    <string name="inbox_signed_out">Войдите, чтобы видеть переписку и писать письма.</string>
+    <string name="action_sign_in">Войти</string>
+    <string name="inbox_empty_writer">Переписки пока нет. Начните её кнопкой ниже.</string>
+    <string name="inbox_empty_group">Переписки пока нет. Начните её на вкладке «Авторы».</string>
+    <string name="signed_in_as">Вы вошли как %1$s</string>
+    <string name="action_new_letter">Новое письмо</string>
+    <string name="thread_no_letters">Писем пока нет</string>
+    <string name="thread_last_received">← Получено письмо</string>
+    <string name="thread_last_sent">→ Письмо отправлено · %1$s</string>
+    <string name="writer_named">Автор: %1$s</string>
+    <string name="unlock_explained">Ваши письма на этом устройстве заблокированы. Введите пароль, чтобы их открыть. Он используется здесь, на телефоне, чтобы открыть ваш ключ шифрования, и никуда не отправляется.</string>
+    <string name="label_password">Пароль</string>
+    <string name="action_unlock">Разблокировать</string>
+    <string name="action_unlocking">Открываем…</string>
+
+    <!-- A conversation -->
+    <string name="no_app_opens">На телефоне нет приложения, которое открывает %1$s.</string>
+    <string name="title_conversation">Переписка</string>
+    <string name="action_write">Написать</string>
+    <string name="delete_letter_title">Удалить это письмо?</string>
+    <string name="delete_letter_text">Оно ещё не напечатано, поэтому его можно отозвать. Это действие нельзя отменить.</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_keep_it">Оставить</string>
+    <string name="action_edit">Изменить</string>
+    <plurals name="thread_count_letters">
+        <item quantity="one">%d письмо</item>
+        <item quantity="few">%d письма</item>
+        <item quantity="many">%d писем</item>
+        <item quantity="other">%d письма</item>
+    </plurals>
+    <string name="thread_counts">%1$s · отправлено: %2$d · получено: %3$d</string>
+    <string name="retention_forever">Отправленные письма хранятся, пока вы их не удалите.</string>
+    <plurals name="retention_days">
+        <item quantity="one">Отправленные письма и ответы удаляются через %d день, если вы их не сохраните; более старые, возможно, уже удалены.</item>
+        <item quantity="few">Отправленные письма и ответы удаляются через %d дня, если вы их не сохраните; более старые, возможно, уже удалены.</item>
+        <item quantity="many">Отправленные письма и ответы удаляются через %d дней, если вы их не сохраните; более старые, возможно, уже удалены.</item>
+        <item quantity="other">Отправленные письма и ответы удаляются через %d дня, если вы их не сохраните; более старые, возможно, уже удалены.</item>
+    </plurals>
+    <string name="thread_empty">В этой переписке пока нет писем.</string>
+    <string name="letter_received">← Получено</string>
+    <string name="letter_sent">→ Отправлено</string>
+    <string name="letter_locked">🔒 Это письмо зашифровано, а на этом устройстве нет ключа, который его открывает.</string>
+    <string name="label_note_to_relay">ПРИМЕЧАНИЕ ДЛЯ ГРУППЫ ПЕРЕСЫЛКИ</string>
+    <string name="status_waiting_named">Ждёт, пока %1$s его напечатает</string>
+    <string name="status_waiting_relay">Ждёт, пока группа пересылки его напечатает</string>
+    <string name="status_queued_no_relay">В очереди. Этому учреждению пока не назначена группа пересылки.</string>
+    <string name="the_relay_group">группа пересылки</string>
+    <string name="status_printed_by">Напечатано: %1$s</string>
+    <string name="status_printed_by_on">Напечатано: %1$s, %2$s</string>
+    <string name="status_mailed_by">Отправлено почтой: %1$s</string>
+    <string name="status_mailed_by_on">Отправлено почтой: %1$s, %2$s</string>
+    <string name="status_recorded_by_group">Записано группой поддержки</string>
+    <string name="letter_deleted">Письмо удалено.</string>
+    <string name="error_delete_letter">Не удалось удалить письмо.</string>
+    <string name="error_download_file">Не удалось скачать файл.</string>
+    <string name="error_unlock">Не удалось разблокировать. Проверьте соединение.</string>
+
+    <!-- Writing a letter -->
+    <string name="draft_restored">Черновик восстановлен.</string>
+    <string name="title_record_reply">Записать ответ</string>
+    <string name="title_edit_letter">Изменить письмо</string>
+    <string name="title_new_letter">Новое письмо</string>
+    <string name="compose_signed_out">Войдите, чтобы написать письмо.</string>
+    <string name="compose_from">От: %1$s</string>
+    <string name="compose_to">Кому: %1$s</string>
+    <string name="compose_writing_as">От имени: %1$s</string>
+    <string name="compose_reply_help">Наберите то, что написал заключённый, прикрепите скан или фото письма — или и то и другое. Автор увидит это в своей переписке.</string>
+    <string name="compose_rules_for">Правила учреждения · %1$s</string>
+    <string name="compose_rules_none">Для этого учреждения правила не указаны. Перед тем как писать, уточните у группы поддержки.</string>
+    <string name="compose_placeholder_reply">Наберите здесь письмо заключённого, если переписываете его.</string>
+    <string name="compose_placeholder">Напишите письмо здесь. Абзацы сохранятся при печати.</string>
+    <plurals name="compose_pages">
+        <item quantity="one">~%d страница</item>
+        <item quantity="few">~%d страницы</item>
+        <item quantity="many">~%d страниц</item>
+        <item quantity="other">~%d страницы</item>
+    </plurals>
+    <plurals name="compose_characters">
+        <item quantity="one">%d знак</item>
+        <item quantity="few">%d знака</item>
+        <item quantity="many">%d знаков</item>
+        <item quantity="other">%d знака</item>
+    </plurals>
+    <string name="compose_count">%1$s · %2$s</string>
+    <string name="warning_prefix">⚠ %1$s</string>
+    <string name="label_note_to_relay_field">Примечание для группы пересылки</string>
+    <string name="note_placeholder">Необязательно. Это увидит только ваша группа пересылки.</string>
+    <string name="note_help">Заключённому не отправляется. Здесь можно пояснить что-то о письме или его происхождении.</string>
+    <string name="action_add_note">+ Добавить примечание для группы пересылки</string>
+    <string name="section_attachments">Вложения</string>
+    <string name="attachment_named">📎 %1$s</string>
+    <string name="action_remove">Убрать</string>
+    <string name="action_attach_pdf">Прикрепить PDF</string>
+    <string name="action_attach_file">Прикрепить файл</string>
+    <string name="action_take_photo">Сделать фото</string>
+    <string name="attachments_help">PDF, JPG, PNG или WebP · не более 20 МБ. Хорошо подходит скан рукописного письма.</string>
+    <string name="action_save_reply">Сохранить ответ</string>
+    <string name="action_save_changes">Сохранить изменения</string>
+    <string name="action_send_letter">Отправить письмо</string>
+    <string name="compose_not_immediate">Письмо не будет отправлено сразу. Оно попадёт в очередь вашей группы пересылки: там его напечатают и отправят обычной почтой от вашего имени.</string>
+    <string name="relayed_by">Пересылает: %1$s</string>
+    <string name="mailed_directly">Отправляется прямо в учреждение.</string>
+    <string name="section_relay_group">Группа пересылки</string>
+    <string name="relay_must_choose">Это учреждение принимает только пересылаемую почту. Выберите, через какую группу отправить.</string>
+    <plurals name="relay_may_choose">
+        <item quantity="one">В это учреждение пересылает %d группа. Выберите её или доверьте выбор сети.</item>
+        <item quantity="few">В это учреждение пересылают %d группы. Выберите одну или доверьте выбор сети.</item>
+        <item quantity="many">В это учреждение пересылают %d групп. Выберите одну или доверьте выбор сети.</item>
+        <item quantity="other">В это учреждение пересылают %d группы. Выберите одну или доверьте выбор сети.</item>
+    </plurals>
+    <string name="relay_let_network_decide">Пусть решит сеть</string>
+    <string name="error_load_prisoner">Не удалось загрузить этого заключённого.</string>
+    <string name="error_read_file">Не удалось прочитать этот файл.</string>
+    <string name="error_no_images_here">Это учреждение не принимает изображения, поэтому картинку прикрепить нельзя. PDF можно.</string>
+    <string name="error_file_type">Прикреплять можно только файлы PDF, JPEG, PNG или WebP.</string>
+    <string name="error_file_too_big">Этот файл больше 20 МБ.</string>
+    <string name="error_photo_too_big">Это фото больше 20 МБ. Попробуйте уменьшить разрешение камеры.</string>
+    <string name="progress_saving">Сохраняем…</string>
+    <string name="progress_sending">Отправляем…</string>
+    <string name="progress_uploading">Загружаем %1$s (%2$d из %3$d)…</string>
+    <string name="error_save_letter">Не удалось сохранить письмо.</string>
+    <string name="error_send_letter">Не удалось отправить письмо.</string>
+    <string name="error_files_not_uploaded">Письмо отправлено, но эти файлы не загрузились: %1$s.</string>
+
+    <!-- The outbox: letters written without a connection -->
+    <string name="outbox_title">Ждут отправки</string>
+    <string name="outbox_explained">Написаны без связи. Отправятся сами, когда телефон снова будет в сети, даже если приложение закрыто.</string>
+    <string name="outbox_to">Кому: %1$s</string>
+    <string name="outbox_reply_from">Ответ от: %1$s</string>
+    <string name="outbox_as"> · от имени %1$s</string>
+    <string name="outbox_written">Написано %1$s</string>
+    <plurals name="outbox_files">
+        <item quantity="one">%d файл</item>
+        <item quantity="few">%d файла</item>
+        <item quantity="many">%d файлов</item>
+        <item quantity="other">%d файла</item>
+    </plurals>
+    <string name="outbox_written_with_files">%1$s · %2$s</string>
+    <string name="outbox_not_sent">Не отправлено. %1$s</string>
+    <string name="action_dismiss">Скрыть</string>
+    <string name="action_try_as_is">Повторить без изменений</string>
+    <string name="action_try_send_now">Попробовать отправить сейчас</string>
+    <string name="action_trying">Пробуем…</string>
+    <string name="outbox_delete_title">Удалить это неотправленное письмо?</string>
+    <string name="outbox_delete_text">Оно не отправлено и хранится только на этом телефоне. Удаление нельзя отменить.</string>
+
+    <!-- Group inbox -->
+    <string name="tab_to_print">К печати</string>
+    <string name="tab_conversations">Переписка</string>
+    <string name="tab_writers">Авторы</string>
+    <string name="not_in_group">Этот аккаунт пока не состоит в группе. Администратор сети должен назначить вам группу, чтобы вы видели её письма.</string>
+    <string name="queue_empty_queued">Нет писем, ожидающих печати.</string>
+    <string name="queue_empty_printed">Нет напечатанных писем, ожидающих отправки.</string>
+    <string name="queue_empty_mailed">Отправленных писем нет.</string>
+    <string name="written_on">Написано %1$s</string>
+    <string name="note_prefixed">Примечание: %1$s</string>
+    <string name="anonymous_explained">Письма без указания автора, например с вечера написания писем. Аккаунт для них не нужен.</string>
+    <string name="action_new_anonymous">Новое анонимное письмо</string>
+    <string name="writers_none">Авторов под опекой группы пока нет.</string>
+    <string name="writer_token_pending">Код активации ждёт использования, действует до %1$s</string>
+    <string name="writer_unclaimed">Не активирован, кода нет</string>
+    <string name="action_handoff_token">Код передачи</string>
+    <string name="action_hand_off_account">Передать аккаунт</string>
+    <string name="action_add_a_writer">Добавить автора</string>
+
+    <!-- A letter on the relay group's desk -->
+    <string name="title_letter_to_print">Письмо к печати</string>
+    <string name="print_job_name">Письмо для: %1$s</string>
+    <string name="print_job_prisoner">заключённого</string>
+    <string name="share_title">Поделиться с партнёрской группой</string>
+    <string name="share_text">Они смогут прочитать и напечатать это письмо. Оно останется в вашей очереди: отметки «напечатано» и «отправлено» по-прежнему ставит ваша группа, так что договоритесь, кто отправит письмо.</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="mark_mailed_title">Отметить как отправленное?</string>
+    <string name="mark_mailed_text">Делайте это, когда письмо действительно сдано на почту. Автор увидит, что оно отправлено, и вернуть отметку будет нельзя.</string>
+    <string name="action_in_the_post">Оно сдано на почту</string>
+    <string name="action_not_yet">Ещё нет</string>
+    <string name="label_address_envelope">АДРЕС НА КОНВЕРТЕ</string>
+    <string name="goes_by">Называет себя %1$s. На конверте учреждения обычно требуют официальное имя.</string>
+    <string name="note_from_writer">Примечание автора: %1$s</string>
+    <string name="rules_for">Правила переписки · %1$s</string>
+    <string name="rules_none_check">Правила не указаны. Уточните перед отправкой.</string>
+    <string name="section_the_letter">Письмо</string>
+    <string name="letter_no_text">(Текста нет. Смотрите прикреплённый файл.)</string>
+    <string name="action_print_letter">Напечатать письмо</string>
+    <string name="action_mark_printed">Отметить как напечатанное</string>
+    <string name="action_mark_mailed">Отметить как отправленное</string>
+    <string name="mailed_done">Отправлено. Больше ничего делать не нужно.</string>
+    <string name="mailed_done_on">Отправлено %1$s. Больше ничего делать не нужно.</string>
+    <string name="action_open_conversation">Открыть переписку</string>
+    <string name="notice_shared_with">%1$s теперь может читать это письмо.</string>
+    <string name="error_share">Не удалось поделиться письмом.</string>
+    <string name="notice_marked_printed">Отмечено как напечатанное.</string>
+    <string name="notice_marked_mailed">Отмечено как отправленное.</string>
+    <string name="error_update_letter">Не удалось обновить письмо.</string>
+
+    <!-- Adding a writer and handing an account over -->
+    <string name="title_add_writer">Добавить автора</string>
+    <string name="add_writer_intro">Создаёт аккаунт под опекой вашей группы. Автор может в любой момент активировать его и взять управление на себя с помощью кода передачи, который вы создадите позже.</string>
+    <string name="add_writer_anonymous_hint">Для анонимных писем аккаунт не нужен. Используйте это, только чтобы вести переписку одного человека на протяжении времени.</string>
+    <string name="label_name">Имя</string>
+    <string name="add_writer_name_help">Как человека называют на ваших встречах. От 3 до 32 символов. Не проверяется и может повторяться.</string>
+    <string name="label_email_optional">Эл. почта (необязательно)</string>
+    <string name="label_internal_note">Внутренняя заметка (необязательно)</string>
+    <string name="internal_note_help">Видна только вашей группе. Автору никогда не показывается.</string>
+    <string name="action_add_writer_and_write">Добавить автора и начать письмо</string>
+    <string name="action_add_writer">Добавить автора</string>
+    <string name="error_add_writer">Не удалось добавить автора.</string>
+    <string name="title_hand_off">Передать аккаунт</string>
+    <string name="handoff_intro">Одноразовый код активации позволит автору (%1$s) задать собственные имя пользователя и пароль и самостоятельно управлять своей перепиской.</string>
+    <string name="handoff_point_1">После активации автор исчезнет из списка вашей группы, и писать от его имени вы больше не сможете.</string>
+    <string name="handoff_point_2">Ваша группа сохранит письма, которые пересылала, — для учёта и повторной печати. Остальная переписка автора станет ей недоступна.</string>
+    <string name="handoff_point_3">Код срабатывает один раз и действует 72 часа. Новый код отменяет прежний.</string>
+    <string name="bullet">• %1$s</string>
+    <string name="token_revoked">Код отозван. Использовать его больше нельзя.</string>
+    <string name="action_working">Минуту…</string>
+    <string name="action_generate_token">Создать код активации</string>
+    <string name="action_revoke_current">Отозвать текущий код</string>
+    <string name="token_expires_once">Действует до %1$s. Показывается один раз: когда вы уйдёте с этого экрана, увидеть его снова будет нельзя, только заменить.</string>
+    <string name="action_copy">Копировать</string>
+    <string name="token_give_in_person">Передайте это автору (%1$s) лично или по каналу, которому вы оба доверяете, например через Signal. Не отправляйте по электронной почте и нигде не публикуйте. Код вводится в приложении: «Войти», затем «У меня есть код активации».</string>
+    <string name="action_regenerate">Создать заново (этот будет отменён)</string>
+    <string name="action_revoke">Отозвать</string>
+    <string name="error_make_token">Не удалось создать код.</string>
+    <string name="error_revoke_token">Не удалось отозвать код.</string>
+
+    <!-- The group's encryption key -->
+    <string name="group_key_open">Сквозное шифрование · ключ группы открыт (версия %1$d)</string>
+    <string name="action_members">Участники</string>
+    <string name="group_key_none_title">У вашей группы пока нет ключа шифрования</string>
+    <string name="group_key_none_text">На этом сервере письма шифруются так, что прочитать их могут только автор и группа пересылки. Вашей группе нужен собственный ключ, иначе ей никто не сможет отправить письмо. Он создаётся на этом телефоне один раз, после чего вы передаёте его остальным участникам.</string>
+    <string name="action_set_up_group_key">Создать ключ группы</string>
+    <string name="action_setting_up">Создаём…</string>
+    <string name="group_key_not_held_title">Вам ещё не передали ключ группы</string>
+    <string name="group_key_not_held_text">Пока участник, у которого есть ключ, не передаст его вам, письма для вашей группы останутся заблокированными на этом телефоне. Попросите его открыть «Письма», «Участники» и выбрать ваше имя.</string>
+    <string name="action_check_again">Проверить ещё раз</string>
+    <string name="group_key_locked_title">Ваши письма на этом устройстве заблокированы</string>
+    <string name="group_key_locked_text">Разблокируйте их паролем на вкладке «Аккаунт»; ключ группы открывается вашим собственным.</string>
+    <string name="group_key_failed_title">Не удалось проверить ключ группы</string>
+    <string name="error_no_connection">Нет соединения с сервером.</string>
+    <string name="title_group_key">Ключ группы</string>
+    <string name="members_intro">У каждого участника своя запечатанная копия ключа группы, поэтому общий пароль никому не нужен. Передайте ключ участнику — и он сможет читать и печатать письма группы.</string>
+    <string name="members_stop_explained">Если убрать участника из этого списка, новых копий он получать не будет. Забрать копию, которую его телефон уже открыл, нельзя: если кто-то должен потерять доступ окончательно, смените ключ группы на сайте.</string>
+    <string name="stop_handing_title">Перестать передавать ключ участнику %1$s?</string>
+    <string name="stop_handing_text">При следующем входе он не получит ключ группы. Телефон, который уже открыл ключ, сохранит его, пока ключ группы не сменят.</string>
+    <string name="action_stop">Прекратить</string>
+    <string name="member_you">%1$s (вы)</string>
+    <string name="member_holds_key">Ключ группы есть</string>
+    <string name="member_never_signed_in">Ещё ни разу не входил, поэтому запечатать ключ пока не на что</string>
+    <string name="member_cannot_read">Пока не может читать письма группы</string>
+    <string name="action_hand_key">Передать ключ</string>
+    <string name="action_sealing">Запечатываем…</string>
+    <string name="error_set_up_group_key">Не удалось создать ключ группы.</string>
+    <string name="notice_group_key_set_up">Ключ группы создан. Передайте его остальным участникам, чтобы они тоже могли читать письма.</string>
+    <string name="notice_key_handed">%1$s теперь может читать письма группы — со следующего входа или обновления.</string>
+    <string name="notice_key_stopped">%1$s больше не будет получать ключ группы.</string>
+    <string name="error_did_not_work">Не получилось. Попробуйте ещё раз.</string>
+
+    <!-- Signing in -->
+    <string name="login_who">Здесь входят авторы писем и группы поддержки.</string>
+    <string name="label_username">Имя пользователя</string>
+    <string name="action_hide">Скрыть</string>
+    <string name="action_show">Показать</string>
+    <string name="login_no_account">Нет аккаунта? Аккаунты создают организаторы групп поддержки. Попросите группу, через которую вы пишете, создать его для вас.</string>
+    <string name="action_have_token">У меня есть код активации</string>
+    <string name="action_forgot_password">Забыли пароль?</string>
+    <string name="error_wrong_credentials">Неверное имя пользователя или пароль.</string>
+    <string name="error_too_many_sign_ins">Слишком много попыток входа. Попробуйте позже.</string>
+
+    <!-- Claiming an account a group made for you -->
+    <string name="title_claim">Активируйте аккаунт</string>
+    <string name="claim_intro">Группа поддержки создала для вас аккаунт и дала одноразовый код. Введите его, чтобы самостоятельно управлять своей перепиской.</string>
+    <string name="label_claim_token">Код активации</string>
+    <string name="claim_token_help">24 буквы и цифры. Дефисы, пробелы и строчные буквы допустимы. Буквы I, L, O и U не используются.</string>
+    <string name="action_check_token">Проверить код</string>
+    <string name="action_checking">Проверяем…</string>
+    <string name="claim_setup_title">Настройте аккаунт</string>
+    <string name="claim_created_for_you">Этот аккаунт (%1$s) создан для вас. Выберите имя пользователя и пароль, чтобы самостоятельно управлять своей перепиской.</string>
+    <string name="claim_created_for_you_by">Этот аккаунт (%1$s) создала для вас группа «%2$s». Выберите имя пользователя и пароль, чтобы самостоятельно управлять своей перепиской.</string>
+    <string name="claim_token_expires">Код действует до %1$s.</string>
+    <string name="claim_warning_e2e">Пароль защищает ваш ключ шифрования. Без него никто — ни этот сервис, ни ваша группа — не сможет прочитать ваши письма. После этого шага вы получите код восстановления: это единственный способ вернуть доступ, если вы забудете пароль.</string>
+    <string name="claim_warning_server">Ссылки для сброса пароля по почте не существует. Храните пароль в надёжном месте; если вы его потеряете, помочь сможет только администратор сети.</string>
+    <string name="help_username_length">От 3 до 16 символов</string>
+    <string name="help_password_length">Не менее 7 символов</string>
+    <string name="label_confirm_password">Повторите пароль</string>
+    <string name="error_passwords_differ">Пароли не совпадают.</string>
+    <string name="claim_understood">Я понимаю, что утерянный пароль нельзя сбросить по электронной почте.</string>
+    <string name="action_claim_account">Активировать аккаунт</string>
+    <string name="action_claiming">Активируем… это займёт несколько секунд</string>
+    <string name="action_different_token">Ввести другой код</string>
+    <string name="error_token_invalid">Этот код недействителен. Сверьте его с тем, что дала вам группа.</string>
+    <string name="error_token_gone">Этот код уже использован или истёк. Коды действуют 72 часа и срабатывают один раз. Попросите новый у группы, которая создала ваш аккаунт.</string>
+
+    <!-- Recovering an account -->
+    <string name="error_recovery_code_format">Код восстановления состоит из 24 букв и цифр и не содержит I, L, O и U.</string>
+    <string name="error_recover_no_account">Аккаунта с таким именем и кодом восстановления нет.</string>
+    <string name="error_recover_refused">В восстановлении отказано. Начните заново: каждая попытка действует десять минут и срабатывает один раз.</string>
+    <string name="error_recover_network">Не удаётся связаться с сервером. Ничего не изменилось.</string>
+    <string name="error_recover_failed">Восстановить не удалось. Попробуйте ещё раз.</string>
+    <string name="recover_no_reset_link">Ссылки для сброса, которую мы могли бы прислать, нет. Это сделано намеренно: сервер, способный сбросить ваш пароль, способен и добраться до ваших писем.</string>
+    <string name="recover_section_code">Воспользуйтесь кодом восстановления</string>
+    <string name="recover_code_explained">Введите код, который вы сохранили при настройке аккаунта, и задайте новый пароль. Письма останутся читаемыми: ключ не меняется, меняется только пароль, который его защищает.</string>
+    <string name="label_recovery_code">Код восстановления</string>
+    <string name="label_new_password">Новый пароль</string>
+    <string name="label_confirm_new_password">Повторите новый пароль</string>
+    <string name="action_set_new_password">Задать новый пароль</string>
+    <string name="action_recovering">Восстанавливаем…</string>
+    <string name="recover_lost_code_too">Код тоже потерян? Тогда письма этого аккаунта не сможет восстановить никто. Администратор сети поможет вам завести новый аккаунт.</string>
+    <string name="recover_section_own">Если это ваш собственный аккаунт</string>
+    <string name="recover_own_explained">Свяжитесь с администратором сети через группу, с которой вы пишете. Он подтвердит вашу личность и задаст вам новый пароль.</string>
+    <string name="recover_section_unclaimed">Если аккаунт создала группа поддержки и вы его ещё не активировали</string>
+    <string name="recover_unclaimed_explained">Попросите у группы новый код активации. Коды действуют 72 часа и срабатывают один раз; группа может создать новый в любой момент.</string>
+    <string name="recover_lockout_hint">После слишком многих неудачных попыток вход для имени пользователя блокируется на 15 минут. Иногда достаточно просто подождать.</string>
+
+    <!-- The recovery code, shown once -->
+    <string name="recovery_title">Сохраните код восстановления</string>
+    <string name="recovery_explained">Ваши письма зашифрованы ключом, который есть только у вас. Его открывает пароль. Если вы забудете пароль, этот код — единственный другой способ войти. Мы его не видим и не сможем прислать снова.</string>
+    <string name="recovery_keep_safe">Запишите его на бумаге или сохраните в менеджере паролей. Не храните его только на этом телефоне и никому не отправляйте.</string>
+    <string name="recovery_saved">Я сохранил(а) этот код в надёжном месте.</string>
+    <string name="action_continue">Продолжить</string>
+
+    <!-- Account tab -->
+    <string name="title_account">Аккаунт</string>
+    <string name="account_signed_out">Вы не вошли. Каталог можно смотреть без аккаунта; чтобы писать письма, он нужен.</string>
+    <string name="username_at">@%1$s</string>
+    <string name="role_member_of_group">Участник группы поддержки (группа %1$d)</string>
+    <string name="role_member_no_group">Участник группы поддержки (группа пока не назначена)</string>
+    <string name="role_admin">Администратор сети</string>
+    <string name="role_writer">Автор писем</string>
+    <string name="action_change_password">Сменить пароль</string>
+    <string name="action_sign_out">Выйти</string>
+    <string name="action_sign_out_everywhere">Выйти на всех устройствах</string>
+    <plurals name="account_unsent">
+        <item quantity="one">%d письмо ждёт отправки. Если вы выйдете, оно останется на этом телефоне в зашифрованном виде и уйдёт, когда этот аккаунт снова войдёт здесь.</item>
+        <item quantity="few">%d письма ждут отправки. Если вы выйдете, они останутся на этом телефоне в зашифрованном виде и уйдут, когда этот аккаунт снова войдёт здесь.</item>
+        <item quantity="many">%d писем ждут отправки. Если вы выйдете, они останутся на этом телефоне в зашифрованном виде и уйдут, когда этот аккаунт снова войдёт здесь.</item>
+        <item quantity="other">%d письма ждут отправки. Если вы выйдете, они останутся на этом телефоне в зашифрованном виде и уйдут, когда этот аккаунт снова войдёт здесь.</item>
+    </plurals>
+    <string name="build_line">Версия %1$s · %2$s</string>
+    <string name="mode_e2e">сквозное шифрование</string>
+    <string name="mode_server">серверный режим</string>
+    <string name="mode_unknown">сервер недоступен</string>
+    <string name="notice_signed_out">Вы вышли.</string>
+    <string name="notice_signed_out_everywhere">Выполнен выход на всех устройствах.</string>
+    <string name="notice_signed_out_server_untold">Вы вышли на этом устройстве. Сообщить серверу не удалось: %1$s.</string>
+    <string name="no_connection_short">нет соединения</string>
+
+    <!-- Changing the password -->
+    <string name="error_password_network">Не удаётся связаться с сервером. Пароль не изменён.</string>
+    <string name="error_change_password">Не удалось сменить пароль.</string>
+    <string name="change_password_intro">При смене пароля на всех остальных устройствах будет выполнен выход. На этом вы останетесь в системе.</string>
+    <string name="label_current_password">Текущий пароль</string>
+    <string name="help_new_password">Не менее 7 символов, не совпадает с текущим</string>
+    <string name="action_changing">Меняем…</string>
+
+    <!-- The offline copy of the directory -->
+    <string name="offline_title">Каталог без связи</string>
+    <string name="offline_nothing_saved">На этом телефоне пока ничего не сохранено. Каталог загрузится сам, когда появится связь.</string>
+    <string name="offline_saved">Сохранено %1$s: %2$s, %3$s, %4$s. Адреса и правила переписки доступны без связи; каталог обновляется сам примерно раз в день.</string>
+    <plurals name="count_prisoners">
+        <item quantity="one">%d заключённый</item>
+        <item quantity="few">%d заключённых</item>
+        <item quantity="many">%d заключённых</item>
+        <item quantity="other">%d заключённых</item>
+    </plurals>
+    <plurals name="count_facilities">
+        <item quantity="one">%d учреждение</item>
+        <item quantity="few">%d учреждения</item>
+        <item quantity="many">%d учреждений</item>
+        <item quantity="other">%d учреждения</item>
+    </plurals>
+    <plurals name="count_groups">
+        <item quantity="one">%d группа</item>
+        <item quantity="few">%d группы</item>
+        <item quantity="many">%d групп</item>
+        <item quantity="other">%d группы</item>
+    </plurals>
+    <string name="action_update_now">Обновить сейчас</string>
+    <string name="action_updating">Обновляем…</string>
+    <string name="offline_updated">Только что обновлено.</string>
+    <string name="offline_update_failed">Не удалось обновить: %1$s. Прежняя копия не изменилась.</string>
+
+    <!-- Explanations produced below the screens: keys, the outbox, passwords -->
+    <string name="error_signed_out">Вы вышли из аккаунта.</string>
+    <string name="error_letters_locked">Ваши письма на этом устройстве заблокированы. Сначала разблокируйте их паролем.</string>
+    <string name="error_writer_no_key">У этого автора пока нет ключа шифрования, поэтому запечатать для него ничего нельзя. Ключ появится при первом входе.</string>
+    <string name="error_relay_no_key">Эта группа пересылки ещё не настроила шифрование и не может получать письма. Выберите другую группу или попросите их завершить настройку.</string>
+    <string name="error_partner_no_key">Эта группа ещё не настроила шифрование, поэтому передать ей письмо нельзя.</string>
+    <string name="error_group_key_not_set_up">Ваша группа ещё не создала ключ шифрования. Откройте «Письма» и выберите «Создать ключ группы».</string>
+    <string name="error_group_key_not_held">Вам ещё не передали ключ группы. Попросите участника, у которого он есть, передать его вам из раздела «Письма».</string>
+    <string name="error_not_in_group">Этот аккаунт не состоит в группе.</string>
+    <string name="error_writer_not_managed">Этот автор больше не под опекой вашей группы.</string>
+    <string name="error_writer_key_not_held">Ключа этого автора у вашей группы нет, поэтому создать для него код нельзя.</string>
+    <string name="error_writer_key_old_group_key">Ключ этого автора запечатан прежним ключом группы, и открыть его нельзя. Чтобы исправить это, смените ключ группы на сайте.</string>
+    <string name="member_numbered">Участник %1$d</string>
+    <string name="error_member_no_key">У этого участника пока нет собственного ключа. Он появится при первом входе; после этого передайте ему ключ группы.</string>
+    <string name="outbox_file_unreadable">Не удалось прочитать файл %1$s, сохранённый на этом телефоне.</string>
+    <string name="outbox_sent_but_file_refused">Письмо отправлено, но прикрепить %1$s не удалось: %2$s</string>
+    <string name="outbox_refused_no_reason">Сервер отклонил это письмо, не объяснив причину.</string>
+    <string name="error_token_wrong_key">Этот код не открывает ключ аккаунта. Попросите у группы новый код.</string>
+    <string name="error_current_password_wrong">Текущий пароль указан неверно.</string>
+    <string name="error_no_keys_yet">У этого аккаунта пока нет ключей. Выйдите и войдите снова, чтобы они были созданы.</string>
+    <string name="error_password_does_not_open">Этот пароль не открывает ваши письма.</string>
+    <string name="error_recovery_code_wrong">Этот код восстановления не подходит к аккаунту. Сверьте его с сохранённой копией.</string>
+    <plurals name="error_rate_limited_minutes">
+        <item quantity="one">Слишком много попыток. Повторите через %d минуту.</item>
+        <item quantity="few">Слишком много попыток. Повторите через %d минуты.</item>
+        <item quantity="many">Слишком много попыток. Повторите через %d минут.</item>
+        <item quantity="other">Слишком много попыток. Повторите через %d минуты.</item>
+    </plurals>
+
+    <!-- Stragglers -->
+    <string name="action_record_reply">Записать ответ</string>
+    <string name="notice_writer_added">Автор добавлен: %1$s.</string>
+</resources>

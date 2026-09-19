@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.text.rememberStrings
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.asHeading
 import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
@@ -54,12 +57,12 @@ fun InboxScreen(
   onEditQueued: (me.paxana.abcmailbox.data.repo.OutboxItem) -> Unit = {},
 ) {
   Column(Modifier.fillMaxSize()) {
-    Text("Inbox", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading().padding(horizontal = 20.dp, vertical = 16.dp))
+    Text(stringResource(R.string.title_inbox), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading().padding(horizontal = 20.dp, vertical = 16.dp))
     when (sessionState) {
       SessionState.Loading -> Unit
       SessionState.SignedOut -> Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Sign in to see your conversations and write letters.")
-        Button(onClick = onSignIn) { Text("Sign in") }
+        Text(stringResource(R.string.inbox_signed_out))
+        Button(onClick = onSignIn) { Text(stringResource(R.string.action_sign_in)) }
       }
       is SessionState.SignedIn -> {
         // Unsent letters come first: they are the one thing here that may need the writer.
@@ -86,17 +89,17 @@ private fun SignedInInbox(name: String, onThread: (Int) -> Unit, onNewLetter: ((
   Box(Modifier.fillMaxSize()) {
     PagedList(
       items = items,
-      emptyText = if (onNewLetter != null) "No conversations yet. Start one with the button below." else "No conversations yet. Start one from the Writers tab.",
+      emptyText = if (onNewLetter != null) stringResource(R.string.inbox_empty_writer) else stringResource(R.string.inbox_empty_group),
       header = {
         item("who") {
-          Text("Signed in as $name", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp))
+          Text(stringResource(R.string.signed_in_as, name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp))
         }
       },
     ) { t -> ThreadRow(t, onClick = { onThread(t.id) }, showWriter = onNewLetter == null) }
     if (onNewLetter != null) ExtendedFloatingActionButton(
       onClick = onNewLetter,
       icon = { Icon(Icons.Default.Edit, contentDescription = null) },
-      text = { Text("New letter") },
+      text = { Text(stringResource(R.string.action_new_letter)) },
       containerColor = MaterialTheme.colorScheme.primary,
       contentColor = MaterialTheme.colorScheme.onPrimary,
       modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
@@ -108,13 +111,13 @@ private fun SignedInInbox(name: String, onThread: (Int) -> Unit, onNewLetter: ((
 fun ThreadRow(t: Thread, onClick: () -> Unit, showWriter: Boolean = false) {
   val last = t.lastMessage
   val direction = when {
-    last == null -> "No letters yet"
-    last.fromPrisoner -> "← Letter received"
-    else -> "→ Letter sent · ${last.status.label}"
+    last == null -> stringResource(R.string.thread_no_letters)
+    last.fromPrisoner -> stringResource(R.string.thread_last_received)
+    else -> stringResource(R.string.thread_last_sent, stringResource(last.status.labelRes))
   }
   RecordRow(
-    title = t.title,
-    secondary = listOfNotNull(t.writer?.takeIf { showWriter }?.let { "Writer: ${it.label}" }, t.prisoner?.facility?.let { f -> f.name + (f.country?.let { ", $it" } ?: "") }).joinToString(" · ").ifBlank { null },
+    title = t.title(rememberStrings()),
+    secondary = listOfNotNull(t.writer?.takeIf { showWriter }?.let { stringResource(R.string.writer_named, it.label(rememberStrings())) }, t.prisoner?.facility?.let { f -> f.name + (f.country?.let { ", $it" } ?: "") }).joinToString(" · ").ifBlank { null },
     subtitle = direction + (t.lastActivity?.let { " · ${it.shortDate()}" } ?: ""),
     onClick = onClick,
   )
@@ -125,15 +128,15 @@ fun ThreadRow(t: Thread, onClick: () -> Unit, showWriter: Boolean = false) {
 private fun UnlockPrompt(viewModel: UnlockViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    Text("Your letters are locked on this device. Enter your password to unlock them. It is used here, on the phone, to open your encryption key; it is not sent anywhere.")
+    Text(stringResource(R.string.unlock_explained))
     OutlinedTextField(
-      value = ui.password, onValueChange = viewModel::onPassword, label = { Text("Password") }, singleLine = true, enabled = !ui.busy,
+      value = ui.password, onValueChange = viewModel::onPassword, label = { Text(stringResource(R.string.label_password)) }, singleLine = true, enabled = !ui.busy,
       visualTransformation = PasswordVisualTransformation(),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
       keyboardActions = KeyboardActions(onDone = { viewModel.unlock() }),
       modifier = Modifier.fillMaxWidth(),
     )
     ui.error?.let { ErrorText(it) }
-    Button(onClick = viewModel::unlock, enabled = !ui.busy && ui.password.isNotEmpty()) { Text(if (ui.busy) "Unlocking…" else "Unlock") }
+    Button(onClick = viewModel::unlock, enabled = !ui.busy && ui.password.isNotEmpty()) { Text(if (ui.busy) stringResource(R.string.action_unlocking) else stringResource(R.string.action_unlock)) }
   }
 }

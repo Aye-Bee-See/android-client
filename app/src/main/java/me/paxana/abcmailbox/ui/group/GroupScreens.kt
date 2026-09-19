@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.text.rememberStrings
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.SecretCodeText
 import me.paxana.abcmailbox.ui.common.AttachmentRow
 import me.paxana.abcmailbox.ui.common.ErrorText
@@ -71,6 +74,7 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val snackbar = remember { SnackbarHostState() }
   val context = LocalContext.current
+  val strings = rememberStrings() // not context.getString: this follows a language change while the screen is open
   var confirmMailed by remember { mutableStateOf(false) }
   var choosePartner by remember { mutableStateOf(false) }
 
@@ -79,12 +83,12 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
     ui.openFile?.let { (file, mime) ->
       val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
       try { context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
-      catch (e: ActivityNotFoundException) { snackbar.showSnackbar("No app on this phone can open $mime.") }
+      catch (e: ActivityNotFoundException) { snackbar.showSnackbar(strings.get(R.string.no_app_opens, mime)) }
       viewModel.fileOpened()
     }
   }
 
-  DetailScaffold(title = "Letter to print", onBack = onBack) { padding ->
+  DetailScaffold(title = stringResource(R.string.title_letter_to_print), onBack = onBack) { padding ->
     Box(Modifier.fillMaxSize().padding(padding)) {
       when (val s = ui.item) {
         is Loadable.Loading -> LoadingBox()
@@ -92,7 +96,7 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
         is Loadable.Loaded -> LetterWorkBody(
           item = s.value, busy = ui.busy,
           onAdvance = { if (s.value.letter.status == LetterStatus.PRINTED) confirmMailed = true else viewModel.advance() },
-          onPrint = { PrintLetter.print(context, "Letter to ${s.value.prisoner?.name ?: "prisoner"}", s.value.letter.body) },
+          onPrint = { PrintLetter.print(context, strings.get(R.string.print_job_name, s.value.prisoner?.name ?: strings.get(R.string.print_job_prisoner)), s.value.letter.body) },
           onOpen = viewModel::open,
           onThread = { s.value.letter.threadId?.let(onThread) },
           canShare = ui.partners.isNotEmpty() && !s.value.letter.locked,
@@ -105,23 +109,23 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
 
   if (choosePartner) AlertDialog(
     onDismissRequest = { choosePartner = false },
-    title = { Text("Share with a partner group") },
+    title = { Text(stringResource(R.string.share_title)) },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("They will be able to read and print this letter. It stays in your queue: your group still marks it printed and mailed, so agree between you who posts it.", style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.share_text), style = MaterialTheme.typography.bodyMedium)
         ui.partners.forEach { g -> TextButton(onClick = { choosePartner = false; viewModel.share(g) }, modifier = Modifier.fillMaxWidth()) { Text(g.name) } }
       }
     },
     confirmButton = {},
-    dismissButton = { TextButton(onClick = { choosePartner = false }) { Text("Cancel") } },
+    dismissButton = { TextButton(onClick = { choosePartner = false }) { Text(stringResource(R.string.action_cancel)) } },
   )
 
   if (confirmMailed) AlertDialog(
     onDismissRequest = { confirmMailed = false },
-    title = { Text("Mark as mailed?") },
-    text = { Text("Do this once the letter is actually in the post. The writer will see it as mailed, and it cannot be moved back.") },
-    confirmButton = { TextButton(onClick = { confirmMailed = false; viewModel.advance() }) { Text("It is in the post") } },
-    dismissButton = { TextButton(onClick = { confirmMailed = false }) { Text("Not yet") } },
+    title = { Text(stringResource(R.string.mark_mailed_title)) },
+    text = { Text(stringResource(R.string.mark_mailed_text)) },
+    confirmButton = { TextButton(onClick = { confirmMailed = false; viewModel.advance() }) { Text(stringResource(R.string.action_in_the_post)) } },
+    dismissButton = { TextButton(onClick = { confirmMailed = false }) { Text(stringResource(R.string.action_not_yet)) } },
   )
 }
 
@@ -135,15 +139,15 @@ private fun LetterWorkBody(
   Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       StatusChip(letter.status)
-      letter.createdAt?.let { Text("Written ${it.longDate()}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+      letter.createdAt?.let { Text(stringResource(R.string.written_on, it.longDate()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 
     // The envelope: name, number, facility, address. Selectable so it can be copied to a label app.
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp)) {
-      Text("ADDRESS THE ENVELOPE TO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(stringResource(R.string.label_address_envelope), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       androidx.compose.foundation.text.selection.SelectionContainer {
         Column {
-          Text((p?.birthName ?: p?.name ?: "Prisoner #${letter.prisonerId}") + (p?.inmateId?.let { " #$it" } ?: ""), style = MaterialTheme.typography.titleMedium)
+          Text((p?.birthName ?: p?.name ?: stringResource(R.string.prisoner_numbered, letter.prisonerId ?: 0)).let { name -> p?.inmateId?.let { stringResource(R.string.name_with_number, name, it) } ?: name }, style = MaterialTheme.typography.titleMedium)
           p?.facility?.let { f ->
             Text(f.name)
             f.addressLines.forEach { Text(it) }
@@ -151,32 +155,32 @@ private fun LetterWorkBody(
           }
         }
       }
-      if (p?.birthName != null) Text("Goes by ${p.name}. Facilities usually need the legal name on the envelope.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+      if (p?.birthName != null) Text(stringResource(R.string.goes_by, p.name), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
     }
 
-    letter.relayNote?.let { AlertBanner("Note from the writer: $it") }
+    letter.relayNote?.let { AlertBanner(stringResource(R.string.note_from_writer, it)) }
 
     p?.facility?.let { f ->
-      SectionTitle("Mail rules · ${f.name}")
-      MailRulesList(f.rules, emptyText = "No rules recorded. Check before mailing.")
+      SectionTitle(stringResource(R.string.rules_for, f.name))
+      MailRulesList(f.rules, emptyText = stringResource(R.string.rules_none_check))
     }
 
-    SectionTitle("The letter")
-    if (letter.locked) Text("🔒 This letter is encrypted and this device does not hold a key that opens it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-    else androidx.compose.foundation.text.selection.SelectionContainer { Text(letter.body.ifBlank { "(No text. See the attached file.)" }, style = MaterialTheme.typography.bodyLarge) }
+    SectionTitle(stringResource(R.string.section_the_letter))
+    if (letter.locked) Text(stringResource(R.string.letter_locked), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    else androidx.compose.foundation.text.selection.SelectionContainer { Text(letter.body.ifBlank { stringResource(R.string.letter_no_text) }, style = MaterialTheme.typography.bodyLarge) }
 
     letter.attachments.forEach { a -> AttachmentRow(a.name, a.sizeLabel, onOpen = { onOpen(a) }) }
 
-    if (!letter.locked && letter.body.isNotBlank()) OutlinedButton(onClick = onPrint, modifier = Modifier.fillMaxWidth()) { Text("Print the letter") }
+    if (!letter.locked && letter.body.isNotBlank()) OutlinedButton(onClick = onPrint, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_print_letter)) }
     when (letter.status) {
-      LetterStatus.QUEUED -> Button(onClick = onAdvance, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("advance")) { Text("Mark as printed") }
-      LetterStatus.PRINTED -> Button(onClick = onAdvance, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("advance")) { Text("Mark as mailed") }
-      LetterStatus.MAILED -> Text("Mailed" + (letter.statusChangedAt?.let { " on ${it.longDate()}" } ?: "") + ". Nothing more to do.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+      LetterStatus.QUEUED -> Button(onClick = onAdvance, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("advance")) { Text(stringResource(R.string.action_mark_printed)) }
+      LetterStatus.PRINTED -> Button(onClick = onAdvance, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("advance")) { Text(stringResource(R.string.action_mark_mailed)) }
+      LetterStatus.MAILED -> Text(letter.statusChangedAt?.let { stringResource(R.string.mailed_done_on, it.longDate()) } ?: stringResource(R.string.mailed_done), color = MaterialTheme.colorScheme.onSurfaceVariant)
       else -> Unit
     }
     // End-to-end only, and only where the facility has another relay group: the server permits no other readers.
-    if (canShare && letter.status != LetterStatus.MAILED) OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Share with a partner group") }
-    TextButton(onClick = onThread) { Text("Open the conversation") }
+    if (canShare && letter.status != LetterStatus.MAILED) OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.share_title)) }
+    TextButton(onClick = onThread) { Text(stringResource(R.string.action_open_conversation)) }
   }
 }
 
@@ -185,18 +189,18 @@ private fun LetterWorkBody(
 fun AddWriterScreen(onBack: () -> Unit, onDone: (ManagedWriter, thenWrite: Boolean) -> Unit, viewModel: AddWriterViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   LaunchedEffect(ui.created) { ui.created?.let { onDone(it, ui.thenWrite) } }
-  DetailScaffold(title = "Add a writer", onBack = onBack) { padding ->
+  DetailScaffold(title = stringResource(R.string.title_add_writer), onBack = onBack) { padding ->
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      Text("Creates an account in your group's care. The writer can claim it and take independent control at any time, using a handoff token you generate later.", style = MaterialTheme.typography.bodyLarge)
-      Text("Anonymous letters do not need an account. Use this only to follow one person's correspondence over time.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-      OutlinedTextField(ui.name, viewModel::onName, label = { Text("Name") }, supportingText = { Text("Whatever they go by at your events. 3 to 32 characters. Not verified, not unique.") }, singleLine = true, enabled = !ui.busy,
+      Text(stringResource(R.string.add_writer_intro), style = MaterialTheme.typography.bodyLarge)
+      Text(stringResource(R.string.add_writer_anonymous_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      OutlinedTextField(ui.name, viewModel::onName, label = { Text(stringResource(R.string.label_name)) }, supportingText = { Text(stringResource(R.string.add_writer_name_help)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("writer-name"))
-      OutlinedTextField(ui.email, viewModel::onEmail, label = { Text("Email (optional)") }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.email, viewModel::onEmail, label = { Text(stringResource(R.string.label_email_optional)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
-      OutlinedTextField(ui.note, viewModel::onNote, label = { Text("Internal note (optional)") }, supportingText = { Text("Only your group sees this. Never shown to the writer.") }, minLines = 2, enabled = !ui.busy, modifier = Modifier.fillMaxWidth())
+      OutlinedTextField(ui.note, viewModel::onNote, label = { Text(stringResource(R.string.label_internal_note)) }, supportingText = { Text(stringResource(R.string.internal_note_help)) }, minLines = 2, enabled = !ui.busy, modifier = Modifier.fillMaxWidth())
       ui.error?.let { ErrorText(it) }
-      Button(onClick = { viewModel.submit(thenWrite = true) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth()) { Text("Add writer and start a letter") }
-      OutlinedButton(onClick = { viewModel.submit(thenWrite = false) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("writer-add")) { Text("Add writer") }
+      Button(onClick = { viewModel.submit(thenWrite = true) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_add_writer_and_write)) }
+      OutlinedButton(onClick = { viewModel.submit(thenWrite = false) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("writer-add")) { Text(stringResource(R.string.action_add_writer)) }
     }
   }
 }
@@ -210,29 +214,29 @@ fun AddWriterScreen(onBack: () -> Unit, onDone: (ManagedWriter, thenWrite: Boole
 fun HandoffScreen(onBack: () -> Unit, viewModel: HandoffViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val clipboard = LocalClipboardManager.current
-  DetailScaffold(title = "Hand off account", onBack = onBack) { padding ->
+  DetailScaffold(title = stringResource(R.string.title_hand_off), onBack = onBack) { padding ->
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      Text("Writer: ${ui.writerName}", style = MaterialTheme.typography.titleLarge)
-      Text("A one-time claim token lets ${ui.writerName} set their own username and password and take independent control of their correspondence.", style = MaterialTheme.typography.bodyLarge)
+      Text(stringResource(R.string.writer_named, ui.writerName), style = MaterialTheme.typography.titleLarge)
+      Text(stringResource(R.string.handoff_intro, ui.writerName), style = MaterialTheme.typography.bodyLarge)
       listOf(
-        "Once claimed, they no longer appear among your group's writers, and you can no longer write as them.",
-        "Your group keeps the letters it relayed, for records and reprints. It loses their other conversations.",
-        "The token works once and lasts 72 hours. Making a new one cancels the old one.",
-      ).forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+        stringResource(R.string.handoff_point_1),
+        stringResource(R.string.handoff_point_2),
+        stringResource(R.string.handoff_point_3),
+      ).forEach { Text(stringResource(R.string.bullet, it), style = MaterialTheme.typography.bodyMedium) }
 
       val token = ui.token
       if (token == null) {
-        if (ui.revoked) Text("The token was revoked. It can no longer be used.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = viewModel::generate, enabled = !ui.busy, modifier = Modifier.fillMaxWidth().testTag("generate")) { Text(if (ui.busy) "Working…" else "Generate claim token") }
+        if (ui.revoked) Text(stringResource(R.string.token_revoked), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button(onClick = viewModel::generate, enabled = !ui.busy, modifier = Modifier.fillMaxWidth().testTag("generate")) { Text(stringResource(if (ui.busy) R.string.action_working else R.string.action_generate_token)) }
         // This screen cannot see an earlier token, only cancel it; once that is done there is nothing left to revoke.
-        if (!ui.revoked) OutlinedButton(onClick = viewModel::revoke, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text("Revoke the current token") }
+        if (!ui.revoked) OutlinedButton(onClick = viewModel::revoke, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_revoke_current)) }
       } else {
         SecretCodeText(token.token)
-        token.expiresAt?.let { Text("Expires ${it.longDate()}. Shown once: when you leave this screen it cannot be shown again, only replaced.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(token.token))) }) { Text("Copy") }
-        AlertBanner("Give this to ${ui.writerName} in person, or over a channel you both trust such as Signal. Do not email it or post it anywhere. They enter it in the app under Sign in, \"I have a claim token\".")
-        OutlinedButton(onClick = viewModel::generate, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text("Regenerate (cancels this one)") }
-        TextButton(onClick = viewModel::revoke, enabled = !ui.busy) { Text("Revoke", color = MaterialTheme.colorScheme.error) }
+        token.expiresAt?.let { Text(stringResource(R.string.token_expires_once, it.longDate()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(token.token))) }) { Text(stringResource(R.string.action_copy)) }
+        AlertBanner(stringResource(R.string.token_give_in_person, ui.writerName))
+        OutlinedButton(onClick = viewModel::generate, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_regenerate)) }
+        TextButton(onClick = viewModel::revoke, enabled = !ui.busy) { Text(stringResource(R.string.action_revoke), color = MaterialTheme.colorScheme.error) }
       }
       ui.error?.let { ErrorText(it) }
     }

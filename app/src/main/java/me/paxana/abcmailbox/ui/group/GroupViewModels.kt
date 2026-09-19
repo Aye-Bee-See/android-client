@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -83,8 +85,9 @@ class LetterWorkViewModel(
   private val group: GroupRepository,
   private val letters: LettersRepository,
   private val route: LetterWorkRoute,
+  private val strings: Strings,
 ) : ViewModel() {
-  @Inject constructor(group: GroupRepository, letters: LettersRepository, handle: SavedStateHandle) : this(group, letters, handle.toRoute<LetterWorkRoute>())
+  @Inject constructor(group: GroupRepository, letters: LettersRepository, strings: Strings, handle: SavedStateHandle) : this(group, letters, handle.toRoute<LetterWorkRoute>(), strings)
 
   private val _ui = MutableStateFlow(LetterWorkUiState())
   val ui: StateFlow<LetterWorkUiState> = _ui.asStateFlow()
@@ -108,8 +111,8 @@ class LetterWorkViewModel(
     viewModelScope.launch {
       val r = group.shareWith(route.messageId, partner.id)
       _ui.update { it.copy(busy = false, notice = when (r) {
-        is ApiResult.Success -> "${partner.name} can now read this letter."
-        is ApiResult.Failure -> r.error.userMessage ?: "Could not share the letter."
+        is ApiResult.Success -> strings.get(R.string.notice_shared_with, partner.name)
+        is ApiResult.Failure -> r.error.userMessage ?: strings.get(R.string.error_share)
       }) }
     }
   }
@@ -125,8 +128,8 @@ class LetterWorkViewModel(
     _ui.update { it.copy(busy = true) }
     viewModelScope.launch {
       when (val r = group.setStatus(route.messageId, next)) {
-        is ApiResult.Success -> _ui.update { it.copy(busy = false, item = Loadable.Loaded(current.copy(letter = r.value.copy(attachments = current.letter.attachments))), notice = "Marked as ${next.label.lowercase()}.") }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, notice = r.error.userMessage ?: "Could not update the letter.") }
+        is ApiResult.Success -> _ui.update { it.copy(busy = false, item = Loadable.Loaded(current.copy(letter = r.value.copy(attachments = current.letter.attachments))), notice = strings.get(if (next == LetterStatus.PRINTED) R.string.notice_marked_printed else R.string.notice_marked_mailed)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, notice = r.error.userMessage ?: strings.get(R.string.error_update_letter)) }
       }
     }
   }
@@ -135,7 +138,7 @@ class LetterWorkViewModel(
     viewModelScope.launch {
       when (val r = letters.download(attachment)) {
         is ApiResult.Success -> _ui.update { it.copy(openFile = r.value to attachment.mimeType) }
-        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.userMessage ?: "Could not download the file.") }
+        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.userMessage ?: strings.get(R.string.error_download_file)) }
       }
     }
   }
@@ -149,7 +152,7 @@ data class AddWriterUiState(val name: String = "", val email: String = "", val n
 }
 
 @HiltViewModel
-class AddWriterViewModel @Inject constructor(private val group: GroupRepository) : ViewModel() {
+class AddWriterViewModel @Inject constructor(private val group: GroupRepository, private val strings: Strings) : ViewModel() {
   private val _ui = MutableStateFlow(AddWriterUiState())
   val ui: StateFlow<AddWriterUiState> = _ui.asStateFlow()
   fun onName(v: String) = _ui.update { it.copy(name = v, error = null) }
@@ -163,7 +166,7 @@ class AddWriterViewModel @Inject constructor(private val group: GroupRepository)
     viewModelScope.launch {
       when (val r = group.addWriter(s.name, s.email, s.note)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, created = r.value, thenWrite = thenWrite) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: "Could not add the writer.") }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_add_writer)) }
       }
     }
   }
@@ -173,8 +176,8 @@ data class HandoffUiState(val writerName: String, val token: IssuedToken? = null
 
 /** The claim token is shown once, here, and is never stored on the phone. */
 @HiltViewModel
-class HandoffViewModel(private val group: GroupRepository, private val route: HandoffRoute) : ViewModel() {
-  @Inject constructor(group: GroupRepository, handle: SavedStateHandle) : this(group, handle.toRoute<HandoffRoute>())
+class HandoffViewModel(private val group: GroupRepository, private val route: HandoffRoute, private val strings: Strings) : ViewModel() {
+  @Inject constructor(group: GroupRepository, strings: Strings, handle: SavedStateHandle) : this(group, handle.toRoute<HandoffRoute>(), strings)
 
   private val _ui = MutableStateFlow(HandoffUiState(route.writerName))
   val ui: StateFlow<HandoffUiState> = _ui.asStateFlow()
@@ -184,7 +187,7 @@ class HandoffViewModel(private val group: GroupRepository, private val route: Ha
     viewModelScope.launch {
       when (val r = group.issueToken(route.writerId)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, token = r.value) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: "Could not make a token.") }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_make_token)) }
       }
     }
   }
@@ -194,7 +197,7 @@ class HandoffViewModel(private val group: GroupRepository, private val route: Ha
     viewModelScope.launch {
       when (val r = group.revokeToken(route.writerId)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, token = null, revoked = true) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: "Could not revoke the token.") }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_revoke_token)) }
       }
     }
   }
@@ -216,7 +219,7 @@ data class GroupKeyUiState(
  * about a screen); this only adds what a screen needs around it.
  */
 @HiltViewModel
-class GroupKeyViewModel @Inject constructor(private val group: GroupRepository) : ViewModel() {
+class GroupKeyViewModel @Inject constructor(private val group: GroupRepository, private val strings: Strings) : ViewModel() {
   val keyState: StateFlow<GroupKeyState> = group.keyState
   private val _ui = MutableStateFlow(GroupKeyUiState())
   val ui: StateFlow<GroupKeyUiState> = _ui.asStateFlow()
@@ -230,8 +233,8 @@ class GroupKeyViewModel @Inject constructor(private val group: GroupRepository) 
     viewModelScope.launch {
       val r = group.setUpGroupKey()
       _ui.update {
-        it.copy(busy = false, error = (r as? ApiResult.Failure)?.error?.let { e -> e.userMessage ?: "Could not set up the group key." },
-          notice = if (r is ApiResult.Success) "The group key is set up. Hand it to the other members so they can read letters too." else null)
+        it.copy(busy = false, error = (r as? ApiResult.Failure)?.error?.let { e -> e.userMessage ?: strings.get(R.string.error_set_up_group_key) },
+          notice = if (r is ApiResult.Success) strings.get(R.string.notice_group_key_set_up) else null)
       }
     }
   }
@@ -242,8 +245,8 @@ class GroupKeyViewModel @Inject constructor(private val group: GroupRepository) 
     }
   }
 
-  fun hand(member: GroupMember) = change(member, "${member.name} can now read the group's letters, from their next sign-in or refresh.") { group.handKeyTo(member.id) }
-  fun stop(member: GroupMember) = change(member, "${member.name} will no longer be handed the group key.") { group.stopHandingKeyTo(member.id) }
+  fun hand(member: GroupMember) = change(member, strings.get(R.string.notice_key_handed, member.name)) { group.handKeyTo(member.id) }
+  fun stop(member: GroupMember) = change(member, strings.get(R.string.notice_key_stopped, member.name)) { group.stopHandingKeyTo(member.id) }
 
   private fun change(member: GroupMember, done: String, call: suspend () -> ApiResult<Unit>) {
     if (_ui.value.busyMemberId != null) return
@@ -251,7 +254,7 @@ class GroupKeyViewModel @Inject constructor(private val group: GroupRepository) 
     viewModelScope.launch {
       when (val r = call()) {
         is ApiResult.Success -> { _ui.update { it.copy(busyMemberId = null, notice = done) }; loadMembers() }
-        is ApiResult.Failure -> _ui.update { it.copy(busyMemberId = null, error = r.error.userMessage ?: "That did not work. Please try again.") }
+        is ApiResult.Failure -> _ui.update { it.copy(busyMemberId = null, error = r.error.userMessage ?: strings.get(R.string.error_did_not_work)) }
       }
     }
   }

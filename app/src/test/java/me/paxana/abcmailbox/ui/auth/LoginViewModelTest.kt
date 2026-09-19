@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.text.TestStrings
 import app.cash.turbine.test
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,7 +30,7 @@ class LoginViewModelTest {
 
   @Test
   fun `cannot submit until both fields are filled`() {
-    val vm = LoginViewModel(FakeSessionRepository())
+    val vm = LoginViewModel(FakeSessionRepository(), TestStrings())
     assertFalse(vm.uiState.value.canSubmit)
     vm.onUsernameChange("user1")
     assertFalse(vm.uiState.value.canSubmit)
@@ -40,7 +41,7 @@ class LoginViewModelTest {
   @Test
   fun `wrong password shows the friendly message and keeps the username`() = runTest {
     val repo = FakeSessionRepository(nextError = AppError.Unauthorized("Login failed."))
-    val vm = LoginViewModel(repo)
+    val vm = LoginViewModel(repo, TestStrings())
     vm.onUsernameChange("user1")
     vm.onPasswordChange("nope")
     vm.uiState.test {
@@ -56,7 +57,7 @@ class LoginViewModelTest {
 
   @Test
   fun `network failure shows the connection message`() = runTest {
-    val vm = LoginViewModel(FakeSessionRepository(nextError = AppError.Network(IOException())))
+    val vm = LoginViewModel(FakeSessionRepository(nextError = AppError.Network(IOException())), TestStrings())
     vm.onUsernameChange("user1"); vm.onPasswordChange("password1"); vm.onSubmit()
     dispatcher.scheduler.advanceUntilIdle()
     assertEquals("Can't reach the server. Check your connection and try again.", vm.uiState.value.error)
@@ -65,7 +66,7 @@ class LoginViewModelTest {
   @Test
   fun `success clears the password and any error`() = runTest {
     val repo = FakeSessionRepository()
-    val vm = LoginViewModel(repo)
+    val vm = LoginViewModel(repo, TestStrings())
     vm.onUsernameChange("user1"); vm.onPasswordChange("password1"); vm.onSubmit()
     dispatcher.scheduler.advanceUntilIdle()
     assertEquals("", vm.uiState.value.password)

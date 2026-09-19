@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.account
 
+import androidx.compose.ui.res.pluralStringResource
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,49 +52,49 @@ fun AccountScreen(
     modifier = Modifier.fillMaxSize().padding(24.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
-    Text("Account", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
+    Text(stringResource(R.string.title_account), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     when (sessionState) {
       SessionState.Loading -> Unit
       SessionState.SignedOut -> {
-        Text("You are not signed in. Browsing the directory works without an account; writing letters needs one.")
-        Button(onClick = onSignIn) { Text("Sign in") }
+        Text(stringResource(R.string.account_signed_out))
+        Button(onClick = onSignIn) { Text(stringResource(R.string.action_sign_in)) }
       }
       is SessionState.SignedIn -> {
         val user = sessionState.session.user
         Text(user.displayName, style = MaterialTheme.typography.titleLarge)
-        Text("@${user.username}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.username_at, user.username), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
           when (user.role) {
-            Role.CHAPTER -> "Support group member" + (user.chapterId?.let { " (group $it)" } ?: " (no group assigned yet)")
-            Role.ADMIN -> "Network admin"
-            else -> "Writer"
+            Role.CHAPTER -> user.chapterId?.let { stringResource(R.string.role_member_of_group, it) } ?: stringResource(R.string.role_member_no_group)
+            Role.ADMIN -> stringResource(R.string.role_admin)
+            else -> stringResource(R.string.role_writer)
           },
           style = MaterialTheme.typography.bodyMedium,
         )
         HorizontalDivider()
-        TextButton(onClick = onChangePassword) { Text("Change password") }
+        TextButton(onClick = onChangePassword) { Text(stringResource(R.string.action_change_password)) }
         OutlinedButton(
           onClick = { viewModel.signOut(everywhere = false) },
           enabled = !ui.signingOut,
           colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
           modifier = Modifier.fillMaxWidth(),
         ) {
-          Text("Sign out")
+          Text(stringResource(R.string.action_sign_out))
         }
         TextButton(onClick = { viewModel.signOut(everywhere = true) }, enabled = !ui.signingOut) {
-          Text("Sign out on every device")
+          Text(stringResource(R.string.action_sign_out_everywhere))
         }
       }
     }
     // Signing out does not lose unsent letters, and people should not have to wonder.
     val unsent by hiltViewModel<me.paxana.abcmailbox.ui.letters.OutboxViewModel>().items.collectAsStateWithLifecycle()
     if (unsent.isNotEmpty()) Text(
-      "${unsent.size} letter${if (unsent.size == 1) " is" else "s are"} waiting to be sent. If you sign out, ${if (unsent.size == 1) "it stays" else "they stay"} on this phone, encrypted, and ${if (unsent.size == 1) "goes" else "go"} out the next time this account signs in here.",
+      pluralStringResource(R.plurals.account_unsent, unsent.size, unsent.size),
       style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     OfflineCopySection()
     Text(
-      "Build ${BuildConfig.VERSION_NAME} · " + when (mode) { EncryptionMode.E2E -> "end-to-end encrypted"; EncryptionMode.SERVER -> "server mode"; EncryptionMode.UNKNOWN -> "server not reached" } + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
+      stringResource(R.string.build_line, BuildConfig.VERSION_NAME, stringResource(when (mode) { EncryptionMode.E2E -> R.string.mode_e2e; EncryptionMode.SERVER -> R.string.mode_server; EncryptionMode.UNKNOWN -> R.string.mode_unknown })) + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
       style = MaterialTheme.typography.labelSmall,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       // Debug builds: five taps open the hidden server dialog.

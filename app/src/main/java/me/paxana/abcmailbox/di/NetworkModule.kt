@@ -51,6 +51,9 @@ object NetworkModule {
     // First, so every later interceptor and the logger see the final address.
     .addInterceptor(BaseUrlInterceptor { devServerUrl.current() })
     .addInterceptor(SessionInterceptor(cache))
+    // Tells the server which language the person reads. The API answers in English today; its refusals are
+    // shown as they come, so the day it honours this header the app is already asking. (Plan, ask 15.)
+    .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("Accept-Language", java.util.Locale.getDefault().toLanguageTag()).build()) }
     .apply {
       if (BuildConfig.DEBUG) {
         // BASIC logs method, URL, and status; never headers (the token) or bodies (letters).

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.text.TestStrings
 import org.junit.Assert.assertNotNull
 import me.paxana.abcmailbox.data.repo.FlushOutcome
 import me.paxana.abcmailbox.data.repo.OutboxItem
@@ -84,7 +85,7 @@ class ComposeViewModelTest {
 
   private fun vm(routing: Routing, groups: List<Group>, letters: FakeLetters = FakeLetters(), drafts: FakeDrafts = FakeDrafts(), edit: Int? = null,
                  route: ComposeRoute = ComposeRoute(prisonerId = 3, editMessageId = edit), session: SessionRepository = FakeSession()) =
-    ComposeViewModel(letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(), session, route, outbox)
+    ComposeViewModel(letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(), session, route, outbox, TestStrings())
 
   @Test
   fun `one relay group is automatic and sent explicitly`() = runTest {
@@ -151,10 +152,10 @@ class ComposeViewModelTest {
     val vm = vm(Routing.DIRECT, emptyList())
     dispatcher.scheduler.advanceUntilIdle()
     assertEquals(listOf("application/pdf"), vm.ui.value.allowedAttachmentTypes.toList())
-    assertTrue(vm.ui.value.advice.any { it.text.contains("refuses pictures") })
-    assertFalse("one page is within the limit", vm.ui.value.advice.any { it.warning })
+    assertTrue(vm.ui.value.advice(TestStrings()).any { it.text.contains("refuses pictures") })
+    assertFalse("one page is within the limit", vm.ui.value.advice(TestStrings()).any { it.warning })
     vm.onBodyChange("x".repeat(3500))
-    assertTrue("two pages against a limit of one", vm.ui.value.advice.any { it.warning && it.text.contains("at most 1") })
+    assertTrue("two pages against a limit of one", vm.ui.value.advice(TestStrings()).any { it.warning && it.text.contains("at most 1") })
     assertTrue("advice never blocks sending", vm.ui.value.canSend)
   }
 

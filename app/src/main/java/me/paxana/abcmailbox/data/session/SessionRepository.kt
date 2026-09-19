@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.data.session
 
+import me.paxana.abcmailbox.data.crypto.lockedError
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -94,6 +97,7 @@ class DefaultSessionRepository @Inject constructor(
   private val engine: CryptoEngine,
   private val vault: KeyVault,
   @ApplicationScope private val scope: CoroutineScope,
+  private val strings: Strings,
 ) : SessionRepository {
 
   private val _pendingRecoveryCode = MutableStateFlow<String?>(null)
@@ -211,7 +215,7 @@ class DefaultSessionRepository @Inject constructor(
         val keyPair = engine.unlockWithCode(material.publicKey!!, material.claimWrappedPrivateKey!!, token, material.claimSalt!!, material.claimKdfParams!!)
         engine.rewrapAll(keyPair, password)
       } catch (e: Exception) {
-        return ApiResult.Failure(AppError.Validation(listOf("This token does not open the account's key. Ask your group for a new token.")))
+        return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_token_wrong_key))))
       }
       recoveryCode = fresh.recoveryCode
       val f = fresh.fields
@@ -228,11 +232,11 @@ class DefaultSessionRepository @Inject constructor(
 
   override suspend fun changePassword(current: String, new: String): ApiResult<Unit> {
     val session = (state.value as? SessionState.SignedIn)?.session
-      ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
+      ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
     // The API does not ask for the current password, so confirm it by signing in with it.
     when (val check = apiCall(json) { api.login(LoginRequest(session.user.username, current)) }) {
       is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) {
-        ApiResult.Failure(AppError.Validation(listOf("Your current password is incorrect.")))
+        ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_current_password_wrong))))
       } else {
         check
       }
@@ -241,7 +245,7 @@ class DefaultSessionRepository @Inject constructor(
     var request = UpdateUserRequest(id = session.user.id, password = new)
     if (modes.current() == EncryptionMode.E2E) {
       // The private key is wrapped under the password, so a new password means a new wrapping.
-      val keyPair = vault.keyPair(session.user.id) ?: return ApiResult.Failure(LetterCodec.LOCKED)
+      val keyPair = vault.keyPair(session.user.id) ?: return ApiResult.Failure(lockedError(strings))
       val w = engine.wrapForPassword(keyPair, new)
       request = request.copy(wrappedPrivateKey = w.wrapped, kdfSalt = w.salt, kdfParams = w.params)
     }
@@ -256,17 +260,17 @@ class DefaultSessionRepository @Inject constructor(
   }
 
   override suspend fun unlock(password: String): ApiResult<Unit> {
-    val session = (state.value as? SessionState.SignedIn)?.session ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
+    val session = (state.value as? SessionState.SignedIn)?.session ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
     val bundle = when (val r = apiCall(json) { api.keys() }) {
       is ApiResult.Failure -> return r
       is ApiResult.Success -> r.value.data
     }
-    if (bundle?.hasKeys != true) return ApiResult.Failure(AppError.Validation(listOf("This account has no keys yet. Sign out and sign in again to set them up.")))
+    if (bundle?.hasKeys != true) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_no_keys_yet))))
     return try {
       vault.store(session.user.id, engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!))
       ApiResult.Success(Unit)
     } catch (e: Exception) {
-      ApiResult.Failure(AppError.Validation(listOf("That password does not open your letters.")))
+      ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open))))
     }
   }
 
@@ -278,7 +282,7 @@ class DefaultSessionRepository @Inject constructor(
     val keyPair = try {
       engine.unlockWithCode(start.publicKey, start.recoveryWrappedPrivateKey, recoveryCode, start.recoverySalt, start.recoveryKdfParams)
     } catch (e: Exception) {
-      return ApiResult.Failure(AppError.Validation(listOf("That recovery code does not match this account. Check it against the copy you saved.")))
+      return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_recovery_code_wrong))))
     }
     // Opening the sealed challenge proves to the server that we hold the private key.
     val challenge = engine.openChallenge(start.sealedChallenge, keyPair)

@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.repo.OutboxRepository
 import android.net.Uri
@@ -75,7 +77,7 @@ data class ComposeUiState(
   val needsRelayChoice: Boolean get() = !recordingReply && (relay as? RelayChoice.Choose)?.required == true && selectedRelay == null
   private val mailRules: MailRules get() = facility?.rules ?: MailRules()
   /** What the facility's rules mean for this letter; recomputed as the writer types. */
-  val advice: List<ComposeAdvice> get() = composeAdvice(mailRules, pages, attachments.count { it.mimeType.startsWith("image/") })
+  fun advice(strings: Strings): List<ComposeAdvice> = composeAdvice(mailRules, pages, attachments.count { it.mimeType.startsWith("image/") }, strings)
   /** Where pictures are refused only a PDF may be attached (API guidance for `no_photos`). */
   val allowedAttachmentTypes: Array<String> get() = if (mailRules.forbidsPhotos) arrayOf("application/pdf") else ATTACHMENT_MIME_TYPES
   // A recorded reply is not mailed anywhere, so the facility's routing cannot block it.
@@ -97,6 +99,7 @@ class ComposeViewModel(
   sessions: SessionRepository,
   private val route: ComposeRoute,
   private val outbox: OutboxRepository,
+  private val strings: Strings,
 ) : ViewModel() {
 
   /**
@@ -111,8 +114,9 @@ class ComposeViewModel(
     files: LocalFilesContract,
     sessions: SessionRepository,
     outbox: OutboxRepository,
+    strings: Strings,
     savedStateHandle: SavedStateHandle,
-  ) : this(letters, directory, drafts, files, sessions, savedStateHandle.toRoute<ComposeRoute>(), outbox)
+  ) : this(letters, directory, drafts, files, sessions, savedStateHandle.toRoute<ComposeRoute>(), outbox, strings)
   private val userId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
 
   private val isStaff: Boolean = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.isStaff == true
@@ -127,7 +131,7 @@ class ComposeViewModel(
       writingAs = when {
         route.replyForUserId != null -> null
         route.writerName != null -> route.writerName
-        isStaff && route.editMessageId == null -> "Anonymous writer"
+        isStaff && route.editMessageId == null -> strings.get(R.string.writer_anonymous)
         else -> null
       },
     )
@@ -177,7 +181,7 @@ class ComposeViewModel(
       it.copy(
         prisoner = prisoner, facility = facility, relay = relay, selectedRelay = selected,
         body = body, note = note, showNote = note.isNotBlank(), loading = false, draftRestored = restored,
-        error = if (prisoner == null) "Could not load this prisoner." else null,
+        error = if (prisoner == null) strings.get(R.string.error_load_prisoner) else null,
       )
     }
   }
@@ -191,12 +195,12 @@ class ComposeViewModel(
   fun attach(uri: Uri) {
     viewModelScope.launch {
       val staged = runCatching { files.stage(uri) }.getOrElse {
-        _ui.update { s -> s.copy(error = "Could not read that file.") }; return@launch
+        _ui.update { s -> s.copy(error = strings.get(R.string.error_read_file)) }; return@launch
       }
       when {
-        staged.mimeType.startsWith("image/") && _ui.value.facility?.rules?.forbidsPhotos == true -> { files.discard(staged); _ui.update { it.copy(error = "This facility refuses pictures, so an image cannot be attached. A PDF can.") } }
-        staged.mimeType !in ATTACHMENT_MIME_TYPES -> { files.discard(staged); _ui.update { it.copy(error = "Only PDF, JPEG, PNG, or WebP files can be attached.") } }
-        staged.size > MAX_ATTACHMENT_BYTES -> { files.discard(staged); _ui.update { it.copy(error = "That file is over 20 MB.") } }
+        staged.mimeType.startsWith("image/") && _ui.value.facility?.rules?.forbidsPhotos == true -> { files.discard(staged); _ui.update { it.copy(error = strings.get(R.string.error_no_images_here)) } }
+        staged.mimeType !in ATTACHMENT_MIME_TYPES -> { files.discard(staged); _ui.update { it.copy(error = strings.get(R.string.error_file_type)) } }
+        staged.size > MAX_ATTACHMENT_BYTES -> { files.discard(staged); _ui.update { it.copy(error = strings.get(R.string.error_file_too_big)) } }
         else -> _ui.update { it.copy(attachments = it.attachments + staged, error = null) }
       }
     }
@@ -215,7 +219,7 @@ class ComposeViewModel(
     if (!taken || file.length() == 0L) { file.delete(); return }
     val shot = files.stageCameraShot(file)
     when {
-      shot.size > MAX_ATTACHMENT_BYTES -> { files.discard(shot); _ui.update { it.copy(error = "That photo is over 20 MB. Try a lower camera resolution.") } }
+      shot.size > MAX_ATTACHMENT_BYTES -> { files.discard(shot); _ui.update { it.copy(error = strings.get(R.string.error_photo_too_big)) } }
       else -> _ui.update { it.copy(attachments = it.attachments + shot, error = null) }
     }
   }
@@ -233,11 +237,11 @@ class ComposeViewModel(
       is RelayChoice.Automatic -> r.group.id
       else -> null
     }
-    _ui.update { it.copy(sending = true, error = null, progress = if (it.editing) "Saving…" else "Sending…") }
+    _ui.update { it.copy(sending = true, error = null, progress = strings.get(if (it.editing) R.string.progress_saving else R.string.progress_sending)) }
     viewModelScope.launch {
       if (route.editMessageId != null) {
         when (val r = letters.edit(LetterEdit(route.editMessageId, s.body, s.note.ifBlank { null }, relayChapter))) {
-          is ApiResult.Failure -> _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric("Could not save the letter.")) }
+          is ApiResult.Failure -> _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric(strings.get(R.string.error_save_letter))) }
           is ApiResult.Success -> uploadThen(route.editMessageId, s.attachments, chatIdOf(route.editMessageId))
         }
         return@launch
@@ -254,9 +258,9 @@ class ComposeViewModel(
           // when the phone is next online. Only a failure to *reach* the server qualifies; if the server
           // answered "no", the writer needs to see that now, while they can still fix the letter.
           if (r.error.neverReachedTheServer()) {
-            outbox.queue(s.prisoner?.name ?: "Prisoner #${route.prisonerId}", s.writingAs.takeIf { route.writerId != null }, letter, s.attachments)
+            outbox.queue(s.prisoner?.name ?: strings.get(R.string.prisoner_numbered, route.prisonerId), s.writingAs.takeIf { route.writerId != null }, letter, s.attachments)
             finishedWith(queued = true)
-          } else _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric("Could not send the letter.")) }
+          } else _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric(strings.get(R.string.error_send_letter))) }
         is ApiResult.Success -> {
           finishedWith(queued = false)
           uploadThen(r.value.id, s.attachments, r.value.threadId)
@@ -286,7 +290,7 @@ class ComposeViewModel(
   private suspend fun uploadThen(messageId: Int, staged: List<StagedFile>, chatId: Int?) {
     val failed = mutableListOf<String>()
     staged.forEachIndexed { i, f ->
-      _ui.update { it.copy(progress = "Uploading ${f.name} (${i + 1} of ${staged.size})…") }
+      _ui.update { it.copy(progress = strings.get(R.string.progress_uploading, f.name, i + 1, staged.size)) }
       when (letters.upload(messageId, f)) {
         is ApiResult.Success -> files.discard(f)
         is ApiResult.Failure -> failed += f.name
@@ -295,7 +299,7 @@ class ComposeViewModel(
     _ui.update {
       it.copy(
         sending = false, progress = null,
-        error = if (failed.isEmpty()) null else "The letter was sent, but these files did not upload: ${failed.joinToString()}.",
+        error = if (failed.isEmpty()) null else strings.get(R.string.error_files_not_uploaded, failed.joinToString()),
         sentChatId = chatId ?: (letters.letter(messageId) as? ApiResult.Success)?.value?.threadId,
       )
     }

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.common
 
+import me.paxana.abcmailbox.text.rememberStrings
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
@@ -251,7 +252,7 @@ object UppercaseTransformation : androidx.compose.ui.text.input.VisualTransforma
 fun MailRulesList(rules: me.paxana.abcmailbox.domain.MailRules, emptyText: String, modifier: Modifier = Modifier) {
   Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
     if (rules.isEmpty) Text(emptyText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    rules.lines().forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+    rules.lines(rememberStrings()).forEach { Text(stringResource(R.string.bullet, it), style = MaterialTheme.typography.bodyMedium) }
   }
 }
 

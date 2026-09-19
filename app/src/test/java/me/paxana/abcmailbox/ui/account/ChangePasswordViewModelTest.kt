@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.account
 
+import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -23,7 +24,7 @@ class ChangePasswordViewModelTest {
 
   @Test
   fun `the form guards length, match, and reuse`() {
-    val vm = ChangePasswordViewModel(FakeSessionRepository())
+    val vm = ChangePasswordViewModel(FakeSessionRepository(), TestStrings())
     vm.onCurrent("password1"); vm.onNew("short"); vm.onConfirm("short")
     assertFalse(vm.ui.value.canSubmit)
     vm.onNew("password1"); vm.onConfirm("password1")
@@ -37,7 +38,7 @@ class ChangePasswordViewModelTest {
   @Test
   fun `a wrong current password is reported and nothing changes`() = runTest {
     val repo = FakeSessionRepository()
-    val vm = ChangePasswordViewModel(repo)
+    val vm = ChangePasswordViewModel(repo, TestStrings())
     vm.onCurrent("not-it"); vm.onNew("brandnewpass"); vm.onConfirm("brandnewpass"); vm.submit()
     dispatcher.scheduler.advanceUntilIdle()
     assertEquals("Your current password is incorrect.", vm.ui.value.error)
@@ -48,7 +49,7 @@ class ChangePasswordViewModelTest {
   @Test
   fun `success clears the form and reports done`() = runTest {
     val repo = FakeSessionRepository()
-    val vm = ChangePasswordViewModel(repo)
+    val vm = ChangePasswordViewModel(repo, TestStrings())
     vm.onCurrent("password1"); vm.onNew("brandnewpass"); vm.onConfirm("brandnewpass"); vm.submit()
     dispatcher.scheduler.advanceUntilIdle()
     assertEquals("brandnewpass", repo.passwordChangedTo)

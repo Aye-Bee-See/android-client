@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The API's master list of mail rules, as of 19 September 2026, keyed `rule_<tag>` and `rule_<tag>_desc`.
+  English is here only so the translations have a default to stand on: in English the app shows the
+  server's own wording (admins may reword a rule). A rule added after this list was made has no
+  translation and reads in the server's English. Regenerate with the translations in docs/TRANSLATING.md.
+-->
+<resources>
+    <string name="rule_return_address_required">Return address required</string>
+    <string name="rule_return_address_required_desc">Every envelope needs a full sender name and postal address or it is refused.</string>
+    <string name="rule_full_name_and_number">Full name and number</string>
+    <string name="rule_full_name_and_number_desc">Address mail with the prisoner\'s full legal name and inmate number; nicknames are not delivered.</string>
+    <string name="rule_plain_envelopes">Plain envelopes only</string>
+    <string name="rule_plain_envelopes_desc">White or manila envelopes with no stickers, tape, drawings, or coloured ink.</string>
+    <string name="rule_no_stickers_or_labels">No stickers or labels</string>
+    <string name="rule_no_stickers_or_labels_desc">Address labels, stickers, and stamps other than postage are not allowed on the envelope.</string>
+    <string name="rule_one_letter_per_envelope">One letter per envelope</string>
+    <string name="rule_one_letter_per_envelope_desc">Envelopes containing letters for more than one prisoner are returned.</string>
+    <string name="rule_registered_post_recommended">Registered post recommended</string>
+    <string name="rule_registered_post_recommended_desc">Ordinary international post is often lost; send letters by registered or tracked mail.</string>
+    <string name="rule_plain_paper">Plain paper only</string>
+    <string name="rule_plain_paper_desc">White lined or unlined paper; no cardstock, construction paper, or scented paper.</string>
+    <string name="rule_ink_blue_or_black">Blue or black ink only</string>
+    <string name="rule_ink_blue_or_black_desc">Letters written in pencil, marker, crayon, or coloured ink are rejected.</string>
+    <string name="rule_typed_letters_allowed">Typed letters allowed</string>
+    <string name="rule_typed_letters_allowed_desc">Typed and printed letters are accepted as long as the pages are unbound.</string>
+    <string name="rule_handwritten_only">Handwritten letters only</string>
+    <string name="rule_handwritten_only_desc">Typed or printed letters are refused; write by hand.</string>
+    <string name="rule_postcards_only">Postcards only</string>
+    <string name="rule_postcards_only_desc">This facility accepts standard-size postcards only; enclosed letters are returned.</string>
+    <string name="rule_no_greeting_cards">No greeting cards</string>
+    <string name="rule_no_greeting_cards_desc">Cards with layers, glitter, pop-ups, or musical parts are refused; a flat card is accepted.</string>
+    <string name="rule_no_scents_or_lipstick">No perfume or lipstick</string>
+    <string name="rule_no_scents_or_lipstick_desc">Scented, stained, or lipstick-marked paper is treated as contaminated and destroyed.</string>
+    <string name="rule_no_glue_tape_or_staples">No glue, tape, or staples</string>
+    <string name="rule_no_glue_tape_or_staples_desc">Nothing may be glued, taped, or stapled to the pages.</string>
+    <string name="rule_no_maps">No maps</string>
+    <string name="rule_no_maps_desc">Maps, including hand-drawn ones, are treated as escape material and confiscated.</string>
+    <string name="rule_no_coded_messages">No coded messages</string>
+    <string name="rule_no_coded_messages_desc">Letters containing ciphers, symbols, or unexplained abbreviations are held for investigation.</string>
+    <string name="rule_no_drawings_by_others">No drawings by others</string>
+    <string name="rule_no_drawings_by_others_desc">Hand-drawn artwork is accepted only from the sender; drawings by children or others are refused.</string>
+    <string name="rule_no_third_party_mail">No third-party mail</string>
+    <string name="rule_no_third_party_mail_desc">Mail that forwards or relays a message from someone else is refused.</string>
+    <string name="rule_no_photos">No pictures</string>
+    <string name="rule_no_photos_desc">Letters must be text only; photographs and printed images are returned.</string>
+    <string name="rule_no_polaroids">No polaroids</string>
+    <string name="rule_no_polaroids_desc">Instant-film photographs are refused because the backing can hide contraband.</string>
+    <string name="rule_no_explicit_photos">No nude or suggestive photos</string>
+    <string name="rule_no_explicit_photos_desc">Photographs showing nudity, underwear, or sexually suggestive poses are destroyed.</string>
+    <string name="rule_no_gang_imagery">No gang signs in photos</string>
+    <string name="rule_no_gang_imagery_desc">Photographs showing hand signs, gang colours, or gang tattoos are refused.</string>
+    <string name="rule_no_enclosures">Nothing enclosed</string>
+    <string name="rule_no_enclosures_desc">Nothing may be enclosed with a letter: no stamps, cash, cards, or objects of any kind.</string>
+    <string name="rule_no_stamps_enclosed">Stamps not accepted</string>
+    <string name="rule_no_stamps_enclosed_desc">Enclosed postage stamps are confiscated; stamps must be bought at the commissary.</string>
+    <string name="rule_no_money">No money orders</string>
+    <string name="rule_no_money_desc">Funds cannot be sent by mail; use the facility\'s deposit service.</string>
+    <string name="rule_no_clippings">No newspaper clippings</string>
+    <string name="rule_no_clippings_desc">Cuttings and printed articles are refused; write out or describe the content instead.</string>
+    <string name="rule_printed_pages_allowed">Printed internet pages allowed</string>
+    <string name="rule_printed_pages_allowed_desc">Printed web pages are accepted if they are plain black-and-white text with no images.</string>
+    <string name="rule_books_from_publisher_only">Books from publishers only</string>
+    <string name="rule_books_from_publisher_only_desc">Books must ship new from a publisher or approved bookseller, never from an individual.</string>
+    <string name="rule_paperbacks_only">Paperbacks only</string>
+    <string name="rule_paperbacks_only_desc">Hardcover books are refused; send paperback editions.</string>
+    <string name="rule_approved_senders_only">No unknown senders</string>
+    <string name="rule_approved_senders_only_desc">Only senders on the prisoner\'s approved correspondence list are delivered.</string>
+    <string name="rule_sender_approval_form">Sender approval form</string>
+    <string name="rule_sender_approval_form_desc">New correspondents must file the facility\'s approval form before their first letter is delivered.</string>
+    <string name="rule_no_inter_prisoner_mail">No mail between prisoners</string>
+    <string name="rule_no_inter_prisoner_mail_desc">Correspondence with anyone held in another facility requires prior written approval.</string>
+    <string name="rule_mail_read_by_staff">Mail opened and read</string>
+    <string name="rule_mail_read_by_staff_desc">All incoming mail except legal mail is opened and read by staff before delivery.</string>
+    <string name="rule_legal_mail_marked">Legal mail marked clearly</string>
+    <string name="rule_legal_mail_marked_desc">Mail from a lawyer must be marked Legal Mail with the firm\'s address or it is opened as ordinary mail.</string>
+    <string name="rule_originals_destroyed">Scanned, not delivered</string>
+    <string name="rule_originals_destroyed_desc">Incoming mail is scanned by a vendor and shown on a tablet; the paper original is destroyed.</string>
+    <string name="rule_scanned_in_greyscale">Scanned mail: no colour</string>
+    <string name="rule_scanned_in_greyscale_desc">Because mail is scanned in greyscale, colour drawings and photos arrive as black and white.</string>
+    <string name="rule_digital_mail_only">Digital mail only</string>
+    <string name="rule_digital_mail_only_desc">Letters must be sent through the facility\'s electronic mail service; postal mail is returned.</string>
+    <string name="rule_delivery_not_confirmed">Delivery not confirmed</string>
+    <string name="rule_delivery_not_confirmed_desc">The facility does not confirm delivery; expect delays of four to eight weeks.</string>
+    <string name="rule_holiday_card_limit">Holiday mail limits</string>
+    <string name="rule_holiday_card_limit_desc">In December only, up to two cards per sender are accepted.</string>
+</resources>

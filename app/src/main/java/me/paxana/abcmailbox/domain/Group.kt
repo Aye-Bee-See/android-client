@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.domain
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import java.time.Instant
 
 /** An account a group created for someone who has not claimed it yet. */
@@ -34,7 +36,7 @@ data class QueueItem(val letter: Letter, val prisoner: Prisoner?)
 data class ThreadWriter(val id: Int, val name: String, val managedByGroupId: Int?, val anonymousForGroupId: Int?) {
   /** A group may write in a thread only for writers it manages, or as its own anonymous writer. */
   fun canBeWrittenForBy(groupId: Int?): Boolean = groupId != null && (managedByGroupId == groupId || anonymousForGroupId == groupId)
-  val label: String get() = if (anonymousForGroupId != null) "Anonymous writer" else name
+  fun label(strings: Strings): String = if (anonymousForGroupId != null) strings.get(R.string.writer_anonymous) else name
 }
 
 /**

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  These strings are looked up by a name built at run time (a mail-rule tag or a service key the server
+  sent), so nothing in the code mentions them and the resource shrinker would remove them from release builds.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@string/rule_*,@string/service_*" />

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.crypto
 
+import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiResult
@@ -41,7 +42,7 @@ class LetterCodecTest {
 
   @After fun tearDown() = server.shutdown()
 
-  private fun codec(mode: EncryptionMode) = LetterCodec(FixedMode(mode), engine, vault, sessions, authApi, json, keyring)
+  private fun codec(mode: EncryptionMode) = LetterCodec(FixedMode(mode), engine, vault, sessions, authApi, json, keyring, TestStrings())
 
   @Test
   fun `server mode passes plain text through and needs no keys`() = runTest {
@@ -90,7 +91,7 @@ class LetterCodecTest {
   fun `a locked vault refuses to send rather than sending something unreadable`() = runTest {
     vault.clear()
     val r = codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Dear friend", null, null)) as ApiResult.Failure
-    assertEquals(LetterCodec.LOCKED, r.error)
+    assertEquals(lockedError(TestStrings()), r.error)
   }
 
   private val sealedToMe get() = engine.sealedTo(engine.keyPairFor("PUB-ME"))
@@ -208,5 +209,17 @@ class LetterCodecTest {
     server.enqueue(publicKey("""{"chapter":2,"publicKey":"PUB-PARTNER","keyVersion":5}"""))
     val dto = MessageDto(id = 7, chat = 1, sender = "user", prisoner = 3, ciphertext = "enc[x]", nonce = "n", envelopes = listOf(EnvelopeDto("chapter", 1, engine.sealedTo(groupPair))))
     assertEquals(EnvelopeDto("chapter", 2, "sealed(KEY)to(PUB-PARTNER)", keyVersion = 5), (c.envelopeFor(dto, 2) as ApiResult.Success).value)
+  }
+
+  @Test
+  fun `a reply for a writer who has no key yet is sealed to the group alone, where the group may hold one`() = runTest {
+    asMember()
+    server.enqueue(publicKey("""{"user":4,"publicKey":null}"""))
+    val reply = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Thank you", null, relayChapter = null, asWriterId = 4, fromPrisoner = true, groupRelaysFacility = true)) as ApiResult.Success).value.first
+    assertEquals(listOf(EnvelopeDto("chapter", 1, "sealed(KEY)to(PUB-GROUP)", keyVersion = 3)), reply.envelopes)
+
+    // Nobody at all could read it: refuse rather than store a letter without a reader.
+    server.enqueue(publicKey("""{"user":4,"publicKey":null}"""))
+    assertTrue(codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Thank you", null, relayChapter = null, asWriterId = 4, fromPrisoner = true)) is ApiResult.Failure)
   }
 }

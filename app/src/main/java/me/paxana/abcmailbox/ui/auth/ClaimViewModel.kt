@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -46,10 +48,11 @@ data class ClaimUiState(
 class ClaimViewModel(
   private val sessions: SessionRepository,
   route: ClaimRoute,
+  private val strings: Strings,
 ) : ViewModel() {
 
   @Inject
-  constructor(sessions: SessionRepository, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<ClaimRoute>())
+  constructor(sessions: SessionRepository, strings: Strings, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<ClaimRoute>(), strings)
 
   private val _ui = MutableStateFlow(ClaimUiState(token = route.token?.let { ClaimToken.pretty(it) }.orEmpty()))
   val ui: StateFlow<ClaimUiState> = _ui.asStateFlow()
@@ -70,12 +73,12 @@ class ClaimViewModel(
 
   fun check() {
     val typed = _ui.value.token
-    ClaimToken.problem(typed)?.let { problem -> _ui.update { it.copy(error = problem) }; return }
+    ClaimToken.problem(typed, strings)?.let { problem -> _ui.update { it.copy(error = problem) }; return }
     _ui.update { it.copy(busy = true, error = null, tokenDead = false) }
     viewModelScope.launch {
       when (val r = sessions.claimInfo(ClaimToken.normalise(typed))) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, info = r.value, token = ClaimToken.pretty(typed)) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage()) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage(strings)) }
       }
     }
   }
@@ -88,15 +91,15 @@ class ClaimViewModel(
       when (val r = sessions.claim(ClaimToken.normalise(s.token), s.username, s.password, s.email)) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "") }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage()) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage(strings)) }
       }
     }
   }
 }
 
-internal fun AppError.toClaimMessage(): String = when (this) {
-  is AppError.NotFound -> "That token is not valid. Check it against what your group gave you."
-  is AppError.Gone -> "This token has already been used or has expired. Tokens last 72 hours and work once. Ask the group that set up your account for a new one."
-  is AppError.Network -> "Can't reach the server. Check your connection and try again."
-  else -> userMessage ?: "Something went wrong. Please try again."
+internal fun AppError.toClaimMessage(strings: Strings): String = when (this) {
+  is AppError.NotFound -> strings.get(R.string.error_token_invalid)
+  is AppError.Gone -> strings.get(R.string.error_token_gone)
+  is AppError.Network -> strings.get(R.string.error_network)
+  else -> userMessage ?: strings.get(R.string.error_generic)
 }

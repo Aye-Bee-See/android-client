@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.letters
 
+import androidx.compose.ui.res.pluralStringResource
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,41 +66,41 @@ fun OutboxSection(onEdit: (OutboxItem) -> Unit, modifier: Modifier = Modifier, v
 
   Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium, modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-      SectionTitle("Waiting to be sent", Modifier.padding(top = 0.dp))
-      Text("Written without a connection. They are sent by themselves when this phone is next online, even if the app is closed.", style = MaterialTheme.typography.bodySmall)
+      SectionTitle(stringResource(R.string.outbox_title), Modifier.padding(top = 0.dp))
+      Text(stringResource(R.string.outbox_explained), style = MaterialTheme.typography.bodySmall)
       items.forEach { item ->
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          val to = (if (item.payload.fromPrisoner) "Reply from " else "To ") + item.payload.prisonerName + (item.payload.writingAs?.let { " · as $it" } ?: "")
+          val to = stringResource(if (item.payload.fromPrisoner) R.string.outbox_reply_from else R.string.outbox_to, item.payload.prisonerName) + (item.payload.writingAs?.let { stringResource(R.string.outbox_as, it) } ?: "")
           Text(to, style = MaterialTheme.typography.titleSmall)
           Text(
-            "Written ${item.queuedAt.shortDateTime()}" + item.payload.attachments.size.takeIf { it > 0 }?.let { n -> " · $n file${if (n == 1) "" else "s"}" }.orEmpty(),
+            stringResource(R.string.outbox_written, item.queuedAt.shortDateTime()).let { written -> item.payload.attachments.size.takeIf { it > 0 }?.let { n -> stringResource(R.string.outbox_written_with_files, written, pluralStringResource(R.plurals.outbox_files, n, n)) } ?: written },
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-          item.problem?.let { Text((if (item.letterWasSent) "" else "Not sent. ") + it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+          item.problem?.let { Text(if (item.letterWasSent) it else stringResource(R.string.outbox_not_sent, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
           Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             when {
               // The server has this letter; opening it again would post a second copy. All that is left is to take note.
-              item.letterWasSent -> TextButton(onClick = { viewModel.delete(item) }) { Text("Dismiss") }
+              item.letterWasSent -> TextButton(onClick = { viewModel.delete(item) }) { Text(stringResource(R.string.action_dismiss)) }
               else -> {
-                TextButton(onClick = { onEdit(item) }) { Text("Edit") }
-                if (item.problem != null) TextButton(onClick = { viewModel.retry(item) }) { Text("Try again as it is") }
-                TextButton(onClick = { confirmDelete = item }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = { onEdit(item) }) { Text(stringResource(R.string.action_edit)) }
+                if (item.problem != null) TextButton(onClick = { viewModel.retry(item) }) { Text(stringResource(R.string.action_try_as_is)) }
+                TextButton(onClick = { confirmDelete = item }) { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) }
               }
             }
           }
         }
       }
-      if (items.any { it.problem == null }) TextButton(onClick = viewModel::tryNow, enabled = !trying) { Text(if (trying) "Trying…" else "Try to send now") }
+      if (items.any { it.problem == null }) TextButton(onClick = viewModel::tryNow, enabled = !trying) { Text(stringResource(if (trying) R.string.action_trying else R.string.action_try_send_now)) }
     }
   }
 
   confirmDelete?.let { item ->
     AlertDialog(
       onDismissRequest = { confirmDelete = null },
-      title = { Text("Delete this unsent letter?") },
-      text = { Text("It has not been sent and is only on this phone. Deleting it cannot be undone.") },
-      confirmButton = { TextButton(onClick = { viewModel.delete(item); confirmDelete = null }) { Text("Delete") } },
-      dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Keep it") } },
+      title = { Text(stringResource(R.string.outbox_delete_title)) },
+      text = { Text(stringResource(R.string.outbox_delete_text)) },
+      confirmButton = { TextButton(onClick = { viewModel.delete(item); confirmDelete = null }) { Text(stringResource(R.string.action_delete)) } },
+      dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.action_keep_it)) } },
     )
   }
 }

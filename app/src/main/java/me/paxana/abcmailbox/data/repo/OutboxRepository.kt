@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -111,6 +113,7 @@ class DefaultOutboxRepository @Inject constructor(
   private val sessions: SessionRepository,
   private val scheduler: OutboxScheduler,
   private val json: Json,
+  private val strings: Strings,
 ) : OutboxRepository {
 
   private val flushing = Mutex()
@@ -208,7 +211,7 @@ class DefaultOutboxRepository @Inject constructor(
     val messageId = checkNotNull(row.messageId)
     for (attachment in payload.attachments) {
       val staged = withContext(Dispatchers.IO) { unsealFile(attachment) }
-      val result = if (staged == null) ApiResult.Failure(AppError.Validation(listOf("The file ${attachment.name} could not be read back from this phone."))) else letters.upload(messageId, staged)
+      val result = if (staged == null) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.outbox_file_unreadable, attachment.name)))) else letters.upload(messageId, staged)
       staged?.let(files::discard)
       when (result) {
         is ApiResult.Success -> {
@@ -218,7 +221,7 @@ class DefaultOutboxRepository @Inject constructor(
         }
         is ApiResult.Failure -> return when (val verdict = judge(result.error)) {
           is Verdict.Later -> Step.LATER
-          is Verdict.Refused -> refuse(row, payload, "The letter was sent, but ${attachment.name} could not be attached: ${verdict.reason}")
+          is Verdict.Refused -> refuse(row, payload, strings.get(R.string.outbox_sent_but_file_refused, attachment.name, verdict.reason))
         }
       }
     }
@@ -245,8 +248,8 @@ class DefaultOutboxRepository @Inject constructor(
     is AppError.Unexpected -> Verdict.Later(mayHaveArrived = true)   // a reply we could not read, e.g. a Wi-Fi login page
     is AppError.RateLimited -> Verdict.Later(mayHaveArrived = false)
     is AppError.Unauthorized -> Verdict.Later(mayHaveArrived = false) // signed out: it waits for the next sign-in
-    else -> if (error == LetterCodec.LOCKED) Verdict.Later(mayHaveArrived = false) // waits for the password
-    else Verdict.Refused(error.userMessage ?: "The server refused this letter without saying why.")
+    else -> if (error == codec.locked) Verdict.Later(mayHaveArrived = false) // waits for the password
+    else Verdict.Refused(error.userMessage ?: strings.get(R.string.outbox_refused_no_reason))
   }
 
   private sealed interface Lookup { data class Found(val id: Int) : Lookup; data object NotThere : Lookup; data object CouldNotLook : Lookup }

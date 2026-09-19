@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.domain
 
+import me.paxana.abcmailbox.text.TestStrings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -18,11 +19,11 @@ class ClaimTokenTest {
 
   @Test
   fun `problems are explained before a request is spent`() {
-    assertNull(ClaimToken.problem(good))
-    assertEquals("Enter the token your group gave you.", ClaimToken.problem("  "))
-    assertEquals("That is 23 characters; a token has 24.", ClaimToken.problem(good.dropLast(1)))
-    assertEquals("That is 25 characters; a token has only 24.", ClaimToken.problem(good + "A"))
-    assertTrue(ClaimToken.problem(good.replaceRange(0, 1, "O"))!!.contains("never contain the character O"))
+    assertNull(ClaimToken.problem(good, TestStrings()))
+    assertEquals("Enter the token your group gave you.", ClaimToken.problem("  ", TestStrings()))
+    assertEquals("That is 23 characters; a token has 24.", ClaimToken.problem(good.dropLast(1), TestStrings()))
+    assertEquals("That is 25 characters; a token has only 24.", ClaimToken.problem(good + "A", TestStrings()))
+    assertTrue(ClaimToken.problem(good.replaceRange(0, 1, "O"), TestStrings())!!.contains("never contain the character O"))
     assertFalse(ClaimToken.isWellFormed(good.replaceRange(3, 4, "L")))
   }
 }

@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.data.crypto
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.crypto.Reader
 import me.paxana.abcmailbox.data.api.ApiResult
@@ -37,7 +39,11 @@ class LetterCodec @Inject constructor(
   private val authApi: AuthApi,
   private val json: Json,
   private val keyring: GroupKeyring,
+  private val strings: Strings,
 ) {
+  /** "Your letters are locked on this device": the same error wherever it arises, so callers can recognise it. */
+  val locked: AppError get() = lockedError(strings)
+
   // Not called `me`: that would shadow the `me.paxana…` package root inside this class.
   private val viewer get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user
   private val myId: Int? get() = viewer?.id
@@ -66,7 +72,7 @@ class LetterCodec @Inject constructor(
         ) to null
       )
     }
-    val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
+    val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
     val readers = mutableListOf<Reader>()
     if (user.isStaff) {
       // A group member writes as the group: anonymously, for a writer it manages, or recording a reply.
@@ -77,23 +83,29 @@ class LetterCodec @Inject constructor(
       letter.asWriterId?.let { writerId ->
         when (val r = publicKeyOf(user = writerId)) {
           is ApiResult.Failure -> return r
-          is ApiResult.Success -> readers += Reader(Reader.USER, writerId, r.value.first
-            ?: return ApiResult.Failure(AppError.Validation(listOf("This writer has no encryption key yet, so nothing can be sealed to them. They get one the first time they sign in."))))
+          // A reply may be recorded for a writer who has no key yet (API PR #95): it is sealed to the group alone,
+          // and a member's phone adds the writer's envelope once they have a key (see GroupKeyring). A letter
+          // written *for* someone is different: it is theirs, and needs their key.
+          is ApiResult.Success -> when (val key = r.value.first) {
+            null -> if (!letter.fromPrisoner) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_writer_no_key))))
+            else -> readers += Reader(Reader.USER, writerId, key)
+          }
         }
       }
       // The group keeps its own envelope wherever the server permits one: as the manager of the writer
       // (which includes its anonymous writer), or as a relay group of the facility.
       val groupMayRead = letter.asWriterId == null || keyring.writerKey(letter.asWriterId) != null || letter.groupRelaysFacility || letter.relayChapter == group.groupId
       if (groupMayRead) readers += Reader(Reader.CHAPTER, group.groupId, group.publicKey, group.version)
+      if (readers.isEmpty()) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_writer_no_key))))
     } else {
-      val keyPair = vault.keyPair(user.id) ?: return ApiResult.Failure(LOCKED)
+      val keyPair = vault.keyPair(user.id) ?: return ApiResult.Failure(locked)
       readers += Reader(Reader.USER, user.id, Base64.getEncoder().encodeToString(keyPair.publicKey))
     }
     letter.relayChapter?.takeIf { groupId -> !letter.fromPrisoner && readers.none { it.type == Reader.CHAPTER && it.id == groupId } }?.let { groupId ->
       when (val r = publicKeyOf(chapter = groupId)) {
         is ApiResult.Failure -> return r
         is ApiResult.Success -> readers += Reader(Reader.CHAPTER, groupId, r.value.first ?: return ApiResult.Failure(
-          AppError.Validation(listOf("That relay group has not set up encryption yet, so it cannot receive letters. Choose another group or ask them to finish setting up."))
+          AppError.Validation(listOf(strings.get(R.string.error_relay_no_key)))
         ), r.value.second)
       }
     }
@@ -117,7 +129,7 @@ class LetterCodec @Inject constructor(
     if (existing.ciphertext == null) {
       return ApiResult.Success(UpdateMessageRequest(id = edit.messageId, messageText = edit.body, relayNote = edit.relayNote, relayChapter = edit.relayChapter))
     }
-    val key = contentKey(existing) ?: return ApiResult.Failure(LOCKED)
+    val key = contentKey(existing) ?: return ApiResult.Failure(locked)
     val body = engine.encryptText(edit.body, key)
     val note = edit.relayNote?.takeIf { it.isNotBlank() }?.let { engine.encryptText(it, key) }
     // The reader set is fixed after sending in end-to-end mode, so the relay group is not sent.
@@ -178,11 +190,11 @@ class LetterCodec @Inject constructor(
    */
   suspend fun envelopeFor(dto: MessageDto, groupId: Int): ApiResult<EnvelopeDto> {
     ready()
-    val key = contentKey(dto) ?: return ApiResult.Failure(LOCKED)
+    val key = contentKey(dto) ?: return ApiResult.Failure(locked)
     return when (val r = publicKeyOf(chapter = groupId)) {
       is ApiResult.Failure -> r
       is ApiResult.Success -> {
-        val publicKey = r.value.first ?: return ApiResult.Failure(AppError.Validation(listOf("That group has not set up encryption yet, so it cannot be given this letter.")))
+        val publicKey = r.value.first ?: return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_partner_no_key))))
         engine.sealContentKey(key, Reader(Reader.CHAPTER, groupId, publicKey, r.value.second)).let { ApiResult.Success(EnvelopeDto(it.readerType, it.readerId, it.wrappedKey, it.keyVersion)) }
       }
     }
@@ -194,13 +206,13 @@ class LetterCodec @Inject constructor(
   /** A sentence for each reason a group member cannot use the group key yet. */
   private fun GroupKeyState.asError(): AppError = when (this) {
     is GroupKeyState.Failed -> error
-    GroupKeyState.Locked -> LOCKED
-    is GroupKeyState.NotSetUp -> AppError.Forbidden("Your group has not set up its encryption key yet. Open the Inbox and choose \"Set up the group key\".")
-    is GroupKeyState.NotHeld -> AppError.Forbidden("You have not been given your group's key yet. Ask a member who holds it to hand it to you from their Inbox.")
+    GroupKeyState.Locked -> locked
+    is GroupKeyState.NotSetUp -> AppError.Forbidden(strings.get(R.string.error_group_key_not_set_up))
+    is GroupKeyState.NotHeld -> AppError.Forbidden(strings.get(R.string.error_group_key_not_held))
     else -> AppError.Unexpected(IllegalStateException("The group key is not available."))
   }
 
-  companion object {
-    val LOCKED = AppError.Forbidden("Your letters are locked on this device. Unlock them with your password first.")
-  }
 }
+
+/** Built the same way everywhere (it is a data class, so two of these are equal), in the user's language. */
+fun lockedError(strings: Strings): AppError = AppError.Forbidden(strings.get(R.string.error_letters_locked))

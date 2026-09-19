@@ -96,6 +96,9 @@ abstract class BindingsModule {
   abstract fun groupRepository(impl: DefaultGroupRepository): GroupRepository
 
   @Binds
+  abstract fun strings(impl: me.paxana.abcmailbox.text.AndroidStrings): me.paxana.abcmailbox.text.Strings
+
+  @Binds
   abstract fun outboxRepository(impl: me.paxana.abcmailbox.data.repo.DefaultOutboxRepository): me.paxana.abcmailbox.data.repo.OutboxRepository
 
   @Binds

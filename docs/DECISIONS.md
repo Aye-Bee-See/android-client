@@ -2,6 +2,16 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-19: words come from resources through `Strings`, and tests read the same files
+
+**Context.** Three languages. Much of the app's text is produced outside composables, where there is no `Context`.
+
+**Decision.** One injected interface, `Strings` (`get`, `plural`, `byName`, `language`), implemented over Android resources in production and over the resource XML files in JVM tests. Composables use `stringResource()` directly. Mail rules and group services are looked up by a name built from the server's key (`rule_<tag>`, `service_<key>`), protected from the resource shrinker by `res/raw/keep.xml`.
+
+**Consequences.** ViewModels still expose plain `String`s, so screens and tests stayed simple, at the cost that a message already on screen keeps its language if the language changes mid-screen (it is right again at the next action). Tests assert real sentences and would notice a changed one. A new language is a folder of XML.
+
+**Rejected.** A `UiText` sealed type resolved in the UI (correct in every corner, but it touches every state class and every test for a case, changing language mid-screen, that barely occurs). Passing `Context` into ViewModels (leaks, and unusable in JVM tests). This strikes the deferral recorded on the same day in phase 7c, which held only until a language was chosen.
+
 ## 2026-09-19: the outbox never posts a letter twice, and prefers waiting to guessing
 
 **Context.** Letters written offline are sent later by a background worker. A request that times out may or may not have arrived, and the API cannot deduplicate.
@@ -25,10 +35,6 @@ Short records of choices that are not obvious from the code. Newest first.
 ## 2026-09-19: an `internal` build type stands in for release until there is a domain
 
 **Decision.** Release is strict (HTTPS only, no developer tools) and cannot talk to anything yet. `internal` is shrunk identically but keeps the server override and plain HTTP, with its own application id. Every R8-sensitive path is verified on it.
-
-## 2026-09-19: strings move to resources area by area, when a language is chosen
-
-**Decision.** Only the shell and shared components are in `strings.xml` today. Reasons and sizes are in `docs/PLAN.md`, phase 7c.
 
 ## 2026-09-17: group and custody keys live in memory only, and are checked when opened
 

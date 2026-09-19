@@ -92,6 +92,11 @@ android {
     compose = true
     buildConfig = true
   }
+
+  // Android 13+ lets people choose a language per app (Settings > System > Languages > App languages). The
+  // system needs a list of what the app speaks; this generates it from the values-xx folders, using
+  // src/main/res/resources.properties to know which language the unqualified `values` folder is.
+  androidResources { generateLocaleConfig = true }
 }
 
 kotlin {

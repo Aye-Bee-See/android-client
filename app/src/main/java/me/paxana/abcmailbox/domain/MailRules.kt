@@ -1,9 +1,20 @@
 package me.paxana.abcmailbox.domain
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import java.util.Locale
 
 /** One tag from the API's mail-rule vocabulary, with its default English wording. */
-data class MailRule(val tag: String, val category: String, val label: String, val description: String?)
+data class MailRule(val tag: String, val category: String, val label: String, val description: String?) {
+  /**
+   * [label] and [description] are the server's wording, which is English. The app carries its own
+   * translations keyed on the tag (`rule_<tag>`, `rule_<tag>_desc`), as the API intends ("a client with
+   * its own translations keys them on `tag`"). In English the server's wording wins, because admins
+   * may have reworded a rule; in any language a rule the app has never heard of reads in the server's words.
+   */
+  fun label(strings: Strings): String = if (strings.language == "en") label else strings.byName("rule_$tag") ?: label
+  fun description(strings: Strings): String? = if (strings.language == "en") description else strings.byName("rule_${tag}_desc") ?: description
+}
 
 /**
  * The vocabulary the app knows at this moment: the live one when it has been
@@ -47,16 +58,18 @@ data class MailRules(
   /** Tags the app acts on. Everything else is display only. */
   val forbidsPhotos: Boolean get() = has(NO_PHOTOS)
 
-  val languageNames: List<String> get() = languages.map { code ->
-    Locale.forLanguageTag(code).getDisplayLanguage(Locale.ENGLISH).ifBlank { code }.replaceFirstChar { it.uppercase() }
+  /** The languages' names, in the language the app is speaking: "Spanish", "español", "испанский". */
+  fun languageNames(inLanguage: String = "en"): List<String> = languages.map { code ->
+    val display = Locale.forLanguageTag(inLanguage)
+    Locale.forLanguageTag(code).getDisplayLanguage(display).ifBlank { code }.let { if (inLanguage == "en") it.replaceFirstChar { c -> c.uppercase() } else it }
   }
 
   /** Every rule as a display line: tags first, then the valued ones. */
-  fun lines(): List<String> = rules.map { it.label } +
+  fun lines(strings: Strings): List<String> = rules.map { it.label(strings) } +
     listOfNotNull(
-      pageLimit?.let { "At most $it page${if (it == 1) "" else "s"} per letter" },
-      photoLimit?.let { "At most $it photo${if (it == 1) "" else "s"} per letter" },
-      languageNames.takeIf { it.isNotEmpty() }?.let { "Accepted languages: ${it.joinToString(", ")}" },
+      pageLimit?.let { strings.plural(R.plurals.rule_page_limit, it) },
+      photoLimit?.let { strings.plural(R.plurals.rule_photo_limit, it) },
+      languageNames(strings.language).takeIf { it.isNotEmpty() }?.let { strings.get(R.string.rule_languages, it.joinToString(", ")) },
     )
 
   companion object {
@@ -80,19 +93,19 @@ data class ComposeAdvice(val text: String, val warning: Boolean)
  * where pictures are refused) is enforced by the attachment picker, using
  * [MailRules.forbidsPhotos].
  */
-fun composeAdvice(rules: MailRules, estimatedPages: Int, imageAttachments: Int): List<ComposeAdvice> = buildList {
+fun composeAdvice(rules: MailRules, estimatedPages: Int, imageAttachments: Int, strings: Strings): List<ComposeAdvice> = buildList {
   rules.pageLimit?.let { limit ->
-    if (estimatedPages > limit) add(ComposeAdvice("This is about $estimatedPages pages, and this facility accepts at most $limit. Consider splitting it into two letters.", warning = true))
+    if (estimatedPages > limit) add(ComposeAdvice(strings.get(R.string.advice_too_long, estimatedPages, limit), warning = true))
   }
   if (rules.languages.isNotEmpty()) {
-    add(ComposeAdvice("Letters here must be written in ${rules.languageNames.joinToString(" or ")}. If that is not your language, ask your relay group about translation.", warning = false))
+    add(ComposeAdvice(strings.get(R.string.advice_language, rules.languageNames(strings.language).joinToString(strings.get(R.string.list_or))), warning = false))
   }
-  if (rules.forbidsPhotos) add(ComposeAdvice("This facility refuses pictures, so image attachments are turned off. A PDF can still be attached.", warning = false))
+  if (rules.forbidsPhotos) add(ComposeAdvice(strings.get(R.string.advice_no_photos), warning = false))
   rules.photoLimit?.let { limit ->
-    if (imageAttachments > limit) add(ComposeAdvice("This facility accepts at most $limit photo${if (limit == 1) "" else "s"} per letter; you have attached $imageAttachments.", warning = true))
+    if (imageAttachments > limit) add(ComposeAdvice(strings.plural(R.plurals.advice_too_many_photos, limit, imageAttachments), warning = true))
   }
-  if (rules.has(MailRules.HANDWRITTEN_ONLY)) add(ComposeAdvice("Only handwritten letters are accepted here. Attach a scan of a handwritten letter, or tell your relay group in the note that it needs copying by hand.", warning = true))
-  if (rules.has(MailRules.POSTCARDS_ONLY)) add(ComposeAdvice("Only postcards are accepted here. Keep it short enough to fit one.", warning = true))
-  if (rules.has(MailRules.ORIGINALS_DESTROYED)) add(ComposeAdvice("Mail here is scanned and the original destroyed; the prisoner sees a copy.", warning = false))
-  if (rules.has(MailRules.DELIVERY_NOT_CONFIRMED)) add(ComposeAdvice("Delivery to this facility cannot be confirmed. Do not send anything irreplaceable.", warning = false))
+  if (rules.has(MailRules.HANDWRITTEN_ONLY)) add(ComposeAdvice(strings.get(R.string.advice_handwritten), warning = true))
+  if (rules.has(MailRules.POSTCARDS_ONLY)) add(ComposeAdvice(strings.get(R.string.advice_postcards), warning = true))
+  if (rules.has(MailRules.ORIGINALS_DESTROYED)) add(ComposeAdvice(strings.get(R.string.advice_originals_destroyed), warning = false))
+  if (rules.has(MailRules.DELIVERY_NOT_CONFIRMED)) add(ComposeAdvice(strings.get(R.string.advice_not_confirmed), warning = false))
 }

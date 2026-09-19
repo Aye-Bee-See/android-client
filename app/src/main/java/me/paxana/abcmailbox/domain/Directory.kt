@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.domain
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
+import androidx.annotation.StringRes
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
@@ -17,12 +20,12 @@ data class Verification(val byGroupId: Int?, val at: Instant?) {
     at == null || Period.between(at.atZone(ZoneOffset.UTC).toLocalDate(), now.atZone(ZoneOffset.UTC).toLocalDate()).toTotalMonths() >= 6
 }
 
-enum class Routing(val key: String, val label: String, val explanation: String) {
-  DIRECT("direct", "Direct mail", "Letters are mailed straight to the facility."),
-  SCAN_ONLY("scan_only", "Scan service only", "Physical mail is not accepted; letters go through a scanning service."),
-  DIRECT_AND_SCAN("direct_and_scan", "Direct mail or scan service", "Letters can be mailed or sent through a scanning service."),
-  RELAY_ONLY("relay_only", "Relay only", "Direct mail is not accepted. A relay group must mail the letter locally."),
-  UNKNOWN("", "Routing unknown", "Check with a support group before writing.");
+enum class Routing(val key: String, @StringRes val labelRes: Int, @StringRes val explanationRes: Int) {
+  DIRECT("direct", R.string.routing_direct, R.string.routing_direct_explained),
+  SCAN_ONLY("scan_only", R.string.routing_scan_only, R.string.routing_scan_only_explained),
+  DIRECT_AND_SCAN("direct_and_scan", R.string.routing_direct_and_scan, R.string.routing_direct_and_scan_explained),
+  RELAY_ONLY("relay_only", R.string.routing_relay_only, R.string.routing_relay_only_explained),
+  UNKNOWN("", R.string.routing_unknown, R.string.routing_unknown_explained);
 
   companion object {
     fun fromKey(key: String?): Routing = entries.firstOrNull { it.key == key && key.isNotEmpty() } ?: UNKNOWN
@@ -72,7 +75,7 @@ data class Prisoner(
   val inmateId: String? = null,
 ) {
   /** "Est. release" as the site shows it: the free-text estimate wins, then the date's year. */
-  val releaseSummary: String get() = estimatedRelease?.takeIf { it.isNotBlank() } ?: releaseDate?.year?.toString() ?: "Unknown"
+  val releaseSummary: String? get() = estimatedRelease?.takeIf { it.isNotBlank() } ?: releaseDate?.year?.toString()
 }
 
 data class Group(
@@ -96,27 +99,22 @@ data class Group(
   val location: String get() = listOfNotNull(subregion, country).joinToString(", ")
 }
 
-/** Service keys the API accepts, with the labels the site uses. */
+/** Service keys the API accepts. Their names are resources called `service_<key>`, so a key the app has never seen still reads as words. */
 object Services {
-  val labels: Map<String, String> = linkedMapOf(
-    "letter_collection" to "Letter collection",
-    "letter_writing_nights" to "Letter writing nights",
-    "domestic_mailing" to "Domestic mailing",
-    "international_mailing" to "International mailing",
-    "international_relay" to "International relay",
-    "translation_assistance" to "Translation assistance",
-    "legal_support_coordination" to "Legal support coordination",
-    "book_programs" to "Book programs",
+  val keys: List<String> = listOf(
+    "letter_collection", "letter_writing_nights", "domestic_mailing", "international_mailing",
+    "international_relay", "translation_assistance", "legal_support_coordination", "book_programs",
   )
 
-  fun label(key: String): String = labels[key] ?: key.replace('_', ' ').replaceFirstChar { it.uppercase() }
+  fun label(key: String, strings: Strings): String = strings.byName("service_$key") ?: key.replace('_', ' ').replaceFirstChar { it.uppercase() }
 }
 
 object NetworkRoles {
-  fun label(key: String?): String = when (key) {
-    "collecting" -> "Collecting group: gathers letters and forwards them to relay partners"
-    "relay" -> "Relay group: prints and mails letters locally"
-    "both" -> "Collects letters and relays mail"
-    else -> "Role not set"
+  @StringRes fun labelRes(key: String?): Int = when (key) {
+    "collecting" -> R.string.role_collecting
+    "relay" -> R.string.role_relay
+    "both" -> R.string.role_both
+    else -> R.string.role_not_set
   }
 }
+

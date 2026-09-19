@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.directory
 
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,28 +43,28 @@ fun DirectoryHomeScreen(
 
   Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
     Column(Modifier.padding(horizontal = 20.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      Text("Letters matter.", style = MaterialTheme.typography.displaySmall, modifier = Modifier.asHeading())
-      Text("Write one today.", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.secondary)
+      Text(stringResource(R.string.home_headline), style = MaterialTheme.typography.displaySmall, modifier = Modifier.asHeading())
+      Text(stringResource(R.string.home_subhead), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.secondary)
       Text(
-        "Browse prisoner profiles, find a support group near you, and learn exactly what each facility requires before you write.",
+        stringResource(R.string.home_intro),
         style = MaterialTheme.typography.bodyLarge,
         modifier = Modifier.padding(top = 8.dp),
       )
     }
     HorizontalDivider()
-    DoorRow("Prisoners", "Profiles maintained by support groups", onPrisoners)
+    DoorRow(stringResource(R.string.home_prisoners), stringResource(R.string.home_prisoners_sub), onPrisoners)
     HorizontalDivider()
-    DoorRow("Facilities", "Mail rules and routing for each prison", onFacilities)
+    DoorRow(stringResource(R.string.home_facilities), stringResource(R.string.home_facilities_sub), onFacilities)
     HorizontalDivider()
-    DoorRow("Groups", "Chapters collecting and relaying letters", onGroups)
+    DoorRow(stringResource(R.string.home_groups), stringResource(R.string.home_groups_sub), onGroups)
     HorizontalDivider()
 
-    SectionTitle("Prisoners seeking correspondence", Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+    SectionTitle(stringResource(R.string.home_featured), Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
     when (val f = featured) {
       is Loadable.Loading -> LoadingBox()
       is Loadable.Failed -> ErrorBox(f.error, onRetry = viewModel::load)
       is Loadable.Loaded -> if (f.value.isEmpty()) {
-        Text("No featured prisoners yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
+        Text(stringResource(R.string.home_no_featured), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
       } else {
         f.value.forEach { p -> PrisonerRow(p, onClick = { onPrisoner(p.id) }); HorizontalDivider() }
       }
@@ -86,12 +88,12 @@ private fun DoorRow(title: String, subtitle: String, onClick: () -> Unit) {
 
 @Composable
 fun PrisonerRow(p: me.paxana.abcmailbox.domain.Prisoner, onClick: () -> Unit, horizontalPadding: androidx.compose.ui.unit.Dp = 20.dp) {
-  val heldAt = p.facility?.let { "Held at: ${it.name}" + (it.shortLocation.takeIf { s -> s.isNotBlank() }?.let { s -> ", $s" } ?: "") }
-  val since = p.detainedSince?.year?.let { "Since: $it" }
+  val heldAt = p.facility?.let { stringResource(R.string.held_at, it.name + (it.shortLocation.takeIf { s -> s.isNotBlank() }?.let { s -> ", $s" } ?: "")) }
+  val since = p.detainedSince?.year?.let { stringResource(R.string.detained_since_year, it) }
   RecordRow(
     title = p.name,
     secondary = p.birthName,
-    subtitle = listOfNotNull(heldAt, since, "Est. release: ${p.releaseSummary}").joinToString("  ·  "),
+    subtitle = listOfNotNull(heldAt, since, stringResource(R.string.est_release_value, p.releaseSummary ?: stringResource(R.string.release_unknown))).joinToString("  ·  "),
     notice = p.statusNotice,
     tags = p.interests.take(4),
     onClick = onClick,

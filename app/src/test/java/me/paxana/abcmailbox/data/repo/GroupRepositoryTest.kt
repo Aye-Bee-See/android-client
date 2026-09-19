@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.text.TestStrings
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -54,8 +55,8 @@ class GroupRepositoryTest {
   private fun build(mode: EncryptionMode): DefaultGroupRepository {
     val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
     val authApi = retrofit.create(AuthApi::class.java)
-    val codec = LetterCodec(FixedMode(mode), engine, vault, sessions, authApi, json, keyring)
-    return DefaultGroupRepository(retrofit.create(GroupApi::class.java), ComposeViewModelTest.FakeLetters(), NoDirectory, codec, json, keyring, engine, vault, sessions, authApi, retrofit.create(LettersApi::class.java))
+    val codec = LetterCodec(FixedMode(mode), engine, vault, sessions, authApi, json, keyring, TestStrings())
+    return DefaultGroupRepository(retrofit.create(GroupApi::class.java), ComposeViewModelTest.FakeLetters(), NoDirectory, codec, json, keyring, engine, vault, sessions, authApi, retrofit.create(LettersApi::class.java), TestStrings())
   }
 
   /** A member of group 1 who holds its key (version 3), on an end-to-end server. */

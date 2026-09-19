@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.text.TestStrings
 import android.net.Uri
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
@@ -67,9 +68,9 @@ class OutboxRepositoryTest {
   fun setUp() {
     server.start()
     val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
-    val codec = LetterCodec(FixedMode(EncryptionMode.SERVER), FakeCryptoEngine(), InMemoryVault(), sessions, retrofit.create(AuthApi::class.java), json, FakeKeyring())
+    val codec = LetterCodec(FixedMode(EncryptionMode.SERVER), FakeCryptoEngine(), InMemoryVault(), sessions, retrofit.create(AuthApi::class.java), json, FakeKeyring(), TestStrings())
     sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
-    outbox = DefaultOutboxRepository(dao, Reversing, Files(tmp.root), letters, retrofit.create(LettersApi::class.java), codec, sessions, object : OutboxScheduler { override fun schedule() { scheduled++ } }, json)
+    outbox = DefaultOutboxRepository(dao, Reversing, Files(tmp.root), letters, retrofit.create(LettersApi::class.java), codec, sessions, object : OutboxScheduler { override fun schedule() { scheduled++ } }, json, TestStrings())
   }
 
   @After fun tearDown() = server.shutdown()

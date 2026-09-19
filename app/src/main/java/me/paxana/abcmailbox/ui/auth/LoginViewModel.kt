@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,6 +34,7 @@ data class LoginUiState(
 @HiltViewModel
 class LoginViewModel @Inject constructor(
   private val sessions: SessionRepository,
+  private val strings: Strings,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(LoginUiState())
@@ -48,16 +51,17 @@ class LoginViewModel @Inject constructor(
     viewModelScope.launch {
       when (val result = sessions.login(current.username, current.password)) {
         is ApiResult.Success -> _uiState.update { it.copy(submitting = false, password = "") }
-        is ApiResult.Failure -> _uiState.update { it.copy(submitting = false, error = result.error.toLoginMessage()) }
+        is ApiResult.Failure -> _uiState.update { it.copy(submitting = false, error = result.error.toLoginMessage(strings)) }
       }
     }
   }
 }
 
-internal fun AppError.toLoginMessage(): String = when (this) {
-  is AppError.Unauthorized -> "Incorrect username or password."
-  is AppError.RateLimited -> userMessage ?: "Too many sign-in attempts. Try again later."
+internal fun AppError.toLoginMessage(strings: Strings): String = when (this) {
+  is AppError.Unauthorized -> strings.get(R.string.error_wrong_credentials)
+  // The server's sentence if it sent one; otherwise the wait it asked for, in the user's language.
+  is AppError.RateLimited -> info ?: retryAfterSeconds?.let { strings.plural(R.plurals.error_rate_limited_minutes, ((it + 59) / 60).toInt()) } ?: strings.get(R.string.error_too_many_sign_ins)
   is AppError.Validation -> errors.joinToString(" ")
-  is AppError.Network -> "Can't reach the server. Check your connection and try again."
-  else -> userMessage ?: "Something went wrong. Please try again."
+  is AppError.Network -> strings.get(R.string.error_network)
+  else -> userMessage ?: strings.get(R.string.error_generic)
 }

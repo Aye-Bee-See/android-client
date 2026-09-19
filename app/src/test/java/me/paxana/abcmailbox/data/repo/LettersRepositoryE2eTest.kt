@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.text.TestStrings
 import android.net.Uri
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -46,7 +47,7 @@ class LettersRepositoryE2eTest {
     val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
     sessions.login("user1", "password1")
     vault.store(1, engine.keyPairFor("PUB-ME"))
-    val codec = LetterCodec(FixedMode(EncryptionMode.E2E), engine, vault, sessions, retrofit.create(AuthApi::class.java), json, me.paxana.abcmailbox.data.crypto.FakeKeyring())
+    val codec = LetterCodec(FixedMode(EncryptionMode.E2E), engine, vault, sessions, retrofit.create(AuthApi::class.java), json, me.paxana.abcmailbox.data.crypto.FakeKeyring(), TestStrings())
     repo = DefaultLettersRepository(retrofit.create(LettersApi::class.java), json, object : LocalFilesContract {
       override fun newCameraTarget(): Pair<File, Uri> = error("not used")
       override fun stageCameraShot(file: File): StagedFile = StagedFile(file, file.name, "image/jpeg", file.length())

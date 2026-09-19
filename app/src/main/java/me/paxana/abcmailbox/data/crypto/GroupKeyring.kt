@@ -8,7 +8,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import me.paxana.abcmailbox.crypto.Reader
 import me.paxana.abcmailbox.crypto.Sodium
+import me.paxana.abcmailbox.data.api.AddEnvelopeRequest
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.api.AuthApi
@@ -126,7 +128,22 @@ class DefaultGroupKeyring @Inject constructor(
       val sealedWriterKey = w.orgWrappedPrivateKey ?: return@forEach
       runCatching { engine.openSealedKey(sealedWriterKey, groupPair, w.publicKey) }.onSuccess { writers[w.id] = it }
     }
+    catchUpEnvelopes(groupPair)
     _state.value
+  }
+
+  /**
+   * Quietly, after sign-in: a reply recorded for a writer who had no key yet was sealed to the group alone.
+   * If they have a key by now, give them their envelope. Best effort; whatever fails is offered again next time.
+   */
+  private suspend fun catchUpEnvelopes(groupPair: Sodium.KeyPair) {
+    val waiting = (apiCall(json) { groupApi.missingEnvelopes() } as? ApiResult.Success)?.value?.data.orEmpty()
+    for (w in waiting) {
+      val theirKey = w.publicKey ?: continue
+      val sealedToGroup = w.wrappedKey ?: continue
+      val envelope = runCatching { engine.sealContentKey(engine.openEnvelope(sealedToGroup, groupPair), Reader(w.readerType, w.readerId, theirKey)) }.getOrNull() ?: continue
+      apiCall(json) { groupApi.addEnvelope(AddEnvelopeRequest(w.message, envelope.readerType, envelope.readerId, envelope.wrappedKey, envelope.keyVersion)) }
+    }
   }
 
   private fun set(state: GroupKeyState): GroupKeyState { _state.value = state; return state }

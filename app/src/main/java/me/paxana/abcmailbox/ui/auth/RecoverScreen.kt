@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -67,6 +70,7 @@ data class RecoverUiState(
 class RecoverViewModel @Inject constructor(
   private val sessions: SessionRepository,
   private val modes: EncryptionModeRepository,
+  private val strings: Strings,
 ) : ViewModel() {
   private val _ui = MutableStateFlow(RecoverUiState(mode = modes.mode.value))
   val ui: StateFlow<RecoverUiState> = _ui.asStateFlow()
@@ -83,17 +87,17 @@ class RecoverViewModel @Inject constructor(
     val s = _ui.value
     if (!s.canSubmit) return
     // Check the code's shape locally: recovery starts are rate limited per username.
-    if (!SecretCodes.isWellFormed(s.code)) { _ui.update { it.copy(error = "A recovery code has 24 letters and digits, and never I, L, O, or U.") }; return }
+    if (!SecretCodes.isWellFormed(s.code)) { _ui.update { it.copy(error = strings.get(R.string.error_recovery_code_format)) }; return }
     _ui.update { it.copy(busy = true, error = null) }
     viewModelScope.launch {
       when (val r = sessions.recover(s.username, s.code, s.password)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", code = "") }
         is ApiResult.Failure -> _ui.update {
           it.copy(busy = false, error = when (val e = r.error) {
-            is AppError.NotFound -> "No account with that username has a recovery code."
-            is AppError.Unauthorized -> "Recovery was refused. Start again; each attempt is valid for ten minutes and works once."
-            is AppError.Network -> "Can't reach the server. Nothing has changed."
-            else -> e.userMessage ?: "Recovery failed. Please try again."
+            is AppError.NotFound -> strings.get(R.string.error_recover_no_account)
+            is AppError.Unauthorized -> strings.get(R.string.error_recover_refused)
+            is AppError.Network -> strings.get(R.string.error_recover_network)
+            else -> e.userMessage ?: strings.get(R.string.error_recover_failed)
           })
         }
       }
@@ -112,43 +116,43 @@ fun RecoverScreen(sessionState: SessionState, onBack: () -> Unit, onClaim: () ->
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   LaunchedEffect(sessionState) { if (sessionState is SessionState.SignedIn) onRecovered() }
 
-  DetailScaffold(title = "Forgot your password?", onBack = onBack) { padding ->
+  DetailScaffold(title = stringResource(R.string.action_forgot_password), onBack = onBack) { padding ->
     Column(
       Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 8.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-      Text("There is no reset link we can email you. That is deliberate: a server that can reset your password is a server that can get into your letters.", style = MaterialTheme.typography.bodyLarge)
+      Text(stringResource(R.string.recover_no_reset_link), style = MaterialTheme.typography.bodyLarge)
 
       if (ui.mode == EncryptionMode.E2E) {
-        SectionTitle("Use your recovery code")
-        Text("Enter the code you saved when you set up your account, and choose a new password. Your letters stay readable: the key does not change, only the password that protects it.", style = MaterialTheme.typography.bodyMedium)
+        SectionTitle(stringResource(R.string.recover_section_code))
+        Text(stringResource(R.string.recover_code_explained), style = MaterialTheme.typography.bodyMedium)
         val transform = if (ui.show) VisualTransformation.None else PasswordVisualTransformation()
-        OutlinedTextField(ui.username, viewModel::onUsername, label = { Text("Username") }, singleLine = true, enabled = !ui.busy,
+        OutlinedTextField(ui.username, viewModel::onUsername, label = { Text(stringResource(R.string.label_username)) }, singleLine = true, enabled = !ui.busy,
           keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("recover-username"))
-        OutlinedTextField(ui.code, viewModel::onCode, label = { Text("Recovery code") }, singleLine = true, enabled = !ui.busy,
+        OutlinedTextField(ui.code, viewModel::onCode, label = { Text(stringResource(R.string.label_recovery_code)) }, singleLine = true, enabled = !ui.busy,
           textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
           visualTransformation = UppercaseTransformation,
           keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Next),
           modifier = Modifier.fillMaxWidth().testTag("recover-code"))
-        OutlinedTextField(ui.password, viewModel::onPassword, label = { Text("New password") }, supportingText = { Text("At least 7 characters") }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
+        OutlinedTextField(ui.password, viewModel::onPassword, label = { Text(stringResource(R.string.label_new_password)) }, supportingText = { Text(stringResource(R.string.help_password_length)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-          trailingIcon = { TextButton(onClick = viewModel::onToggleShow) { Text(if (ui.show) "Hide" else "Show") } },
+          trailingIcon = { TextButton(onClick = viewModel::onToggleShow) { Text(stringResource(if (ui.show) R.string.action_hide else R.string.action_show)) } },
           modifier = Modifier.fillMaxWidth().testTag("recover-password"))
-        OutlinedTextField(ui.confirm, viewModel::onConfirm, label = { Text("Confirm new password") }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
+        OutlinedTextField(ui.confirm, viewModel::onConfirm, label = { Text(stringResource(R.string.label_confirm_new_password)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
           isError = ui.confirm.isNotEmpty() && !ui.matches,
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth().testTag("recover-confirm"))
         ui.error?.let { ErrorText(it) }
-        Button(onClick = viewModel::submit, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("recover-submit")) { Text(if (ui.busy) "Recovering…" else "Set new password") }
-        Text("Lost the code too? Then the letters on this account cannot be recovered by anyone. A network admin can help you start a new account.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button(onClick = viewModel::submit, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("recover-submit")) { Text(stringResource(if (ui.busy) R.string.action_recovering else R.string.action_set_new_password)) }
+        Text(stringResource(R.string.recover_lost_code_too), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
       } else {
-        SectionTitle("If the account is your own")
-        Text("Contact a network admin through the group you write with. They can confirm who you are and set a new password for you.", style = MaterialTheme.typography.bodyMedium)
+        SectionTitle(stringResource(R.string.recover_section_own))
+        Text(stringResource(R.string.recover_own_explained), style = MaterialTheme.typography.bodyMedium)
       }
 
-      SectionTitle("If a support group set up your account and you have not claimed it yet")
-      Text("Ask the group for a new claim token. Tokens last 72 hours and work once; they can make another at any time.", style = MaterialTheme.typography.bodyMedium)
-      Button(onClick = onClaim) { Text("I have a claim token") }
-      Text("Too many wrong sign-in attempts lock a username for 15 minutes. Waiting is sometimes all it takes.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      SectionTitle(stringResource(R.string.recover_section_unclaimed))
+      Text(stringResource(R.string.recover_unclaimed_explained), style = MaterialTheme.typography.bodyMedium)
+      Button(onClick = onClaim) { Text(stringResource(R.string.action_have_token)) }
+      Text(stringResource(R.string.recover_lockout_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
   }
 }

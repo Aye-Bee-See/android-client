@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.R
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -85,6 +87,7 @@ class DefaultGroupRepository @Inject constructor(
   private val sessions: SessionRepository,
   private val authApi: AuthApi,
   private val lettersApi: LettersApi,
+  private val strings: Strings,
 ) : GroupRepository {
 
   // Not called `me`: that would shadow the `me.paxana…` package root inside this class.
@@ -94,10 +97,10 @@ class DefaultGroupRepository @Inject constructor(
   private suspend fun groupKey(force: Boolean = false): ApiResult<GroupKey> = when (val s = keyring.load(force)) {
     is GroupKeyState.Ready -> ApiResult.Success(s.key)
     is GroupKeyState.Failed -> ApiResult.Failure(s.error)
-    GroupKeyState.Locked -> ApiResult.Failure(LetterCodec.LOCKED)
-    is GroupKeyState.NotSetUp -> ApiResult.Failure(AppError.Forbidden("Your group has not set up its encryption key yet. Do that first, from the Inbox."))
-    is GroupKeyState.NotHeld -> ApiResult.Failure(AppError.Forbidden("You have not been given your group's key yet. Ask a member who holds it to hand it to you."))
-    GroupKeyState.NotNeeded -> ApiResult.Failure(AppError.Forbidden("This account is not a member of a group."))
+    GroupKeyState.Locked -> ApiResult.Failure(codec.locked)
+    is GroupKeyState.NotSetUp -> ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_group_key_not_set_up)))
+    is GroupKeyState.NotHeld -> ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_group_key_not_held)))
+    GroupKeyState.NotNeeded -> ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
   }
 
   // Queue rows name the prisoner by id only, so each distinct prisoner is fetched once and remembered.
@@ -173,13 +176,13 @@ class DefaultGroupRepository @Inject constructor(
     keyring.writerKey(writerId)?.let { return ApiResult.Success(it) }
     val writer = when (val r = apiCall(json) { api.writers() }) {
       is ApiResult.Failure -> return r
-      is ApiResult.Success -> r.value.data.orEmpty().firstOrNull { it.id == writerId } ?: return ApiResult.Failure(AppError.NotFound("That writer is no longer managed by your group."))
+      is ApiResult.Success -> r.value.data.orEmpty().firstOrNull { it.id == writerId } ?: return ApiResult.Failure(AppError.NotFound(strings.get(R.string.error_writer_not_managed)))
     }
     if (writer.publicKey != null) {
-      val sealed = writer.orgWrappedPrivateKey ?: return ApiResult.Failure(AppError.Forbidden("This writer's key is not held by your group, so a token cannot be made for them."))
+      val sealed = writer.orgWrappedPrivateKey ?: return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_writer_key_not_held)))
       return runCatching { engine.openSealedKey(sealed, group.keyPair, writer.publicKey) }.fold(
         { keyring.remember(writerId, it); ApiResult.Success(it) },
-        { ApiResult.Failure(AppError.Forbidden("This writer's key was sealed to an earlier group key and cannot be opened. Rotate the group key on the web to repair it.")) },
+        { ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_writer_key_old_group_key))) },
       )
     }
     val made = engine.newKeyPairSealedTo(group.publicKey)
@@ -195,9 +198,9 @@ class DefaultGroupRepository @Inject constructor(
   override suspend fun refreshKeyState(): GroupKeyState = keyring.load(force = true)
 
   override suspend fun setUpGroupKey(): ApiResult<Unit> {
-    val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
-    val groupId = user.chapterId ?: return ApiResult.Failure(AppError.Forbidden("This account is not a member of a group."))
-    val mine = vault.keyPair(user.id) ?: return ApiResult.Failure(LetterCodec.LOCKED)
+    val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
+    val groupId = user.chapterId ?: return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
+    val mine = vault.keyPair(user.id) ?: return ApiResult.Failure(codec.locked)
     val made = engine.newKeyPairSealedTo(Base64.getEncoder().encodeToString(mine.publicKey))
     val result = apiCall(json) { api.bootstrapGroupKey(GroupKeyRequest(groupId, made.publicKey, made.sealedPrivateKey)) }
     made.keyPair.privateKey.fill(0)
@@ -207,10 +210,10 @@ class DefaultGroupRepository @Inject constructor(
   }
 
   override suspend fun members(): ApiResult<List<GroupMember>> {
-    val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized("You are signed out."))
+    val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
     val groupId = user.chapterId ?: return ApiResult.Success(emptyList())
     return apiCall(json) { api.members(groupId) }.map { env ->
-      env.data?.members.orEmpty().map { GroupMember(it.id, it.name?.takeIf { n -> n.isNotBlank() } ?: it.username ?: "Member ${it.id}", it.publicKey != null, it.holdsGroupKey, it.id == user.id) }
+      env.data?.members.orEmpty().map { GroupMember(it.id, it.name?.takeIf { n -> n.isNotBlank() } ?: it.username ?: strings.get(R.string.member_numbered, it.id), it.publicKey != null, it.holdsGroupKey, it.id == user.id) }
     }
   }
 
@@ -220,13 +223,13 @@ class DefaultGroupRepository @Inject constructor(
     val theirKey = when (val r = apiCall(json) { api.members(group.groupId) }) {
       is ApiResult.Failure -> return r
       is ApiResult.Success -> r.value.data?.members.orEmpty().firstOrNull { it.id == memberId }?.publicKey
-        ?: return ApiResult.Failure(AppError.Validation(listOf("That member has no key of their own yet. They get one the first time they sign in; hand them the group key after that.")))
+        ?: return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_member_no_key))))
     }
     return apiCall(json) { api.handKey(MemberKeyRequest(group.groupId, memberId, engine.sealPrivateKey(group.keyPair.privateKey, theirKey))) }.map { }
   }
 
   override suspend fun stopHandingKeyTo(memberId: Int): ApiResult<Unit> {
-    val groupId = viewer?.chapterId ?: return ApiResult.Failure(AppError.Forbidden("This account is not a member of a group."))
+    val groupId = viewer?.chapterId ?: return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
     return apiCall(json) { api.takeKey(MemberRef(groupId, memberId)) }.map { }
   }
 

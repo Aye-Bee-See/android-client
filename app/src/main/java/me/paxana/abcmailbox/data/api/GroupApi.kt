@@ -65,6 +65,14 @@ interface GroupApi {
   @HTTP(method = "DELETE", path = "auth/member-key", hasBody = true)
   suspend fun takeKey(@Body body: MemberRef): ApiEnvelope<JsonElement>
 
+  /**
+   * End-to-end, API PR #95: letters this group can open whose writer had no key when they were recorded
+   * (a reply for someone who had not signed in since the switch) and has one now. `wrappedKey` is the
+   * group's own envelope; the member's client opens it, seals the content key to `publicKey`, and posts it.
+   */
+  @GET("messaging/envelopes/missing")
+  suspend fun missingEnvelopes(): ApiEnvelope<List<MissingEnvelopeDto>>
+
   /** A current reader gives one more permitted reader (a partner relay group) the letter's content key. */
   @POST("messaging/envelope")
   suspend fun addEnvelope(@Body body: AddEnvelopeRequest): ApiEnvelope<JsonElement>
@@ -95,6 +103,9 @@ data class IssueTokenRequest(
 @Serializable data class GroupKeyRequest(val chapter: Int, val publicKey: String, val wrappedOrgPrivateKey: String)
 @Serializable data class MemberKeyRequest(val chapter: Int, val user: Int, val wrappedOrgPrivateKey: String)
 @Serializable data class MemberRef(val chapter: Int, val user: Int)
+@Serializable
+data class MissingEnvelopeDto(val message: Int, val readerType: String = "user", val readerId: Int, val publicKey: String? = null, val wrappedKey: String? = null, val keyVersion: Int? = null)
+
 @Serializable data class AddEnvelopeRequest(val message: Int, val readerType: String, val readerId: Int, val wrappedKey: String, val keyVersion: Int? = null)
 
 @Serializable

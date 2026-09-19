@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.coroutines.flow.MutableStateFlow
 import me.paxana.abcmailbox.crypto.Sodium
 import me.paxana.abcmailbox.data.crypto.GroupKey
@@ -75,12 +76,12 @@ class GroupViewModelsTest {
 
   @Test
   fun `setting up the group key opens it, and a refusal is shown in the API's words`() = runTest {
-    val group = FakeGroup(); val vm = GroupKeyViewModel(group)
+    val group = FakeGroup(); val vm = GroupKeyViewModel(group, TestStrings())
     vm.setUp(); dispatcher.scheduler.advanceUntilIdle()
     assertTrue(vm.keyState.value is GroupKeyState.Ready)
     assertTrue(vm.ui.value.notice!!.contains("Hand it to the other members"))
 
-    val late = GroupKeyViewModel(FakeGroup(refuse = AppError.Conflict("This group already has keys.")))
+    val late = GroupKeyViewModel(FakeGroup(refuse = AppError.Conflict("This group already has keys.")), TestStrings())
     late.setUp(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals("This group already has keys.", late.ui.value.error)
     assertFalse(late.ui.value.busy)
@@ -88,7 +89,7 @@ class GroupViewModelsTest {
 
   @Test
   fun `handing the key to a member reloads the list, which then shows them as a holder`() = runTest {
-    val group = FakeGroup(); val vm = GroupKeyViewModel(group)
+    val group = FakeGroup(); val vm = GroupKeyViewModel(group, TestStrings())
     vm.loadMembers(); dispatcher.scheduler.advanceUntilIdle()
     val noor = (vm.ui.value.members as Loadable.Loaded).value.first { it.name == "Noor" }
     assertFalse(noor.holdsGroupKey)
@@ -101,7 +102,7 @@ class GroupViewModelsTest {
   @Test
   fun `a letter is shared with a partner group by name, and only partners the repository offers are listed`() = runTest {
     val group = FakeGroup().apply { partners = listOf(me.paxana.abcmailbox.domain.Group(2, "Northside ABC", null, null, null, null, null, emptyMap(), emptyList(), null, "relay", "active", emptyList(), emptyList(), null)) }
-    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41))
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings())
     dispatcher.scheduler.advanceUntilIdle()
     assertEquals(listOf("Northside ABC"), vm.ui.value.partners.map { it.name })
     vm.share(vm.ui.value.partners.single()); dispatcher.scheduler.advanceUntilIdle()
@@ -112,7 +113,7 @@ class GroupViewModelsTest {
   @Test
   fun `a letter moves forward one step at a time and stops at mailed`() = runTest {
     val group = FakeGroup()
-    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41))
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings())
     dispatcher.scheduler.advanceUntilIdle()
     vm.advance(); dispatcher.scheduler.advanceUntilIdle()
     vm.advance(); dispatcher.scheduler.advanceUntilIdle()
@@ -124,7 +125,7 @@ class GroupViewModelsTest {
 
   @Test
   fun `a refused move shows the API's sentence and leaves the letter as it was`() = runTest {
-    val vm = LetterWorkViewModel(FakeGroup(refuse = AppError.Forbidden("Only the letter's relay group can change its status.")), ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41))
+    val vm = LetterWorkViewModel(FakeGroup(refuse = AppError.Forbidden("Only the letter's relay group can change its status.")), ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings())
     dispatcher.scheduler.advanceUntilIdle()
     vm.advance(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals("Only the letter's relay group can change its status.", vm.ui.value.notice)
@@ -135,7 +136,7 @@ class GroupViewModelsTest {
   @Test
   fun `a token is shown after generating, replaced on regenerate, and gone after revoke`() = runTest {
     val group = FakeGroup()
-    val vm = HandoffViewModel(group, HandoffRoute(47, "Maria T."))
+    val vm = HandoffViewModel(group, HandoffRoute(47, "Maria T."), TestStrings())
     assertNull(vm.ui.value.token)
     vm.generate(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals("TOKEN1", vm.ui.value.token?.token)
@@ -147,7 +148,7 @@ class GroupViewModelsTest {
 
   @Test
   fun `a writer needs a name of three to thirty-two characters`() = runTest {
-    val vm = AddWriterViewModel(FakeGroup())
+    val vm = AddWriterViewModel(FakeGroup(), TestStrings())
     vm.onName("Al"); assertFalse(vm.ui.value.canSubmit)
     vm.onName("x".repeat(33)); assertFalse(vm.ui.value.canSubmit)
     vm.onName("  Maria T. "); assertTrue(vm.ui.value.canSubmit)

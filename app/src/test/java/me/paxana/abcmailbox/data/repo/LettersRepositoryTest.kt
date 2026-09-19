@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.text.TestStrings
 import android.net.Uri
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -34,7 +35,7 @@ class LettersRepositoryTest {
       .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
       .build().create(LettersApi::class.java)
     val authApi = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(me.paxana.abcmailbox.data.api.AuthApi::class.java)
-    val codec = me.paxana.abcmailbox.data.crypto.LetterCodec(me.paxana.abcmailbox.data.crypto.FixedMode(me.paxana.abcmailbox.data.crypto.EncryptionMode.SERVER), me.paxana.abcmailbox.data.crypto.FakeCryptoEngine(), me.paxana.abcmailbox.data.crypto.InMemoryVault(), me.paxana.abcmailbox.ui.auth.FakeSessionRepository(), authApi, json, me.paxana.abcmailbox.data.crypto.FakeKeyring())
+    val codec = me.paxana.abcmailbox.data.crypto.LetterCodec(me.paxana.abcmailbox.data.crypto.FixedMode(me.paxana.abcmailbox.data.crypto.EncryptionMode.SERVER), me.paxana.abcmailbox.data.crypto.FakeCryptoEngine(), me.paxana.abcmailbox.data.crypto.InMemoryVault(), me.paxana.abcmailbox.ui.auth.FakeSessionRepository(), authApi, json, me.paxana.abcmailbox.data.crypto.FakeKeyring(), TestStrings())
     repo = DefaultLettersRepository(api, json, FakeLocalFiles(tmp), codec)
   }
 
