@@ -1,6 +1,8 @@
 package me.paxana.abcmailbox.data.db
 
 import androidx.room.AutoMigration
+import androidx.room.DeleteColumn
+import androidx.room.migration.AutoMigrationSpec
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -46,12 +48,19 @@ interface DraftDao {
  */
 @Database(
   entities = [DraftEntity::class, CachedPrisoner::class, CachedFacility::class, CachedGroup::class, DirectoryMeta::class, OutboxEntity::class],
-  version = 3,
+  version = 4,
   exportSchema = true,
-  autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+  autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4, spec = AppDatabase.DropOutcomeUnknown::class)],
 )
 abstract class AppDatabase : RoomDatabase() {
   abstract fun drafts(): DraftDao
   abstract fun directoryCache(): DirectoryCacheDao
   abstract fun outbox(): OutboxDao
+
+  /**
+   * Version 4: the outbox no longer guesses whether a letter arrived (the API has idempotency keys), so the
+   * flag that said "go and look" goes. Dropping a column is not something Room can infer is intended, hence the spec.
+   */
+  @DeleteColumn(tableName = "outbox", columnName = "outcomeUnknown")
+  class DropOutcomeUnknown : AutoMigrationSpec
 }

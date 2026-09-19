@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
@@ -79,7 +80,7 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setBody("""{"data":{"id":41,"chat":41,"sender":"user","prisoner":1,"user":4,"status":"printed","relayChapter":1,"messageText":"Hi"},"success":true,"status":200}"""))
     val ok = repo.setStatus(41, LetterStatus.PRINTED) as ApiResult.Success
     assertEquals(LetterStatus.PRINTED, ok.value.status)
-    val req = server.takeRequest()
+    val req = server.next()
     assertEquals("PUT", req.method); assertEquals("/messaging/status", req.path)
     assertEquals("""{"id":41,"status":"printed"}""", req.body.readUtf8())
 
@@ -108,16 +109,16 @@ class GroupRepositoryTest {
   fun `adding a writer trims and omits blanks, and a token is returned once`() = runTest {
     server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"id":47,"name":"Maria T.","managedBy":1},"success":true,"status":201}"""))
     repo.addWriter("  Maria T. ", "  ", "")
-    assertEquals("""{"name":"Maria T."}""", server.takeRequest().body.readUtf8())
+    assertEquals("""{"name":"Maria T."}""", server.next().body.readUtf8())
 
     server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"writer":47,"token":"R60GRVGC3V007NS41T6ZAPXG","expiresAt":"2026-09-20T22:20:47.692Z"},"success":true,"status":201}"""))
     val t = (repo.issueToken(47) as ApiResult.Success).value
     assertEquals("R60GRVGC3V007NS41T6ZAPXG", t.token)
-    assertEquals("""{"writer":47}""", server.takeRequest().body.readUtf8())
+    assertEquals("""{"writer":47}""", server.next().body.readUtf8())
 
     server.enqueue(MockResponse().setBody("""{"data":1,"success":true,"status":200}"""))
     assertTrue(repo.revokeToken(47) is ApiResult.Success)
-    val revoke = server.takeRequest()
+    val revoke = server.next()
     assertEquals("DELETE", revoke.method); assertEquals("""{"writer":47}""", revoke.body.readUtf8())
   }
 
@@ -136,7 +137,7 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"id":47,"name":"Maria T.","managedBy":1},"success":true,"status":201}"""))
     e2e.addWriter("Maria T.", null, null)
     val maria = engine.publicText(engine.keyPairFor("PUB-MARIA"))
-    assertEquals("""{"name":"Maria T.","publicKey":"$maria","orgWrappedPrivateKey":"sealedkey(private-of-PUB-MARIA)to($groupPublic)","orgKeyVersion":3}""", server.takeRequest().body.readUtf8())
+    assertEquals("""{"name":"Maria T.","publicKey":"$maria","orgWrappedPrivateKey":"sealedkey(private-of-PUB-MARIA)to($groupPublic)","orgKeyVersion":3}""", server.next().body.readUtf8())
     assertEquals("usable at once, without reloading the keyring", "private-of-PUB-MARIA", String(keyring.writerKey(47)!!.privateKey))
   }
 
@@ -155,7 +156,7 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"writer":44,"expiresAt":"2026-09-20T22:20:47.692Z"},"success":true,"status":201}"""))
     val issued = (e2e.issueToken(44) as ApiResult.Success).value
     assertEquals("R60GRVGC3V007NS41T6ZAPXG", issued.token); assertNotNull(issued.expiresAt)
-    val sent = server.takeRequest().body.readUtf8()
+    val sent = server.next().body.readUtf8()
     assertFalse("the token itself must not be in the request", sent.contains("R60GRVGC3V007NS41T6ZAPXG\"") && !sent.contains("hash("))
     assertEquals("""{"writer":44,"tokenHash":"hash(R60GRVGC3V007NS41T6ZAPXG)","claimWrappedPrivateKey":"wrapped(private-of-PUB-ALEX)under(R60GRVGC3V007NS41T6ZAPXG)","claimSalt":"claim-salt","claimKdfParams":{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}}""", sent)
   }
@@ -167,11 +168,11 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"writer":45,"expiresAt":null},"success":true,"status":201}"""))
     assertTrue(e2e.issueToken(45) is ApiResult.Success)
-    assertEquals("/auth/writers?page_size=100", server.takeRequest().path)
-    val put = server.takeRequest()
+    assertEquals("/auth/writers?page_size=100", server.next().path)
+    val put = server.next()
     assertEquals("PUT", put.method); assertEquals("/auth/user", put.path)
     assertEquals("""{"id":45,"publicKey":"${engine.publicText(engine.keyPairFor("PUB-OLD"))}","orgWrappedPrivateKey":"sealedkey(private-of-PUB-OLD)to($groupPublic)","orgKeyVersion":3}""", put.body.readUtf8())
-    assertTrue(server.takeRequest().body.readUtf8().contains("wrapped(private-of-PUB-OLD)"))
+    assertTrue(server.next().body.readUtf8().contains("wrapped(private-of-PUB-OLD)"))
   }
 
   @Test
@@ -181,7 +182,7 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     assertTrue(e2e.setUpGroupKey() is ApiResult.Success)
     val member = engine.publicText(engine.keyPairFor("PUB-MEMBER"))
-    assertEquals("""{"chapter":1,"publicKey":"$groupPublic","wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to($member)"}""", server.takeRequest().body.readUtf8())
+    assertEquals("""{"chapter":1,"publicKey":"$groupPublic","wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to($member)"}""", server.next().body.readUtf8())
     assertEquals(1, keyring.forced)
   }
 
@@ -193,12 +194,12 @@ class GroupRepositoryTest {
     val listed = (e2e.members() as ApiResult.Success).value
     assertEquals(listOf("Sam", "member2", "member3"), listed.map { it.name })
     assertTrue(listed[0].isMe); assertFalse(listed[2].hasOwnKey)
-    server.takeRequest()
+    server.next()
 
     server.enqueue(MockResponse().setBody(members)); server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     assertTrue(e2e.handKeyTo(10) is ApiResult.Success)
-    server.takeRequest()
-    assertEquals("""{"chapter":1,"user":10,"wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to(PUB-NOOR)"}""", server.takeRequest().body.readUtf8())
+    server.next()
+    assertEquals("""{"chapter":1,"user":10,"wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to(PUB-NOOR)"}""", server.next().body.readUtf8())
 
     server.enqueue(MockResponse().setBody(members))
     assertTrue(e2e.handKeyTo(11) is ApiResult.Failure)
@@ -212,8 +213,8 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setBody("""{"data":{"chapter":2,"publicKey":"PUB-PARTNER","keyVersion":5},"success":true,"status":200}"""))
     server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
     assertTrue(e2e.shareWith(7, 2) is ApiResult.Success)
-    server.takeRequest(); server.takeRequest()
-    val post = server.takeRequest()
+    server.next(); server.next()
+    val post = server.next()
     assertEquals("/messaging/envelope", post.path)
     assertEquals("""{"message":7,"readerType":"chapter","readerId":2,"wrappedKey":"sealed(KEY)to(PUB-PARTNER)","keyVersion":5}""", post.body.readUtf8())
   }

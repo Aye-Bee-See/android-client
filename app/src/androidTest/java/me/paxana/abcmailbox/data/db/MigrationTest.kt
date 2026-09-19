@@ -31,14 +31,19 @@ class MigrationTest {
     }
     // Validates the upgraded schema against what each version expects, table by table.
     helper.runMigrationsAndValidate(name, 2, true).close()
-    helper.runMigrationsAndValidate(name, 3, true).close()
+    // Version 3 had a column the outbox used for guessing whether a letter had arrived. A queued letter must survive its removal.
+    helper.runMigrationsAndValidate(name, 3, true).apply {
+      execSQL("INSERT INTO outbox (userId, sealed, queuedAt, state, attempts, messageId, outcomeUnknown) VALUES (2, 'ciphertext-of-a-queued-letter', 1758300000000, 'waiting', 1, NULL, 1)")
+      close()
+    }
+    helper.runMigrationsAndValidate(name, 4, true).close()
 
     val db = Room.databaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, AppDatabase::class.java, name).build()
     try {
       val draft = db.drafts().get(userId = 2, prisonerId = 1)
       assertNotNull(draft); assertEquals("ciphertext-of-a-half-written-letter", draft!!.body)
       assertEquals("the new tables exist and are empty", 0, db.directoryCache().countPrisoners("", null, null, null, null))
-      assertEquals(0, db.outbox().countWaiting())
+      assertEquals("the queued letter came through", "ciphertext-of-a-queued-letter", db.outbox().waiting(2).single().sealed)
     } finally { db.close() }
   }
 }

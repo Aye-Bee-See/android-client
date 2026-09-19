@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.crypto
 
+import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -67,7 +68,7 @@ class LetterCodecTest {
   fun `end-to-end seals to the writer and to the relay group with its key version`() = runTest {
     server.enqueue(MockResponse().setBody("""{"data":{"chapter":2,"publicKey":"PUB-GROUP","keyVersion":4},"success":true,"status":200}"""))
     val (request, key) = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Dear friend", "two pages", 2)) as ApiResult.Success).value
-    assertEquals("/auth/public-key?chapter=2", server.takeRequest().path)
+    assertEquals("/auth/public-key?chapter=2", server.next().path)
     assertNull("plaintext must never be sent", request.messageText)
     assertNull(request.relayNote)
     assertEquals("enc[Dear friend]", request.ciphertext)
@@ -144,8 +145,8 @@ class LetterCodecTest {
     server.enqueue(publicKey("""{"user":44,"publicKey":"PUB-ALEX"}"""))
     server.enqueue(publicKey("""{"chapter":2,"publicKey":"PUB-RELAY","keyVersion":7}"""))
     val request = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Hi", "note", relayChapter = 2, asWriterId = 44)) as ApiResult.Success).value.first
-    assertEquals("/auth/public-key?user=44", server.takeRequest().path)
-    assertEquals("/auth/public-key?chapter=2", server.takeRequest().path)
+    assertEquals("/auth/public-key?user=44", server.next().path)
+    assertEquals("/auth/public-key?chapter=2", server.next().path)
     assertEquals(listOf(
       EnvelopeDto("user", 44, "sealed(KEY)to(PUB-ALEX)"),
       EnvelopeDto("chapter", 1, "sealed(KEY)to(PUB-GROUP)", keyVersion = 3),

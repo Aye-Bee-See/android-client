@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.dev
 
+import me.paxana.abcmailbox.next
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -27,7 +28,7 @@ class DevServerTest {
     val client = OkHttpClient.Builder().addInterceptor(BaseUrlInterceptor { server.url("/").toString() }).build()
     server.enqueue(MockResponse().setBody("{}"))
     client.newCall(Request.Builder().url("http://10.0.2.2:3000/prisoner/prisoners?q=ales&page=2").build()).execute().close()
-    val req = server.takeRequest()
+    val req = server.next()
     assertEquals("/prisoner/prisoners?q=ales&page=2", req.path)
     assertEquals(server.hostName, req.requestUrl?.host)
     assertEquals(server.port, req.requestUrl?.port)

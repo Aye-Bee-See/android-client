@@ -639,4 +639,33 @@
     <!-- Stragglers -->
     <string name="action_record_reply">Record reply</string>
     <string name="notice_writer_added">%1$s added.</string>
+
+    <!-- Activity notifications. They appear on lock screens, so they name nobody and quote nothing. -->
+    <string name="activity_channel_name">Letters and replies</string>
+    <string name="activity_channel_description">Tells you when a letter of yours is printed or mailed, when a reply arrives, and, for group members, when a letter is waiting to be printed.</string>
+    <string name="activity_reply">A reply to one of your letters has arrived.</string>
+    <string name="activity_printed">One of your letters has been printed.</string>
+    <string name="activity_mailed">One of your letters is in the post.</string>
+    <string name="activity_queued">A letter is waiting for your group to print it.</string>
+    <string name="activity_change_approved">A change you proposed to the directory was approved.</string>
+    <string name="activity_change_rejected">A change you proposed to the directory was not accepted.</string>
+    <string name="activity_other">There is something new in your account.</string>
+    <plurals name="activity_summary">
+        <item quantity="one">%d update about your letters</item>
+        <item quantity="other">%d updates about your letters</item>
+    </plurals>
+    <plurals name="activity_and_more">
+        <item quantity="one">and %d more</item>
+        <item quantity="other">and %d more</item>
+    </plurals>
+
+    <!-- Instant notifications (the optional push doorbell) -->
+    <string name="push_title">Instant notifications</string>
+    <string name="push_explained">Without this, the app checks for news a few times a day and whenever you open it. With it, the server rings this phone the moment something happens. The ring passes through Google\'s push service and carries nothing, no names, no text: Google learns only that this phone has this app, and when it is rung.</string>
+    <string name="push_unavailable_build">Not available in this build.</string>
+    <string name="push_unavailable_device">This phone has no Google push service, so the app keeps checking by itself.</string>
+    <string name="push_on_not_deliverable">Turned on. The server is not set up to ring phones yet, so until it is the app keeps checking by itself.</string>
+    <string name="push_on">Turned on.</string>
+    <string name="push_off">Turned off. This phone will no longer be rung.</string>
+    <string name="push_failed">Could not change this: %1$s</string>
 </resources>

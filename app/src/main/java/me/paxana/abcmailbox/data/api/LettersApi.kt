@@ -10,6 +10,7 @@ import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.HTTP
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -43,12 +44,12 @@ interface LettersApi {
   @GET("chat/chat")
   suspend fun chatByPrisoner(@Query("prisoner") prisoner: Int, @Query("full") full: Boolean = true): ApiEnvelope<ChatDto>
 
-  /** Letters to one prisoner that the caller can see. The outbox uses it to check whether a letter already arrived. */
-  @GET("messaging/messages")
-  suspend fun messagesTo(@Query("prisoner") prisoner: Int, @Query("page_size") pageSize: Int = 100): ApiEnvelope<List<MessageDto>>
-
+  /**
+   * [idempotencyKey]: made up once per letter and repeated on every retry of it (API PR #97). A retry of a
+   * letter that did arrive gets that letter back instead of creating a second one for the prisoner.
+   */
   @POST("messaging/message")
-  suspend fun send(@Body body: SendMessageRequest): ApiEnvelope<MessageDto>
+  suspend fun send(@Body body: SendMessageRequest, @Header("Idempotency-Key") idempotencyKey: String? = null): ApiEnvelope<MessageDto>
 
   @GET("messaging/message")
   suspend fun message(@Query("id") id: Int, @Query("full") full: Boolean = true): ApiEnvelope<MessageDto>
@@ -66,6 +67,7 @@ interface LettersApi {
     @Part file: MultipartBody.Part,
     /** End-to-end mode: the nonce the file was encrypted with; omitted in server mode. */
     @Part("nonce") nonce: RequestBody? = null,
+    @Header("Idempotency-Key") idempotencyKey: String? = null,
   ): ApiEnvelope<AttachmentDto>
 
   @GET("messaging/attachments")

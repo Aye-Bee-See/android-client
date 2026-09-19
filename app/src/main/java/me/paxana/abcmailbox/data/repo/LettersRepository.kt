@@ -42,6 +42,8 @@ data class NewLetter(
   val fromPrisoner: Boolean = false,
   /** Group accounts, end-to-end: the group is a relay group of this facility, so the server lets it hold an envelope. */
   val groupRelaysFacility: Boolean = false,
+  /** Made once per letter, kept through every retry, including the outbox's days later. See [LettersApi.send]. */
+  val idempotencyKey: String? = null,
 )
 
 data class LetterEdit(val messageId: Int, val body: String, val relayNote: String?, val relayChapter: Int?)
@@ -54,7 +56,7 @@ interface LettersRepository {
   suspend fun send(letter: NewLetter): ApiResult<Letter>
   suspend fun edit(edit: LetterEdit): ApiResult<Unit>
   suspend fun delete(messageId: Int): ApiResult<Unit>
-  suspend fun upload(messageId: Int, staged: StagedFile): ApiResult<Attachment>
+  suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String? = null): ApiResult<Attachment>
   suspend fun deleteAttachment(attachmentId: Int): ApiResult<Unit>
   /** Downloads to the cache and returns the file; a second call for the same attachment is instant. */
   suspend fun download(attachment: Attachment): ApiResult<File>
@@ -104,9 +106,10 @@ class DefaultLettersRepository @Inject constructor(
         is ApiResult.Failure -> return encoded
         is ApiResult.Success -> encoded.value.first
       }
-      when (val r = apiCall(json) { api.send(request) }) {
+      when (val r = apiCall(json) { api.send(request, letter.idempotencyKey) }) {
         is ApiResult.Success -> return ApiResult.Success(codec.incoming(checkNotNull(r.value.data)))
-        is ApiResult.Failure -> if (r.error !is AppError.Conflict || attempt == 1) return r else codec.refreshKeys()
+        // Only a rotated group key is worth an immediate second try. "Still processing" means our own earlier attempt is in flight.
+        is ApiResult.Failure -> if (r.error !is AppError.Conflict || r.error.isStillProcessing || attempt == 1) return r else codec.refreshKeys()
       }
     }
     error("unreachable")
@@ -127,12 +130,12 @@ class DefaultLettersRepository @Inject constructor(
 
   override suspend fun delete(messageId: Int): ApiResult<Unit> = apiCall(json) { api.delete(IdBody(messageId)) }.map { }
 
-  override suspend fun upload(messageId: Int, staged: StagedFile): ApiResult<Attachment> {
+  override suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String?): ApiResult<Attachment> {
     codec.ready()
     val messageField = messageId.toString().toRequestBody("text/plain".toMediaType())
     if (!codec.isEndToEnd()) {
       return apiCall(json) {
-        api.upload(messageField, MultipartBody.Part.createFormData("file", staged.name, staged.file.asRequestBody(staged.mimeType.toMediaType())))
+        api.upload(messageField, MultipartBody.Part.createFormData("file", staged.name, staged.file.asRequestBody(staged.mimeType.toMediaType())), idempotencyKey = idempotencyKey)
       }.map { checkNotNull(it.data).toDomain() }
     }
     // End-to-end: the file is encrypted under the letter's content key before it leaves the phone.
@@ -147,6 +150,8 @@ class DefaultLettersRepository @Inject constructor(
         messageField,
         MultipartBody.Part.createFormData("file", staged.name, cipherBytes.toRequestBody(staged.mimeType.toMediaType())),
         nonce.toRequestBody("text/plain".toMediaType()),
+        // The server matches a retried upload on letter, file name and size. Ciphertext differs between attempts, but its size does not.
+        idempotencyKey,
       )
     }.map { checkNotNull(it.data).toDomain() }
   }

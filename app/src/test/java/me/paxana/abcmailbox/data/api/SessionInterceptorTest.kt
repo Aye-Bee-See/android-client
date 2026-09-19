@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.api
 
+import me.paxana.abcmailbox.next
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import me.paxana.abcmailbox.data.session.SessionCache
@@ -34,7 +35,7 @@ class SessionInterceptorTest {
   fun `no header without a session`() {
     server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
     get().close()
-    assertNull(server.takeRequest().getHeader("Authorization"))
+    assertNull(server.next().getHeader("Authorization"))
   }
 
   @Test
@@ -42,7 +43,7 @@ class SessionInterceptorTest {
     cache.token = "abc.def.ghi"
     server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
     get().close()
-    assertEquals("Bearer abc.def.ghi", server.takeRequest().getHeader("Authorization"))
+    assertEquals("Bearer abc.def.ghi", server.next().getHeader("Authorization"))
   }
 
   @Test
@@ -59,7 +60,7 @@ class SessionInterceptorTest {
     for (path in listOf("/auth/login", "/auth/claim", "/auth/recover")) {
       server.enqueue(MockResponse().setResponseCode(401).setBody("""{"info":"Incorrect username or password."}"""))
       client.newCall(Request.Builder().url(server.url(path)).build()).execute().close()
-      assertNull("token leaked to $path", server.takeRequest().getHeader("Authorization"))
+      assertNull("token leaked to $path", server.next().getHeader("Authorization"))
     }
     assertEquals(0, cache.unauthorized.replayCache.size)
   }
@@ -79,6 +80,6 @@ class SessionInterceptorTest {
     cache.token = "abc.def.ghi"
     server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
     client.newCall(Request.Builder().url(server.url("/prisoner/prisoners?full=true")).tag(Anonymous::class.java, Anonymous).build()).execute().close()
-    assertNull(server.takeRequest().getHeader("Authorization"))
+    assertNull(server.next().getHeader("Authorization"))
   }
 }

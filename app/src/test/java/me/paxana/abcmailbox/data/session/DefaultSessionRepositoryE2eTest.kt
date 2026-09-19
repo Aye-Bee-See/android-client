@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.session
 
+import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -57,7 +58,7 @@ class DefaultSessionRepositoryE2eTest {
   private fun login(keys: String) = """{"data":{"user":{"id":7,"username":"carol","role":"user"},"token":{"token":"jwt-1","expires":1},"keys":$keys},"success":true,"status":200}"""
   private val noKeys = """{"publicKey":null,"wrappedPrivateKey":null,"kdfSalt":null,"kdfParams":null,"hasRecovery":false,"orgKey":null}"""
   private fun keysUnder(secret: String) = """{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under($secret)","kdfSalt":"salt","kdfParams":{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864},"hasRecovery":true,"orgKey":null}"""
-  private fun body(i: Int = 0) = json.parseToJsonElement(server.takeRequest().also { repeat(i) { } }.body.readUtf8()).jsonObject
+  private fun body(i: Int = 0) = json.parseToJsonElement(server.next().also { repeat(i) { } }.body.readUtf8()).jsonObject
 
   @Test
   fun `first sign-in on an end-to-end server creates keys, uploads all seven fields, and queues the recovery code`() = runTest {
@@ -65,8 +66,8 @@ class DefaultSessionRepositoryE2eTest {
     server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     assertTrue(repo.login("carol", "carolpass") is ApiResult.Success)
 
-    assertEquals("/auth/login", server.takeRequest().path)
-    val put = server.takeRequest()
+    assertEquals("/auth/login", server.next().path)
+    val put = server.next()
     assertEquals("PUT", put.method); assertEquals("/auth/keys", put.path)
     val sent = json.parseToJsonElement(put.body.readUtf8()).jsonObject
     assertEquals(setOf("publicKey", "wrappedPrivateKey", "kdfSalt", "kdfParams", "recoveryWrappedPrivateKey", "recoverySalt", "recoveryKdfParams"), sent.keys)
@@ -98,8 +99,8 @@ class DefaultSessionRepositoryE2eTest {
     server.enqueue(MockResponse().setBody(login(keysUnder("newpass77"))))
     assertTrue(repo.claim("TOKEN24", "carol", "newpass77", null) is ApiResult.Success)
 
-    server.takeRequest() // the check
-    val claim = json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+    server.next() // the check
+    val claim = json.parseToJsonElement(server.next().body.readUtf8()).jsonObject
     assertEquals("wrapped(PUB-CAROL)under(newpass77)", claim["wrappedPrivateKey"]!!.jsonPrimitive.content)
     assertEquals("wrapped(PUB-CAROL)under(REWRAPCODE)", claim["recoveryWrappedPrivateKey"]!!.jsonPrimitive.content)
     assertNull("the public key never changes, so it is not sent", claim["publicKey"])
@@ -115,8 +116,8 @@ class DefaultSessionRepositoryE2eTest {
     server.enqueue(MockResponse().setBody("""{"data":{"updatedRows":[1],"token":{"token":"jwt-2","expires":2}},"success":true,"status":200}"""))
     assertTrue(repo.changePassword("carolpass", "brandnew77") is ApiResult.Success)
 
-    server.takeRequest(); server.takeRequest()
-    val put = json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+    server.next(); server.next()
+    val put = json.parseToJsonElement(server.next().body.readUtf8()).jsonObject
     assertEquals("brandnew77", put["password"]!!.jsonPrimitive.content)
     assertEquals("wrapped(PUB-CAROL)under(brandnew77)", put["wrappedPrivateKey"]!!.jsonPrimitive.content)
     assertEquals("jwt-2", store.flow.value?.token)
@@ -129,8 +130,8 @@ class DefaultSessionRepositoryE2eTest {
     server.enqueue(MockResponse().setBody(login(keysUnder("afterrecovery"))))
     assertTrue(repo.recover("carol", "SAVEDCODE", "afterrecovery") is ApiResult.Success)
 
-    assertEquals("/auth/recover?username=carol", server.takeRequest().path)
-    val finish = json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+    assertEquals("/auth/recover?username=carol", server.next().path)
+    val finish = json.parseToJsonElement(server.next().body.readUtf8()).jsonObject
     assertEquals("opened(CH)by(PUB-CAROL)", finish["challenge"]!!.jsonPrimitive.content)
     assertEquals("wrapped(PUB-CAROL)under(afterrecovery)", finish["wrappedPrivateKey"]!!.jsonPrimitive.content)
     assertNotNull(vault.keyPair(7))

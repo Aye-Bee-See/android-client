@@ -3,6 +3,7 @@
 The Android client for Aye Bee See, a correspondence network for political prisoners. Writers find a prisoner, read the facility's mail rules, and write; a support group prints and mails the letter and records the reply.
 
 - `docs/PLAN.md`: what is being built, in what order, and why.
+- `docs/PUSH.md`: what push does and does not carry, and how to turn it on once a Firebase project exists.
 - `docs/TRANSLATING.md`: the three languages, how to review or add one, and the glossary.
 - `docs/DECISIONS.md`: choices that are not obvious from the code (toolchain, crypto library).
 - The API lives in `Aye-Bee-See/sqlite-express-api`; its README is the endpoint reference and `android-client-brief.md` (next to this directory) is the map.

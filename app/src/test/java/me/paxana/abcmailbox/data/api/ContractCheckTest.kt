@@ -50,6 +50,7 @@ class ContractCheckTest {
     "chats" to listOf(ChatDto.serializer()), "chats.member" to listOf(ChatDto.serializer()), "chat" to enveloped(ChatDto.serializer()), "chatByPrisoner" to enveloped(ChatDto.serializer()),
     "message" to enveloped(MessageDto.serializer()), "queue" to listOf(MessageDto.serializer()), "attachments" to listOf(AttachmentDto.serializer()),
     "retention" to enveloped(RetentionDto.serializer()),
+    "notifications" to listOf(NotificationDto.serializer()),
     "writers" to listOf(WriterDto.serializer()), "issueToken" to enveloped(IssuedTokenDto.serializer()), "memberKeys" to enveloped(MemberKeysDto.serializer()),
   )
 
@@ -58,6 +59,7 @@ class ContractCheckTest {
     "ApiEnvelope.errors" to "only on a 400", "ApiEnvelope.error" to "only on a 409",
     "AttachmentDto.nonce" to "end-to-end attachments only; the dev data has none",
     "EnvelopeDto.keyVersion" to "sent by the app, never returned (plan, ask 11)",
+    "ApiEnvelope.unread" to "only on the notification feed",
   )
 
   @Test

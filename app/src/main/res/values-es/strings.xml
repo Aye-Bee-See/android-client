@@ -608,4 +608,35 @@
     <!-- Stragglers -->
     <string name="action_record_reply">Registrar respuesta</string>
     <string name="notice_writer_added">%1$s: remitente añadido.</string>
+
+    <!-- Activity notifications. They appear on lock screens, so they name nobody and quote nothing. -->
+    <string name="activity_channel_name">Cartas y respuestas</string>
+    <string name="activity_channel_description">Te avisa cuando una carta tuya se imprime o se envía, cuando llega una respuesta y, si eres miembro de un grupo, cuando hay una carta pendiente de imprimir.</string>
+    <string name="activity_reply">Ha llegado una respuesta a una de tus cartas.</string>
+    <string name="activity_printed">Una de tus cartas se ha impreso.</string>
+    <string name="activity_mailed">Una de tus cartas ya está en el correo.</string>
+    <string name="activity_queued">Hay una carta esperando a que tu grupo la imprima.</string>
+    <string name="activity_change_approved">Se ha aprobado un cambio que propusiste para el directorio.</string>
+    <string name="activity_change_rejected">No se ha aceptado un cambio que propusiste para el directorio.</string>
+    <string name="activity_other">Hay novedades en tu cuenta.</string>
+    <plurals name="activity_summary">
+        <item quantity="one">%d novedad sobre tus cartas</item>
+        <item quantity="many">%d novedades sobre tus cartas</item>
+        <item quantity="other">%d novedades sobre tus cartas</item>
+    </plurals>
+    <plurals name="activity_and_more">
+        <item quantity="one">y %d más</item>
+        <item quantity="many">y %d más</item>
+        <item quantity="other">y %d más</item>
+    </plurals>
+
+    <!-- Instant notifications (the optional push doorbell) -->
+    <string name="push_title">Avisos inmediatos</string>
+    <string name="push_explained">Sin esto, la aplicación comprueba si hay novedades unas pocas veces al día y cada vez que la abres. Con esto, el servidor llama a este teléfono en cuanto ocurre algo. La llamada pasa por el servicio de avisos de Google y no lleva nada, ni nombres ni texto: Google solo sabe que este teléfono tiene esta aplicación y cuándo recibe una llamada.</string>
+    <string name="push_unavailable_build">No disponible en esta versión.</string>
+    <string name="push_unavailable_device">Este teléfono no tiene el servicio de avisos de Google, así que la aplicación sigue comprobando por su cuenta.</string>
+    <string name="push_on_not_deliverable">Activado. El servidor todavía no está preparado para llamar a los teléfonos, así que de momento la aplicación sigue comprobando por su cuenta.</string>
+    <string name="push_on">Activado.</string>
+    <string name="push_off">Desactivado. Ya no se llamará a este teléfono.</string>
+    <string name="push_failed">No se pudo cambiar: %1$s</string>
 </resources>

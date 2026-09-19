@@ -19,6 +19,12 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 - ~~Recovery rate limiting~~ **Done (API PR #84):** sign-in, claim checks, and recovery answer 429 with `Retry-After`; the app shows the server's sentence.
 - ~~Rule tags~~ **Done (API PR #86):** tags plus three typed values, a public vocabulary endpoint, and clients ignore unknown tags. The Android app acts on `no_photos`, `pageLimit`, languages, and a few advisory tags.
 - **Self-registration.** The API allows public `POST /auth/user`; the site says accounts come from groups. Android hides registration behind a flag. Decide whether it should ever be exposed.
+- **How does someone who cannot come to a letter night get an account? (raised by the project owner, 19 Sep 2026; product decision, then API + web + Android.)** Today a writer's account comes from one of three places: an admin makes it; a group makes a managed writer for them and hands it over with a claim token; or public registration, which the API allows and both clients hide. All of the group routes assume the person and the group meet. Someone housebound, in a town with no group, or abroad has no way in unless a group does the managed-writer routine for them at a distance. Options, cheapest first:
+  1. **Remote hand-off, no new work.** A group creates a managed writer and sends the claim token over Signal. Works today. Costs: someone in a group has to do it by hand for each person, and until the person claims the account the group holds it (and, in end-to-end mode, its key).
+  2. **Writer invite codes (small API build, recommended).** A third kind of invitation beside "new group" and "new member": a group issues a code, the person registers with it, and the account is theirs from the first minute; the group never holds it or its key. The account records which group invited them. Sub-questions: single-use codes handed to one person, or one reusable code with an expiry and a cap, for an online letter night or a flyer? May only groups invite, or may an existing writer invite a friend?
+  3. **Ask to join (larger build).** A public form, "ask a group for an account", that lands in the chosen group's queue; approving it issues a code. Needs rate limiting and a way to choose or be assigned a group, and it puts strangers' requests in volunteers' laps.
+  4. **Open registration.** Already built; turning it on is a client decision (the item above). No vouching of any kind, which is the opposite of how groups join.
+  Also to decide: what about a person with **no group in their country**, since the inviting group need not be the group that mails their letters (any relay group of the facility does that)? And should an online letter night (a video call where a group does option 1 or 2 live) be the recommended practice? Default until decided: option 1, with registration hidden.
 
 ## Letters (API, affects phase 3)
 
@@ -31,7 +37,7 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 ## Letters, small (API)
 
-- **Idempotency for sending letters (API).** Android now sends letters written offline when the phone is back online, and retries after lost connections. It works hard not to mail a prisoner two copies, but only the server can make that certain: an `Idempotency-Key` header on `POST /messaging/message` (Android plan, ask 14). The web "Send" button has the same exposure on a double click or a flaky connection.
+- ~~Idempotency for sending letters~~ **Done (API PR #97), adopted by Android.** The web client should send `Idempotency-Key` too: a double click on Send has the same exposure.
 - ~~Thread reads~~ **Done (API PR #82):** messages in thread reads carry `relay_group`, chat rows carry the facility summary.
 
 ## Directory (API)
@@ -49,6 +55,8 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 
 ## Before a public release (project owner, web)
 
+- **Push notifications (project owner, web).** Android is ready for the API's push framework (PR #96) and waits for a Firebase project; `docs/PUSH.md` in the Android repo has the steps and a first-run checklist. Two things to decide. (1) **Opt-in.** Android leaves push off until the person turns it on, and says why: Google learns that the phone has the app and when it is rung. Should the web client (Web Push) do the same? (2) **Who owns the Firebase project**, since its service-account key can ring every registered phone.
+- **The feed without push.** Android reads `GET /auth/notifications` when it opens and every six hours, so nobody needs push to learn that a reply came. The web client can show the same feed.
 - **Contrast on the website.** The templates' muted grey `#767676` on the paper background `#F2F0ED` is 3.99:1; WCAG AA asks 4.5:1 for body text. It passes only on pure white. Android now uses `#6C6C6C` (4.62:1). The web developer should check the same pair.
 - **Languages: decided 19 Sep 2026, English, Spanish, Russian. Built.** Two follow-ups. (1) **Find reviewers**: the Spanish and Russian were machine-written and need a native-speaker read before release; `docs/TRANSLATING.md` in the Android repo is the guide, with a glossary that the web site should share so both clients use the same words. (2) **A style decision for Spanish**: the app uses the gender-neutral "persona presa" and "remitente"; groups that write "presxs" may want their own convention.
 - **The server speaks English (API).** Refusals and validation errors are shown verbatim and arrive in English. Android now sends `Accept-Language`. Decide: localise on the server, or give every error a stable code clients can translate (Android plan, ask 15). The web client needs the same answer.

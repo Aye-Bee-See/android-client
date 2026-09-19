@@ -186,8 +186,15 @@ class ComposeViewModel(
     }
   }
 
-  fun onBodyChange(v: String) = _ui.update { it.copy(body = v, error = null) }
-  fun onNoteChange(v: String) = _ui.update { it.copy(note = v, error = null) }
+  /**
+   * One key per letter *as written*: pressing Send twice, or Send again after a timeout, repeats it, and the
+   * server answers with the letter it already has. Changing the words makes it a different letter, so the
+   * key is dropped and the next Send makes a new one (the server refuses a reused key on different text).
+   */
+  private var sendKey: String? = null
+
+  fun onBodyChange(v: String) { sendKey = null; _ui.update { it.copy(body = v, error = null) } }
+  fun onNoteChange(v: String) { sendKey = null; _ui.update { it.copy(note = v, error = null) } }
   fun onToggleNote() = _ui.update { it.copy(showNote = !it.showNote) }
   fun onSelectRelay(id: Int?) = _ui.update { it.copy(selectedRelay = id, error = null) }
   fun draftNoticeShown() = _ui.update { it.copy(draftRestored = false) }
@@ -251,13 +258,15 @@ class ComposeViewModel(
         asWriterId = route.replyForUserId ?: route.writerId, fromPrisoner = route.replyForUserId != null,
         // End-to-end: the server lets a group hold an envelope where it relays for the facility (or manages the writer).
         groupRelaysFacility = staffGroupId != null && s.facility?.relayGroups?.any { it.id == staffGroupId } == true,
+        idempotencyKey = sendKey ?: java.util.UUID.randomUUID().toString().also { sendKey = it },
       )
       when (val r = letters.send(letter)) {
         is ApiResult.Failure ->
-          // No connection is not a reason to lose the evening's letter: it goes to the outbox and is sent
-          // when the phone is next online. Only a failure to *reach* the server qualifies; if the server
-          // answered "no", the writer needs to see that now, while they can still fix the letter.
-          if (r.error.neverReachedTheServer()) {
+          // No answer is not a reason to lose the evening's letter: it goes to the outbox and is sent when the
+          // phone is next online. "No answer" includes a timeout, where the letter may in fact have arrived:
+          // the outbox retries under the same Idempotency-Key, so the server returns that letter rather than
+          // making a second. If the server answered "no", the writer sees that now, while they can still fix it.
+          if (r.error.gotNoAnswer()) {
             outbox.queue(s.prisoner?.name ?: strings.get(R.string.prisoner_numbered, route.prisonerId), s.writingAs.takeIf { route.writerId != null }, letter, s.attachments)
             finishedWith(queued = true)
           } else _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric(strings.get(R.string.error_send_letter))) }
@@ -276,13 +285,9 @@ class ComposeViewModel(
     if (queued) _ui.update { it.copy(sending = false, progress = null, attachments = emptyList(), queuedOffline = true) }
   }
 
-  /**
-   * Certain that nothing arrived: there was no route to the server at all. A timeout is different
-   * (the letter may be there), and sending it to the outbox as well would risk a second copy, so
-   * that case stays an error the writer can retry from here.
-   */
-  private fun AppError.neverReachedTheServer(): Boolean =
-    this is AppError.Network && (cause is java.net.UnknownHostException || cause is java.net.ConnectException)
+  /** No connection, a connection that died, or a reply that is not our API's (a Wi-Fi login page). A 5xx is an answer: the writer sees it. */
+  private fun AppError.gotNoAnswer(): Boolean =
+    this is AppError.Network || (this is AppError.Unexpected && cause is kotlinx.serialization.SerializationException)
 
   private suspend fun chatIdOf(messageId: Int): Int? = (letters.letter(messageId) as? ApiResult.Success)?.value?.threadId
 

@@ -95,7 +95,7 @@ class ComposeViewModelTest {
     assertTrue(vm.ui.value.relay is RelayChoice.Automatic)
     vm.onBodyChange("Dear Alex"); vm.send()
     dispatcher.scheduler.advanceUntilIdle()
-    assertEquals(NewLetter(3, "Dear Alex", null, 7), letters.sent.single())
+    assertEquals(NewLetter(3, "Dear Alex", null, 7), letters.sent.single().copy(idempotencyKey = null))
     assertEquals(41, vm.ui.value.sentChatId)
   }
 
@@ -169,7 +169,7 @@ class ComposeViewModelTest {
     assertTrue("no draft for a letter written on someone's behalf", drafts.store.isEmpty())
     vm.send(); dispatcher.scheduler.advanceUntilIdle()
     // The member's group relays for this facility, which on an end-to-end server is what lets it hold an envelope.
-    assertEquals(NewLetter(3, "Written at letter night", null, 7, asWriterId = 44, fromPrisoner = false, groupRelaysFacility = true), letters.sent.single())
+    assertEquals(NewLetter(3, "Written at letter night", null, 7, asWriterId = 44, fromPrisoner = false, groupRelaysFacility = true), letters.sent.single().copy(idempotencyKey = null))
   }
 
   @Test
@@ -223,19 +223,34 @@ class ComposeViewModelTest {
   }
 
   @Test
-  fun `a timeout is not queued, because the letter may have arrived, and the server's no is shown at once`() = runTest {
-    for (error in listOf(AppError.Network(java.net.SocketTimeoutException()), AppError.Forbidden("Your account cannot write to this prisoner."))) {
-      val model = vm(Routing.DIRECT, emptyList(), letters = FakeLetters(fail = error))
-      dispatcher.scheduler.advanceUntilIdle()
-      model.onBodyChange("Hello"); model.send(); dispatcher.scheduler.advanceUntilIdle()
-      assertTrue(outbox.queued.isEmpty()); assertFalse(model.ui.value.queuedOffline)
-      assertNotNull(model.ui.value.error)
-    }
+  fun `a timeout is queued too, under the key the first try used, so the server can recognise the letter if it arrived`() = runTest {
+    val letters = FakeLetters(fail = AppError.Network(java.net.SocketTimeoutException()))
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters)
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onBodyChange("Hello"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    val queued = outbox.queued.single().third
+    assertTrue(model.ui.value.queuedOffline)
+    assertEquals("the key that went to the server is the key that was queued", letters.triedKeys.single(), queued.idempotencyKey)
+  }
+
+  @Test
+  fun `the server's no is shown at once and nothing is queued, and the same words keep the same key across tries`() = runTest {
+    val letters = FakeLetters(fail = AppError.Forbidden("Your account cannot write to this prisoner."))
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters)
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onBodyChange("Hello"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(outbox.queued.isEmpty()); assertFalse(model.ui.value.queuedOffline)
+    assertEquals("Your account cannot write to this prisoner.", model.ui.value.error)
+
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("a second press is the same letter", 1, letters.triedKeys.toSet().size)
+    model.onBodyChange("Hello again"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("different words are a different letter", 2, letters.triedKeys.toSet().size)
   }
 
   @Test
   fun `a letter reopened from the outbox starts from its text, and sending it removes the queued copy`() = runTest {
-    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", relayNote = "blue paper") to emptyList()
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", relayNote = "blue paper", idempotencyKey = "key-of-the-queued-copy") to emptyList()
     val letters = FakeLetters()
     val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
     dispatcher.scheduler.advanceUntilIdle()
@@ -246,17 +261,17 @@ class ComposeViewModelTest {
   }
 
   class FakeLetters(private val fail: AppError? = null) : LettersRepository {
-    val sent = mutableListOf<NewLetter>()
+    val sent = mutableListOf<NewLetter>(); val triedKeys = mutableListOf<String?>()
     val edits = mutableListOf<LetterEdit>()
     private fun stub(id: Int) = Letter(id, 41, 3, 1, false, LetterStatus.QUEUED, "probe", null, null, null, false, null, null, emptyList(), emptyList())
     override fun threads(): Flow<PagingData<Thread>> = emptyFlow()
     override suspend fun thread(chatId: Int) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun threadForPrisoner(prisonerId: Int) = ApiResult.Success(null)
     override suspend fun letter(messageId: Int): ApiResult<Letter> = ApiResult.Success(stub(messageId))
-    override suspend fun send(letter: NewLetter): ApiResult<Letter> { fail?.let { return ApiResult.Failure(it) }; sent += letter; return ApiResult.Success(stub(99)) }
+    override suspend fun send(letter: NewLetter): ApiResult<Letter> { triedKeys += letter.idempotencyKey; fail?.let { return ApiResult.Failure(it) }; sent += letter; return ApiResult.Success(stub(99)) }
     override suspend fun edit(edit: LetterEdit): ApiResult<Unit> { edits += edit; return ApiResult.Success(Unit) }
     override suspend fun delete(messageId: Int) = ApiResult.Success(Unit)
-    override suspend fun upload(messageId: Int, staged: StagedFile) = ApiResult.Success(Attachment(1, messageId, staged.name, staged.mimeType, staged.size))
+    override suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String?) = ApiResult.Success(Attachment(1, messageId, staged.name, staged.mimeType, staged.size))
     override suspend fun deleteAttachment(attachmentId: Int) = ApiResult.Success(Unit)
     override suspend fun download(attachment: Attachment) = ApiResult.Success(File("x"))
     override suspend fun retentionDays() = ApiResult.Success(90)

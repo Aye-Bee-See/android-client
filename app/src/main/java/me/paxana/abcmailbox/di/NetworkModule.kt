@@ -80,6 +80,10 @@ object NetworkModule {
 
   @Provides
   @Singleton
+  fun notificationsApi(retrofit: Retrofit): me.paxana.abcmailbox.data.api.NotificationsApi = retrofit.create(me.paxana.abcmailbox.data.api.NotificationsApi::class.java)
+
+  @Provides
+  @Singleton
   fun directorySyncApi(retrofit: Retrofit): me.paxana.abcmailbox.data.api.DirectorySyncApi = retrofit.create(me.paxana.abcmailbox.data.api.DirectorySyncApi::class.java)
 
   @Provides

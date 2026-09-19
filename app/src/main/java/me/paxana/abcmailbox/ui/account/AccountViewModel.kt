@@ -33,7 +33,14 @@ class AccountViewModel @Inject constructor(
   private val devServer: DevServerRepository,
   private val offline: OfflineDirectory,
   private val strings: Strings,
+  private val activityScheduler: me.paxana.abcmailbox.data.activity.ActivityScheduler,
 ) : ViewModel() {
+
+  /**
+   * Developer tool: does what the push doorbell does, after a pause long enough to leave the app, so the
+   * whole path (wake, fetch the feed, word it, notify) can be tried without Firebase.
+   */
+  fun simulatePush() { viewModelScope.launch { kotlinx.coroutines.delay(8_000); activityScheduler.checkNow() } }
 
   private val _uiState = MutableStateFlow(AccountUiState(serverUrl = devServer.baseUrl.value, serverDefault = devServer.default, serverOverridden = devServer.isOverridden))
   val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()

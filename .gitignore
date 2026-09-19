@@ -23,3 +23,7 @@ local.properties
 /keystore.properties
 *.jks
 *.keystore
+
+# Firebase project values: they belong to whoever runs the network
+/firebase.properties
+google-services.json

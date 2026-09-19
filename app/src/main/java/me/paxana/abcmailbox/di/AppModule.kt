@@ -96,6 +96,21 @@ abstract class BindingsModule {
   abstract fun groupRepository(impl: DefaultGroupRepository): GroupRepository
 
   @Binds
+  abstract fun activityRepository(impl: me.paxana.abcmailbox.data.activity.DefaultActivityRepository): me.paxana.abcmailbox.data.activity.ActivityRepository
+
+  @Binds
+  abstract fun activityNotifier(impl: me.paxana.abcmailbox.data.activity.AndroidActivityNotifier): me.paxana.abcmailbox.data.activity.ActivityNotifier
+
+  @Binds
+  abstract fun activityScheduler(impl: me.paxana.abcmailbox.data.activity.WorkManagerActivityScheduler): me.paxana.abcmailbox.data.activity.ActivityScheduler
+
+  @Binds
+  abstract fun pushProvider(impl: me.paxana.abcmailbox.data.push.FcmPushProvider): me.paxana.abcmailbox.data.push.PushProvider
+
+  @Binds
+  abstract fun pushRegistrar(impl: me.paxana.abcmailbox.data.push.DefaultPushRegistrar): me.paxana.abcmailbox.data.push.PushRegistrar
+
+  @Binds
   abstract fun strings(impl: me.paxana.abcmailbox.text.AndroidStrings): me.paxana.abcmailbox.text.Strings
 
   @Binds

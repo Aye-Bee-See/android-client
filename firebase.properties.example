@@ -1,0 +1,18 @@
+# Push notifications are optional. Without this file the app builds with push off and checks the
+# notification feed by itself a few times a day.
+#
+# To turn push on: create a Firebase project (the same one whose service-account key the API uses),
+# add an Android app to it with the package name me.paxana.abcmailbox, download google-services.json,
+# and copy four values out of it into a file named firebase.properties next to this one:
+#
+#   projectId      <- project_info.project_id
+#   senderId       <- project_info.project_number
+#   applicationId  <- client[0].client_info.mobilesdk_app_id      (looks like 1:1234567890:android:abc123...)
+#   apiKey         <- client[0].api_key[0].current_key
+#
+# The debug, internal and release builds have different package names (…, ….internal). Add each one to
+# the Firebase project as its own Android app; their applicationId values differ, the rest is shared.
+projectId=
+senderId=
+applicationId=
+apiKey=

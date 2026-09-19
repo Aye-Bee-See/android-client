@@ -32,6 +32,7 @@ fun DevServerDialog(
   onSave: (String) -> Unit,
   onReset: () -> Unit,
   onDismiss: () -> Unit,
+  onSimulatePush: () -> Unit = {},
 ) {
   var text by remember { mutableStateOf(current) }
   AlertDialog(
@@ -57,6 +58,7 @@ fun DevServerDialog(
       Column {
         // Show the address now in force; the field is local state and would otherwise keep the old one.
         TextButton(onClick = { text = default; onReset() }, enabled = !checking) { Text("Use default") }
+        TextButton(onClick = { onSimulatePush(); onDismiss() }) { Text("Simulate a push in 8 s") }
         TextButton(onClick = onDismiss) { Text("Close") }
       }
     },

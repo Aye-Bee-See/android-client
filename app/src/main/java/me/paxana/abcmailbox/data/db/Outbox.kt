@@ -27,8 +27,6 @@ data class OutboxEntity(
   val attempts: Int = 0,
   /** Set as soon as the server has the letter, so a retry carries on with its files and never posts it twice. */
   val messageId: Int? = null,
-  /** The last attempt may have reached the server: look for the letter there before posting again. */
-  val outcomeUnknown: Boolean = false,
 ) {
   companion object { const val STATE_WAITING = "waiting"; const val STATE_REFUSED = "refused" }
 }

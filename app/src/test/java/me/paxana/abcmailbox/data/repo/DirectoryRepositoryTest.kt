@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.next
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.Dispatcher
@@ -52,7 +53,7 @@ class DirectoryRepositoryTest {
   fun `featured prisoners asks for featured=true and maps`() = runTest {
     server.enqueue(MockResponse().setBody(fixture("prisoners-page.json")))
     val r = repo.featuredPrisoners(limit = 6)
-    val req = server.takeRequest()
+    val req = server.next()
     assertEquals("/prisoner/prisoners", req.requestUrl?.encodedPath)
     assertEquals("true", req.requestUrl?.queryParameter("featured"))
     assertEquals("6", req.requestUrl?.queryParameter("page_size"))
@@ -63,7 +64,7 @@ class DirectoryRepositoryTest {
   fun `single reads send id and full=true`() = runTest {
     server.enqueue(MockResponse().setBody(fixture("prison-full.json")))
     val r = repo.facility(2)
-    val req = server.takeRequest()
+    val req = server.next()
     assertEquals("/prison/prison", req.requestUrl?.encodedPath)
     assertEquals("2", req.requestUrl?.queryParameter("id"))
     assertEquals("true", req.requestUrl?.queryParameter("full"))

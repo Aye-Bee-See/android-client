@@ -2,6 +2,20 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-19: push is a doorbell, opt-in, and Firebase starts only when asked
+
+**Context.** The API rings phones through FCM with an empty payload and keeps what happened in a feed. People who write to political prisoners include people who do not want Google to know they have this app.
+
+**Decision.** The feed is the feature; push only makes it prompt. Push is off until the person turns it on, with the trade explained at the switch. Firebase is a dependency of every build but is configured from untracked build settings, not a google-services.json, and its automatic start-up and token fetch are disabled in the manifest, so an install that never opts in never talks to Google. Everything Firebase-specific sits behind `PushProvider`.
+
+**Consequences.** Without push, news can be up to six hours late when the app is closed, which is acceptable for mail that takes weeks. A de-Googled phone works, without push. A future build flavour without Google's libraries, or a UnifiedPush provider, touches one package. The cost of not using the google-services plugin is four values copied by hand, once.
+
+**Rejected.** Registering every signed-in phone automatically (the usual practice, and the wrong default here). Polling more often instead of offering push at all (battery, and still slower). Putting any wording in the push, even generic (the API does not, and iOS's visible alert is its only exception).
+
+## 2026-09-19: the outbox trusts the server's idempotency keys and stops guessing
+
+**Decision.** Supersedes the look-up described in "the outbox never posts a letter twice": with API PR #97 each letter and file carries a key, repeated on every retry, and the comparison of writer, time and text is removed together with its database column. A timed-out send from the compose screen is now queued.
+
 ## 2026-09-19: words come from resources through `Strings`, and tests read the same files
 
 **Context.** Three languages. Much of the app's text is produced outside composables, where there is no `Context`.

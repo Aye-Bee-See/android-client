@@ -19,7 +19,11 @@ sealed class AppError : Exception() {
   data class NotFound(val info: String?) : AppError()
 
   /** A lifecycle or state conflict (409), for example moving a letter backwards. */
-  data class Conflict(val info: String?) : AppError()
+  /** [name] is the API's error name (`KeyVersionError`, `LetterStatusError`, `IdempotencyError`), for the few callers that must tell them apart. */
+  data class Conflict(val info: String?, val name: String? = null) : AppError() {
+    /** The same Idempotency-Key is being processed right now (a retry racing the original): wait a second and ask again. */
+    val isStillProcessing: Boolean get() = name == "IdempotencyError"
+  }
 
   /** A used or expired claim token (410). */
   data class Gone(val info: String?) : AppError()

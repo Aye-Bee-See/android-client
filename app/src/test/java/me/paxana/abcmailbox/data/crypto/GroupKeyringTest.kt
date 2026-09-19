@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.crypto
 
+import me.paxana.abcmailbox.next
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -119,8 +120,8 @@ class GroupKeyringTest {
       {"message":13,"chat":3,"readerType":"user","readerId":8,"publicKey":"PUB-OTHER","wrappedKey":"sealed to some other key"}],"success":true,"status":200}"""))
     server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
     assertTrue(keyring().load() is GroupKeyState.Ready)
-    repeat(3) { server.takeRequest() }
-    val post = server.takeRequest()
+    repeat(3) { server.next() }
+    val post = server.next()
     assertEquals("/messaging/envelope", post.path)
     assertEquals("""{"message":12,"readerType":"user","readerId":7,"wrappedKey":"sealed(KEY)to(PUB-LATECOMER)"}""", post.body.readUtf8())
     assertEquals("the envelope this phone cannot open is skipped, not guessed at", 4, server.requestCount)

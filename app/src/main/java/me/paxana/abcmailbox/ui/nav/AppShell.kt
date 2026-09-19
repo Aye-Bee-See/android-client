@@ -35,6 +35,12 @@ import android.os.Build
 import android.Manifest
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
+import android.content.Intent
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import me.paxana.abcmailbox.data.activity.AndroidActivityNotifier
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -123,6 +129,14 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val navController = rememberNavController()
   // A rebuilt shell starts on the Directory like a fresh launch. Whoever just signed out (or was signed
   // out) is better served by the Account page, where signing in again is one tap. Once, not on every rotation.
+  // Navigation reads the launching intent by itself, but not one that arrives while the app is already open
+  // (a tapped notification). The Activity passes those on here.
+  val activity = LocalActivity.current as? ComponentActivity
+  DisposableEffect(activity, navController) {
+    val listener = androidx.core.util.Consumer<Intent> { intent -> navController.handleDeepLink(intent) }
+    activity?.addOnNewIntentListener(listener)
+    onDispose { activity?.removeOnNewIntentListener(listener) }
+  }
   var landed by rememberSaveable { mutableStateOf(false) }
   LaunchedEffect(Unit) {
     if (landOnAccount && !landed) navController.navigate(AccountRoute) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true }
@@ -146,6 +160,9 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val mode by viewModel.mode.collectAsStateWithLifecycle()
   val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
   val unsentCount by viewModel.unsentCount.collectAsStateWithLifecycle()
+  val unreadActivity by viewModel.unreadActivity.collectAsStateWithLifecycle()
+  // What needs attention on the Inbox tab: letters that have not gone yet, and news that has not been seen yet.
+  val inboxBadge = unsentCount + unreadActivity
   val letterQueued = stringResource(R.string.notice_letter_queued)
   val writerAdded = stringResource(R.string.notice_writer_added) // formatted in the callback, where the name is known
   // Android 13+ asks the user before an app may post notifications. Asked here, the first time it matters
@@ -182,7 +199,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
               },
               icon = {
                 // The Inbox tab counts unsent letters, so they are not forgotten on another tab.
-                if (tab.routeClass == InboxGraph::class && unsentCount > 0) BadgedBox(badge = { Badge { Text(unsentCount.toString()) } }) { Icon(tab.icon, contentDescription = null) }
+                if (tab.routeClass == InboxGraph::class && inboxBadge > 0) BadgedBox(badge = { Badge { Text(inboxBadge.toString()) } }) { Icon(tab.icon, contentDescription = null) }
                 else Icon(tab.icon, contentDescription = null)
               },
               label = { Text(stringResource(tab.label)) },
@@ -245,7 +262,12 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
         }
       }
       navigation<InboxGraph>(startDestination = InboxRoute) {
-        composable<InboxRoute> {
+        // Opened by the activity notification when its news is about more than one conversation.
+        composable<InboxRoute>(deepLinks = listOf(navDeepLink<InboxRoute>(basePath = AndroidActivityNotifier.INBOX_LINK))) {
+          // Looking at the Inbox is what "read" means for the feed.
+          LaunchedEffect(sessionState) { if (sessionState is SessionState.SignedIn) viewModel.inboxSeen() }
+          // A group member's work arrives as notifications ("a letter is waiting to be printed"), so they are asked as soon as they have an inbox.
+          LaunchedEffect(sessionState) { if (Build.VERSION.SDK_INT >= 33 && (sessionState as? SessionState.SignedIn)?.session?.user?.isStaff == true) askToNotify.launch(Manifest.permission.POST_NOTIFICATIONS) }
           InboxScreen(
             sessionState = sessionState,
             keysLocked = keysLocked,
@@ -285,7 +307,9 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
         composable<GroupKeyRoute> { me.paxana.abcmailbox.ui.group.GroupKeyScreen(onBack = { navController.popBackStack() }) }
       }
       // Reachable from both tabs, so they live outside either graph.
-      composable<ThreadRoute> {
+      // Opened by the activity notification when all its news is about one conversation: abcmailbox://open/thread/<chat id>.
+      composable<ThreadRoute>(deepLinks = listOf(navDeepLink<ThreadRoute>(basePath = AndroidActivityNotifier.THREAD_LINK))) {
+        LaunchedEffect(Unit) { viewModel.inboxSeen() }
         ThreadScreen(
           onBack = { navController.popBackStack() },
           onPrisoner = { navController.navigate(PrisonerRoute(it)) },
@@ -306,6 +330,8 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
             if (Build.VERSION.SDK_INT >= 33) askToNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
           },
           onSent = { chatId ->
+            // The letter's fate (printed, mailed, a reply) is decided over the coming weeks: a good moment to ask. A no-op once answered.
+            if (Build.VERSION.SDK_INT >= 33) askToNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
             // Opened from that very thread: go back to it (it reloads on resume) rather than stacking a second copy.
             val from = navController.previousBackStackEntry
             val cameFromThisThread = from != null && from.destination.hasRoute<ThreadRoute>() && from.toRoute<ThreadRoute>().chatId == chatId

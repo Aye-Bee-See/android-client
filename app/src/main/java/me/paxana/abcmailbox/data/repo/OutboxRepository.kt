@@ -15,8 +15,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
-import me.paxana.abcmailbox.data.api.LettersApi
-import me.paxana.abcmailbox.data.api.apiCall
 import me.paxana.abcmailbox.data.crypto.LetterCodec
 import me.paxana.abcmailbox.data.db.OutboxDao
 import me.paxana.abcmailbox.data.db.OutboxEntity
@@ -26,15 +24,14 @@ import me.paxana.abcmailbox.data.session.SecretCipher
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import java.io.File
-import java.net.ConnectException
-import java.net.UnknownHostException
 import java.time.Instant
 import java.util.Base64
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Serializable
-data class OutboxAttachment(val path: String, val name: String, val mimeType: String, val size: Long)
+data class OutboxAttachment(val path: String, val name: String, val mimeType: String, val size: Long, /** Repeated on every retry of this upload. */ val key: String = UUID.randomUUID().toString())
 
 /** Everything about a queued letter that must not be readable on disk. Stored as one encrypted JSON blob. */
 @Serializable
@@ -52,8 +49,13 @@ data class OutboxPayload(
   val attachments: List<OutboxAttachment> = emptyList(),
   /** Why the server refused, in its own words. */
   val problem: String? = null,
+  /**
+   * Made when the letter is queued (or carried over from the compose screen's failed attempt) and sent with
+   * every try. It is what lets the server answer "I already have that one" instead of mailing a second copy.
+   */
+  val idempotencyKey: String,
 ) {
-  fun toNewLetter() = NewLetter(prisonerId, body, relayNote, relayChapter, asWriterId, fromPrisoner, groupRelaysFacility)
+  fun toNewLetter() = NewLetter(prisonerId, body, relayNote, relayChapter, asWriterId, fromPrisoner, groupRelaysFacility, idempotencyKey)
 }
 
 /** A queued letter as screens see it. */
@@ -92,10 +94,13 @@ interface OutboxRepository {
  * Letters written without a connection.
  *
  * The rule that shapes everything here is that a prisoner must never get the same letter twice.
- * So the letter and its files are separate steps, each recorded the moment it succeeds; and when
- * an attempt ends without an answer (the request may or may not have arrived), the next attempt
- * first looks on the server for the letter before posting it again. The API has no idempotency
- * key, so that look is a comparison of writer, time and text.
+ * Every queued letter, and every file with it, carries an `Idempotency-Key` made once and repeated on
+ * each retry (API PR #97): if an earlier attempt did arrive, the server hands back that letter instead
+ * of creating another. The letter and its files are still separate steps, each recorded the moment it
+ * succeeds, so a retry resumes where the last one stopped.
+ *
+ * (Before the API had keys, this class compared writer, time and text to guess whether a letter had
+ * arrived. That guess was blind in end-to-end mode. It is gone.)
  *
  * In end-to-end mode a letter cannot be sealed offline (sealing needs the relay group's current
  * public key), so it waits here encrypted under the phone's Keystore key, as drafts do, and is
@@ -108,7 +113,6 @@ class DefaultOutboxRepository @Inject constructor(
   private val cipher: SecretCipher,
   private val files: LocalFilesContract,
   private val letters: LettersRepository,
-  private val lettersApi: LettersApi,
   private val codec: LetterCodec,
   private val sessions: SessionRepository,
   private val scheduler: OutboxScheduler,
@@ -140,7 +144,8 @@ class DefaultOutboxRepository @Inject constructor(
         OutboxAttachment(target.path, staged.name, staged.mimeType, staged.size)
       }
     }
-    val payload = OutboxPayload(letter.prisonerId, prisonerName, writingAs, letter.body, letter.relayNote, letter.relayChapter, letter.asWriterId, letter.fromPrisoner, letter.groupRelaysFacility, stored)
+    // The compose screen's key if it already tried with one: that attempt may have arrived, and the same key is how the server will know.
+    val payload = OutboxPayload(letter.prisonerId, prisonerName, writingAs, letter.body, letter.relayNote, letter.relayChapter, letter.asWriterId, letter.fromPrisoner, letter.groupRelaysFacility, stored, idempotencyKey = letter.idempotencyKey ?: UUID.randomUUID().toString())
     return dao.insert(OutboxEntity(userId = userId, sealed = seal(payload), queuedAt = System.currentTimeMillis())).also { scheduler.schedule() }
   }
 
@@ -175,6 +180,7 @@ class DefaultOutboxRepository @Inject constructor(
       when (sendOne(row)) {
         Step.SENT -> sent++
         Step.REFUSED -> refused++
+        Step.DROPPED -> Unit
         // No point trying the next letter through the same broken connection, and order matters to a reader.
         Step.LATER -> break
       }
@@ -182,28 +188,22 @@ class DefaultOutboxRepository @Inject constructor(
     FlushOutcome(sent, refused, dao.waiting(userId).size)
   }
 
-  private enum class Step { SENT, REFUSED, LATER }
+  private enum class Step { SENT, REFUSED, LATER, DROPPED }
+
+  private suspend fun forget(row: OutboxEntity, payload: OutboxPayload) { payload.attachments.forEach { File(it.path).delete() }; dao.delete(row.id) }
 
   private suspend fun sendOne(start: OutboxEntity): Step {
     var row = start.copy(attempts = start.attempts + 1)
     var payload = unseal(row) ?: run { dao.delete(row.id); return Step.REFUSED } // the Keystore key is gone; nothing can read this any more
     dao.update(row)
 
-    // 1. The letter itself, at most once.
-    if (row.messageId == null) {
-      if (row.outcomeUnknown) {
-        when (val found = alreadyOnServer(payload, row)) {
-          is Lookup.Found -> { row = row.copy(messageId = found.id, outcomeUnknown = false); dao.update(row) }
-          Lookup.NotThere -> { row = row.copy(outcomeUnknown = false); dao.update(row) }
-          Lookup.CouldNotLook -> return Step.LATER
-        }
-      }
-      if (row.messageId == null) when (val r = letters.send(payload.toNewLetter())) {
-        is ApiResult.Success -> { row = row.copy(messageId = r.value.id, outcomeUnknown = false); dao.update(row) }
-        is ApiResult.Failure -> return when (val verdict = judge(r.error)) {
-          is Verdict.Later -> { dao.update(row.copy(outcomeUnknown = verdict.mayHaveArrived)); Step.LATER }
-          is Verdict.Refused -> refuse(row, payload, verdict.reason)
-        }
+    // 1. The letter itself. The key makes a repeat harmless; `messageId` makes it unnecessary.
+    if (row.messageId == null) when (val r = letters.send(payload.toNewLetter())) {
+      is ApiResult.Success -> { row = row.copy(messageId = r.value.id); dao.update(row) }
+      // Sent earlier, and deleted since (by the writer, on another device): it must not be sent again, and there is nothing to say.
+      is ApiResult.Failure -> if (r.error is AppError.Gone) { forget(row, payload); return Step.DROPPED } else return when (val verdict = judge(r.error)) {
+        Verdict.Later -> Step.LATER
+        is Verdict.Refused -> refuse(row, payload, verdict.reason)
       }
     }
 
@@ -211,7 +211,7 @@ class DefaultOutboxRepository @Inject constructor(
     val messageId = checkNotNull(row.messageId)
     for (attachment in payload.attachments) {
       val staged = withContext(Dispatchers.IO) { unsealFile(attachment) }
-      val result = if (staged == null) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.outbox_file_unreadable, attachment.name)))) else letters.upload(messageId, staged)
+      val result = if (staged == null) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.outbox_file_unreadable, attachment.name)))) else letters.upload(messageId, staged, attachment.key)
       staged?.let(files::discard)
       when (result) {
         is ApiResult.Success -> {
@@ -220,7 +220,7 @@ class DefaultOutboxRepository @Inject constructor(
           row = row.copy(sealed = seal(payload)); dao.update(row)
         }
         is ApiResult.Failure -> return when (val verdict = judge(result.error)) {
-          is Verdict.Later -> Step.LATER
+          Verdict.Later -> Step.LATER
           is Verdict.Refused -> refuse(row, payload, strings.get(R.string.outbox_sent_but_file_refused, attachment.name, verdict.reason))
         }
       }
@@ -235,48 +235,18 @@ class DefaultOutboxRepository @Inject constructor(
   }
 
   private sealed interface Verdict {
-    /** Try again when things change. [mayHaveArrived]: the request may have reached the server before the failure. */
-    data class Later(val mayHaveArrived: Boolean) : Verdict
+    /** Try again when things change. With idempotency keys it no longer matters whether the last attempt arrived. */
+    data object Later : Verdict
     /** The server understood and said no. Trying again unchanged would get the same answer. */
     data class Refused(val reason: String) : Verdict
   }
 
-  private fun judge(error: AppError): Verdict = when (error) {
-    // Never left the phone: no DNS, or nothing listening. Anything else (a timeout, a reset) may have arrived.
-    is AppError.Network -> Verdict.Later(mayHaveArrived = error.cause !is UnknownHostException && error.cause !is ConnectException)
-    is AppError.Server -> Verdict.Later(mayHaveArrived = true)       // a 500 can come after the row was written
-    is AppError.Unexpected -> Verdict.Later(mayHaveArrived = true)   // a reply we could not read, e.g. a Wi-Fi login page
-    is AppError.RateLimited -> Verdict.Later(mayHaveArrived = false)
-    is AppError.Unauthorized -> Verdict.Later(mayHaveArrived = false) // signed out: it waits for the next sign-in
-    else -> if (error == codec.locked) Verdict.Later(mayHaveArrived = false) // waits for the password
-    else Verdict.Refused(error.userMessage ?: strings.get(R.string.outbox_refused_no_reason))
-  }
-
-  private sealed interface Lookup { data class Found(val id: Int) : Lookup; data object NotThere : Lookup; data object CouldNotLook : Lookup }
-
-  /** Is there already a letter from this writer to this prisoner, since this one was queued, that says the same thing? */
-  private suspend fun alreadyOnServer(payload: OutboxPayload, row: OutboxEntity): Lookup {
-    codec.ready()
-    val list = when (val r = apiCall(json) { lettersApi.messagesTo(payload.prisonerId) }) {
-      is ApiResult.Failure -> return Lookup.CouldNotLook
-      is ApiResult.Success -> r.value.data.orEmpty()
-    }
-    val since = Instant.ofEpochMilli(row.queuedAt).minusSeconds(CLOCK_SKEW_SECONDS)
-    // A group's anonymous letter carries the anonymous account's id, which this phone does not know; the text and time decide.
-    val writer = payload.asWriterId ?: row.userId.takeIf { !payload.fromPrisoner && payload.asWriterId == null && !isStaff }
-    val match = list.firstOrNull { dto ->
-      (dto.sender == "prisoner") == payload.fromPrisoner &&
-        (writer == null || dto.user == writer) &&
-        (dto.createdAt.toInstantOrNull()?.isAfter(since) ?: false) &&
-        codec.incoming(dto).let { !it.locked && it.body == payload.body }
-    }
-    return match?.let { Lookup.Found(it.id) } ?: Lookup.NotThere
-  }
-
-  private val isStaff: Boolean get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.isStaff == true
-
-  private companion object {
-    /** The phone's clock and the server's are not the same clock. */
-    const val CLOCK_SKEW_SECONDS = 600L
+  private fun judge(error: AppError): Verdict = when {
+    error is AppError.Network || error is AppError.Server || error is AppError.Unexpected -> Verdict.Later // no answer, a 5xx, or a Wi-Fi login page
+    error is AppError.RateLimited -> Verdict.Later
+    error is AppError.Unauthorized -> Verdict.Later                             // signed out: it waits for the next sign-in
+    error is AppError.Conflict && error.isStillProcessing -> Verdict.Later      // our own earlier attempt is still in flight
+    error == codec.locked -> Verdict.Later                                      // waits for the password
+    else -> Verdict.Refused(error.userMessage ?: strings.get(R.string.outbox_refused_no_reason))
   }
 }

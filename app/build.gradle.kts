@@ -42,6 +42,22 @@ android {
     }
   }
 
+  // Push is optional. The four values identify the Firebase project to the phone (they are what a
+  // google-services.json holds; they are identifiers, not secrets, but they belong to whoever runs the
+  // network, not to the source). Copy firebase.properties.example to firebase.properties, or set the
+  // ABC_FIREBASE_* environment variables on CI. Left empty, the app builds and runs with push off and
+  // keeps checking the notification feed by itself.
+  val firebaseProps = Properties().apply {
+    rootProject.file("firebase.properties").takeIf { it.exists() }?.reader(Charsets.UTF_8)?.use { load(it) }
+  }
+  fun firebaseValue(key: String, env: String): String = (firebaseProps.getProperty(key) ?: System.getenv(env) ?: "").trim()
+  defaultConfig {
+    buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebaseValue("projectId", "ABC_FIREBASE_PROJECT_ID")}\"")
+    buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseValue("applicationId", "ABC_FIREBASE_APP_ID")}\"")
+    buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseValue("apiKey", "ABC_FIREBASE_API_KEY")}\"")
+    buildConfigField("String", "FIREBASE_SENDER_ID", "\"${firebaseValue("senderId", "ABC_FIREBASE_SENDER_ID")}\"")
+  }
+
   buildTypes {
     debug {
       // 10.0.2.2 is the emulator's alias for the host machine's localhost.
@@ -136,6 +152,9 @@ dependencies {
   ksp(libs.androidx.room.compiler)
 
   implementation(libs.androidx.work.runtime)
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.messaging)
+  implementation(libs.kotlinx.coroutines.play.services)
   implementation(libs.androidx.hilt.work)
   ksp(libs.androidx.hilt.compiler)
   implementation(libs.androidx.datastore.preferences)

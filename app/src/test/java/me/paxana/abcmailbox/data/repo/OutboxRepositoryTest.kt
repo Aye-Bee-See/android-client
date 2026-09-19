@@ -13,7 +13,6 @@ import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.api.AuthApi
-import me.paxana.abcmailbox.data.api.LettersApi
 import me.paxana.abcmailbox.data.crypto.EncryptionMode
 import me.paxana.abcmailbox.data.crypto.FakeCryptoEngine
 import me.paxana.abcmailbox.data.crypto.FakeKeyring
@@ -70,7 +69,7 @@ class OutboxRepositoryTest {
     val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
     val codec = LetterCodec(FixedMode(EncryptionMode.SERVER), FakeCryptoEngine(), InMemoryVault(), sessions, retrofit.create(AuthApi::class.java), json, FakeKeyring(), TestStrings())
     sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
-    outbox = DefaultOutboxRepository(dao, Reversing, Files(tmp.root), letters, retrofit.create(LettersApi::class.java), codec, sessions, object : OutboxScheduler { override fun schedule() { scheduled++ } }, json, TestStrings())
+    outbox = DefaultOutboxRepository(dao, Reversing, Files(tmp.root), letters, codec, sessions, object : OutboxScheduler { override fun schedule() { scheduled++ } }, json, TestStrings())
   }
 
   @After fun tearDown() = server.shutdown()
@@ -99,55 +98,64 @@ class OutboxRepositoryTest {
     outbox.queue("Jane Smith", null, letter, listOf(staged("a.pdf"), staged("b.pdf")))
     val stored = outbox.items().first().single().payload.attachments.map { File(it.path) }
     assertEquals(FlushOutcome(sent = 1), outbox.flush())
-    assertEquals(listOf(letter), letters.sent)
+    assertEquals(listOf(letter.body), letters.sent.map { it.body })
     assertEquals(listOf("a.pdf" to "scan of a.pdf", "b.pdf" to "scan of b.pdf"), letters.uploaded)
     assertTrue(rows().isEmpty()); assertTrue(stored.none { it.exists() })
   }
 
   @Test
-  fun `still no connection means wait, keep the order, and do not count the letter as possibly sent`() = runTest {
+  fun `still no connection means wait, and keep the order`() = runTest {
     outbox.queue("Jane Smith", null, letter, emptyList()); outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2), emptyList())
     letters.sendResults += ApiResult.Failure(AppError.Network(UnknownHostException()))
     assertEquals(FlushOutcome(stillWaiting = 2), outbox.flush())
     assertTrue("the second letter was not tried through the same dead connection", letters.sent.isEmpty())
-    assertFalse(rows().first().outcomeUnknown)
     assertEquals(FlushOutcome(sent = 2), outbox.flush())
-    assertEquals(0, server.requestCount) // no reason to look on the server: nothing can have arrived
   }
 
   @Test
-  fun `after a timeout the server is asked first, and a letter that did arrive is never posted again`() = runTest {
-    outbox.queue("Jane Smith", null, letter, listOf(staged("scan.pdf")))
-    letters.sendResults += ApiResult.Failure(AppError.Network(SocketTimeoutException()))
+  fun `every try of a letter carries the same key, and each file its own`() = runTest {
+    outbox.queue("Jane Smith", null, letter, listOf(staged("a.pdf"), staged("b.pdf")))
+    letters.sendResults += ApiResult.Failure(AppError.Network(SocketTimeoutException()))   // may have arrived
+    letters.sendResults += ApiResult.Failure(AppError.Server(502, null))                   // may have arrived
+    outbox.flush(); outbox.flush(); outbox.flush()
+    assertEquals("three tries, one key", 1, letters.sendKeys.toSet().size)
+    assertEquals(3, letters.sendKeys.size); assertTrue(letters.sendKeys.first()!!.length >= 8)
+    assertEquals("the server made it one letter", listOf(letter.body), letters.sent.map { it.body })
+    assertEquals(2, letters.uploadKeys.toSet().size)
+    assertTrue("a file's key is not the letter's", letters.uploadKeys.none { it == letters.sendKeys.first() })
+  }
+
+  @Test
+  fun `a key the compose screen already tried with is kept, because that try may have arrived`() = runTest {
+    outbox.queue("Jane Smith", null, letter.copy(idempotencyKey = "key-from-the-first-try"), emptyList())
     outbox.flush()
-    assertTrue(rows().single().outcomeUnknown)
-
-    server.enqueue(messages(onServer(40, "An older letter"), onServer(41, letter.body)))
-    assertEquals(FlushOutcome(sent = 1), outbox.flush())
-    assertEquals("/messaging/messages?prisoner=1&page_size=100", server.takeRequest().path)
-    assertTrue("no second copy", letters.sent.isEmpty())
-    assertEquals("the file went to the letter that was found", listOf(41), letters.uploadedTo)
+    assertEquals(listOf<String?>("key-from-the-first-try"), letters.sendKeys)
   }
 
   @Test
-  fun `after a timeout, a letter that is not on the server is posted`() = runTest {
+  fun `a retry racing its own earlier attempt waits, and is not mistaken for a refusal`() = runTest {
     outbox.queue("Jane Smith", null, letter, emptyList())
-    letters.sendResults += ApiResult.Failure(AppError.Server(502, null))
-    outbox.flush()
-    // Same words, but written by someone else, or long before this one was queued: not ours.
-    server.enqueue(messages(onServer(7, letter.body, user = 5), onServer(8, letter.body, at = Instant.now().minusSeconds(86_400))))
-    assertEquals(FlushOutcome(sent = 1), outbox.flush())
-    assertEquals(listOf(letter), letters.sent)
-  }
-
-  @Test
-  fun `when the server cannot be asked, the letter waits rather than risk a second copy`() = runTest {
-    outbox.queue("Jane Smith", null, letter, emptyList())
-    letters.sendResults += ApiResult.Failure(AppError.Network(SocketTimeoutException()))
-    outbox.flush()
-    server.enqueue(MockResponse().setResponseCode(503).setBody("""{"success":false,"status":503}"""))
+    letters.sendResults += ApiResult.Failure(AppError.Conflict("A request with this key is still being processed.", "IdempotencyError"))
     assertEquals(FlushOutcome(stillWaiting = 1), outbox.flush())
-    assertTrue(letters.sent.isEmpty()); assertTrue(rows().single().outcomeUnknown)
+    assertNull(outbox.items().first().single().problem)
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+  }
+
+  @Test
+  fun `a letter that was sent and has since been deleted elsewhere is dropped, not sent again and not reported`() = runTest {
+    val id = outbox.queue("Jane Smith", null, letter, listOf(staged("scan.pdf")))
+    val stored = File(outbox.items().first().single().payload.attachments.single().path)
+    letters.sendResults += ApiResult.Failure(AppError.Gone("This letter was deleted."))
+    assertEquals(FlushOutcome(), outbox.flush())
+    assertTrue(rows().isEmpty()); assertFalse(stored.exists()); assertTrue(letters.sent.isEmpty())
+  }
+
+  @Test
+  fun `a key refused as belonging to a different letter is a refusal to show, not something to retry for ever`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList())
+    letters.sendResults += ApiResult.Failure(AppError.Validation(listOf("This Idempotency-Key was used for a different letter.")))
+    assertEquals(FlushOutcome(refused = 1), outbox.flush())
+    assertEquals("This Idempotency-Key was used for a different letter.", outbox.items().first().single().problem)
   }
 
   @Test
@@ -216,9 +224,11 @@ class OutboxRepositoryTest {
   class ScriptedLetters : LettersRepository {
     val sendResults = ArrayDeque<ApiResult<Letter>>(); val uploadResults = ArrayDeque<ApiResult<Attachment>>()
     val sent = mutableListOf<NewLetter>(); val uploaded = mutableListOf<Pair<String, String>>(); val uploadedTo = mutableListOf<Int>()
+    val sendKeys = mutableListOf<String?>(); val uploadKeys = mutableListOf<String?>()
     private fun stub(id: Int) = Letter(id, 41, 1, 2, false, LetterStatus.QUEUED, "x", null, null, null, false, null, null, emptyList(), emptyList())
-    override suspend fun send(letter: NewLetter): ApiResult<Letter> { sendResults.removeFirstOrNull()?.let { return it }; sent += letter; return ApiResult.Success(stub(99)) }
-    override suspend fun upload(messageId: Int, staged: StagedFile): ApiResult<Attachment> {
+    override suspend fun send(letter: NewLetter): ApiResult<Letter> { sendKeys += letter.idempotencyKey; sendResults.removeFirstOrNull()?.let { return it }; sent += letter; return ApiResult.Success(stub(99)) }
+    override suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String?): ApiResult<Attachment> {
+      uploadKeys += idempotencyKey
       uploadResults.removeFirstOrNull()?.let { return it }
       uploaded += staged.name to staged.file.readText(); uploadedTo += messageId
       return ApiResult.Success(Attachment(1, messageId, staged.name, staged.mimeType, staged.size))

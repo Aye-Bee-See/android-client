@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import retrofit2.HttpException
@@ -83,5 +84,17 @@ class ApiCallTest {
   @Test
   fun `success passes the value through`() = runTest {
     assertEquals(ApiResult.Success(7), apiCall(json) { 7 })
+  }
+
+  @Test
+  fun `the idempotency answers are told apart, a retry still in flight from a key used for another letter`() = runTest {
+    val inFlight = apiCall(json) { throw http(409, """{"success":false,"name":"IdempotencyError","info":"A request with this Idempotency-Key is still being processed.","status":409}""") }
+    val conflict = (inFlight as ApiResult.Failure).error as AppError.Conflict
+    assertTrue("wait and ask again", conflict.isStillProcessing)
+    assertFalse((AppError.Conflict("A printed letter cannot move to queued.", "LetterStatusError")).isStillProcessing)
+
+    // 422 is an answer about this request, not a server fault: retrying unchanged would get it again.
+    val mismatch = apiCall(json) { throw http(422, """{"success":false,"name":"IdempotencyError","info":"This Idempotency-Key was used for a different letter.","status":422}""") }
+    assertEquals(AppError.Validation(listOf("This Idempotency-Key was used for a different letter.")), (mismatch as ApiResult.Failure).error)
   }
 }

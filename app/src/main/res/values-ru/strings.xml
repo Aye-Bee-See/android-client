@@ -627,4 +627,37 @@
     <!-- Stragglers -->
     <string name="action_record_reply">Записать ответ</string>
     <string name="notice_writer_added">Автор добавлен: %1$s.</string>
+
+    <!-- Activity notifications. They appear on lock screens, so they name nobody and quote nothing. -->
+    <string name="activity_channel_name">Письма и ответы</string>
+    <string name="activity_channel_description">Сообщает, когда ваше письмо напечатано или отправлено, когда приходит ответ, а участникам групп — когда письмо ждёт печати.</string>
+    <string name="activity_reply">Пришёл ответ на одно из ваших писем.</string>
+    <string name="activity_printed">Одно из ваших писем напечатано.</string>
+    <string name="activity_mailed">Одно из ваших писем отправлено почтой.</string>
+    <string name="activity_queued">Письмо ждёт, пока ваша группа его напечатает.</string>
+    <string name="activity_change_approved">Предложенное вами изменение каталога одобрено.</string>
+    <string name="activity_change_rejected">Предложенное вами изменение каталога не принято.</string>
+    <string name="activity_other">В вашем аккаунте есть новости.</string>
+    <plurals name="activity_summary">
+        <item quantity="one">%d новость о ваших письмах</item>
+        <item quantity="few">%d новости о ваших письмах</item>
+        <item quantity="many">%d новостей о ваших письмах</item>
+        <item quantity="other">%d новости о ваших письмах</item>
+    </plurals>
+    <plurals name="activity_and_more">
+        <item quantity="one">и ещё %d</item>
+        <item quantity="few">и ещё %d</item>
+        <item quantity="many">и ещё %d</item>
+        <item quantity="other">и ещё %d</item>
+    </plurals>
+
+    <!-- Instant notifications (the optional push doorbell) -->
+    <string name="push_title">Мгновенные уведомления</string>
+    <string name="push_explained">Без этого приложение проверяет новости несколько раз в день и при каждом открытии. С этим сервер «звонит» на телефон сразу, как только что-то происходит. Звонок идёт через службу уведомлений Google и ничего не содержит — ни имён, ни текста: Google узнаёт только то, что на этом телефоне есть это приложение, и когда ему звонят.</string>
+    <string name="push_unavailable_build">В этой сборке недоступно.</string>
+    <string name="push_unavailable_device">На этом телефоне нет службы уведомлений Google, поэтому приложение продолжит проверять само.</string>
+    <string name="push_on_not_deliverable">Включено. Сервер пока не настроен, чтобы звонить на телефоны, поэтому до тех пор приложение продолжит проверять само.</string>
+    <string name="push_on">Включено.</string>
+    <string name="push_off">Выключено. На этот телефон больше не будут звонить.</string>
+    <string name="push_failed">Не удалось изменить: %1$s</string>
 </resources>

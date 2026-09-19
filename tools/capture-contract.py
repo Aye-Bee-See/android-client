@@ -67,6 +67,7 @@ def capture(mode, base, claim_token=None, writer_password="password1"):
             ids = [m["id"] for m in r["data"]]
             mid = next((i for i in ids if (call(base, "GET", f"/messaging/attachments?message={i}", token=t)[1].get("data") or [])), ids[0])
             get("message", f"/messaging/message?id={mid}&full=true", t); get("attachments", f"/messaging/attachments?message={mid}", t)
+        get("notifications", "/auth/notifications?page_size=20", t)
         get("publicKey.user", f"/auth/public-key?user={u['id']}", t); get("publicKey.chapter", "/auth/public-key?chapter=1", t)
         if mode == "e2e": get("recoverStart", "/auth/recover?username=user1")
     # A group member

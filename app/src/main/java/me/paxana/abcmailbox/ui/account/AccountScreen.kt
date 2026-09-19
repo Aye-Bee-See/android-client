@@ -92,6 +92,8 @@ fun AccountScreen(
       pluralStringResource(R.plurals.account_unsent, unsent.size, unsent.size),
       style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    // Only someone signed in has a feed to be rung about.
+    if (sessionState is SessionState.SignedIn) PushSetting()
     OfflineCopySection()
     Text(
       stringResource(R.string.build_line, BuildConfig.VERSION_NAME, stringResource(when (mode) { EncryptionMode.E2E -> R.string.mode_e2e; EncryptionMode.SERVER -> R.string.mode_server; EncryptionMode.UNKNOWN -> R.string.mode_unknown })) + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
@@ -109,6 +111,7 @@ fun AccountScreen(
         onSave = viewModel::saveServer,
         onReset = viewModel::resetServer,
         onDismiss = viewModel::closeServerDialog,
+        onSimulatePush = viewModel::simulatePush,
       )
     }
     SnackbarHost(hostState = snackbar) { Snackbar(it) }

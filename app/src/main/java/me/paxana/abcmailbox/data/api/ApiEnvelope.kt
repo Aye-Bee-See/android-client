@@ -21,6 +21,8 @@ data class ApiEnvelope<T>(
   val total: Int? = null,
   val page: Int? = null,
   @SerialName("page_size") val pageSize: Int? = null,
+  /** Only on the notification feed: how many entries the account has not read. */
+  val unread: Int? = null,
 )
 
 /** A list response with its paging fields, as repositories hand it to Paging. */

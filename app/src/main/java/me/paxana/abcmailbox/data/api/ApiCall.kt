@@ -31,8 +31,10 @@ fun HttpException.toAppError(json: Json): AppError {
     403 -> AppError.Forbidden(info ?: "You are not allowed to do that.")
     404 -> AppError.NotFound(info)
     // Lifecycle refusals put the useful sentence in `error` ("A printed letter cannot move to queued"); `info` is generic.
-    409 -> AppError.Conflict(envelope?.error ?: info)
+    409 -> AppError.Conflict(envelope?.error ?: info, envelope?.name)
     410 -> AppError.Gone(info)
+    // An Idempotency-Key reused for a different request (API PR #97). Retrying unchanged would get the same answer, so it is a refusal, not a server fault.
+    422 -> AppError.Validation(listOfNotNull(envelope?.error ?: info ?: "The request was rejected."))
     429 -> AppError.RateLimited(info, response()?.headers()?.get("Retry-After")?.toLongOrNull())
     else -> AppError.Server(code(), info)
   }

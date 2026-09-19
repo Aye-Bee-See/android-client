@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
 import android.net.Uri
 import kotlinx.coroutines.test.runTest
@@ -72,11 +73,11 @@ class LettersRepositoryE2eTest {
     val sent = repo.send(NewLetter(3, "Dear friend", null, 2)) as ApiResult.Success
     assertEquals("Dear friend", sent.value.body)
 
-    server.takeRequest() // public key v1
-    val first = json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject["envelopes"]!!.jsonArray[1].jsonObject
+    server.next() // public key v1
+    val first = json.parseToJsonElement(server.next().body.readUtf8()).jsonObject["envelopes"]!!.jsonArray[1].jsonObject
     assertEquals(1, first["keyVersion"]!!.jsonPrimitive.int)
-    assertEquals("/auth/public-key?chapter=2", server.takeRequest().path)
-    val second = json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject["envelopes"]!!.jsonArray[1].jsonObject
+    assertEquals("/auth/public-key?chapter=2", server.next().path)
+    val second = json.parseToJsonElement(server.next().body.readUtf8()).jsonObject["envelopes"]!!.jsonArray[1].jsonObject
     assertEquals(2, second["keyVersion"]!!.jsonPrimitive.int)
     assertEquals("sealed(KEY)to(PUB-GROUP-V2)", second["wrappedKey"]!!.jsonPrimitive.content)
     assertEquals(4, server.requestCount)
@@ -91,8 +92,8 @@ class LettersRepositoryE2eTest {
     val uploaded = (repo.upload(9, StagedFile(file, "scan.png", "image/png", 3)) as ApiResult.Success).value
     assertEquals("file-nonce", uploaded.nonce)
 
-    server.takeRequest()
-    val body = server.takeRequest().body
+    server.next()
+    val body = server.next().body
     val raw = body.readByteArray()
     val text = String(raw, Charsets.ISO_8859_1)
     assertTrue(text.contains("name=\"nonce\"")); assertTrue(text.contains("file-nonce"))

@@ -17,6 +17,21 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ABCMailbox">
+        <!--
+          Push is opt-in. Firebase normally starts itself at every launch and fetches a registration token;
+          both are switched off, so nothing Google-related runs until someone turns instant notifications
+          on in the Account tab (see data/push/Fcm.kt).
+        -->
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider"
+            tools:node="remove" />
+        <service android:name=".data.push.AbcMessagingService" android:exported="false">
+            <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
+        </service>
+
         <!-- WorkManager must not start itself: AbcApplication configures it with Hilt's worker factory. -->
         <provider
             android:name="androidx.startup.InitializationProvider"

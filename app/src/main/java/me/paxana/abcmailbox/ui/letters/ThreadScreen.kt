@@ -98,6 +98,7 @@ fun ThreadScreen(
           busyMessageId = ui.busyMessageId,
           onPrisoner = onPrisoner,
           onOpen = viewModel::open,
+          showWriter = ui.isStaff,
           mayChange = me.paxana.abcmailbox.domain.mayChangeLetters(ui.isStaff, ui.staffGroupId, t.value.writer),
           onEdit = { onEdit(t.value.prisonerId, it) },
           onDelete = { confirmDelete = it },
@@ -148,6 +149,7 @@ private fun ThreadBody(
   mayChange: Boolean,
   onEdit: (Int) -> Unit,
   onDelete: (Int) -> Unit,
+  showWriter: Boolean = false,
 ) {
   LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 170.dp)) {
     item("header") {
@@ -157,7 +159,8 @@ private fun ThreadBody(
             Text(p.name + (p.facility?.let { " · ${it.name}" } ?: ""), color = MaterialTheme.colorScheme.secondary)
           }
         }
-        thread.writer?.let { w -> Text(stringResource(R.string.writer_named, w.label(rememberStrings())), style = MaterialTheme.typography.bodyMedium) }
+        // Whose thread it is matters to a group member, who sees many people's. A writer knows it is theirs.
+        if (showWriter) thread.writer?.let { w -> Text(stringResource(R.string.writer_named, w.label(rememberStrings())), style = MaterialTheme.typography.bodyMedium) }
         val sent = thread.letters.count { !it.fromPrisoner }
         val received = thread.letters.size - sent
         Text(stringResource(R.string.thread_counts, pluralStringResource(R.plurals.thread_count_letters, thread.letters.size, thread.letters.size), sent, received), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
