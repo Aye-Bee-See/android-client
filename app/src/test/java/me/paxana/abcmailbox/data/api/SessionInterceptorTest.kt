@@ -72,4 +72,13 @@ class SessionInterceptorTest {
     response.close()
     assertEquals(0, cache.unauthorized.replayCache.size)
   }
+
+  @Test
+  fun `the offline directory download carries no token even when someone is signed in`() {
+    // A group member or admin sees unpublished records; those must never reach a copy kept on the phone.
+    cache.token = "abc.def.ghi"
+    server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+    client.newCall(Request.Builder().url(server.url("/prisoner/prisoners?full=true")).tag(Anonymous::class.java, Anonymous).build()).execute().close()
+    assertNull(server.takeRequest().getHeader("Authorization"))
+  }
 }

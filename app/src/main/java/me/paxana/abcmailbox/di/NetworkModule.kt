@@ -77,6 +77,10 @@ object NetworkModule {
 
   @Provides
   @Singleton
+  fun directorySyncApi(retrofit: Retrofit): me.paxana.abcmailbox.data.api.DirectorySyncApi = retrofit.create(me.paxana.abcmailbox.data.api.DirectorySyncApi::class.java)
+
+  @Provides
+  @Singleton
   fun lettersApi(retrofit: Retrofit): LettersApi = retrofit.create(LettersApi::class.java)
 
   @Provides

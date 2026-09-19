@@ -15,6 +15,16 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import me.paxana.abcmailbox.ui.common.longDate
+import me.paxana.abcmailbox.data.repo.DirectorySource
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,6 +105,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val pendingCode by viewModel.pendingRecoveryCode.collectAsStateWithLifecycle()
   val keysLocked by viewModel.keysLocked.collectAsStateWithLifecycle()
   val mode by viewModel.mode.collectAsStateWithLifecycle()
+  val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
 
   LaunchedEffect(Unit) {
     viewModel.expired.collect { snackbar.showSnackbar("Your session ended. Please sign in again.") }
@@ -148,10 +159,16 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
       }
     },
   ) { innerPadding ->
+    // The banner belongs to the screens that read the directory; a letter thread that fails offline says so itself.
+    val onDirectoryScreen = destination?.hierarchy?.any { it.hasRoute(DirectoryGraph::class) } == true ||
+      destination?.hasRoute(ComposeRoute::class) == true || destination?.hasRoute(PickPrisonerRoute::class) == true
+    val saved = directorySource as? DirectorySource.Saved
+    Column(Modifier.padding(innerPadding)) {
+      if (saved != null && onDirectoryScreen) SavedCopyBanner(saved.at)
     NavHost(
       navController = navController,
       startDestination = DirectoryGraph,
-      modifier = Modifier.padding(innerPadding),
+      modifier = Modifier.weight(1f),
     ) {
       navigation<DirectoryGraph>(startDestination = DirectoryHomeRoute) {
         composable<DirectoryHomeRoute> {
@@ -317,5 +334,19 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
         else RecoveryCodeScreen(code = code, onSaved = { viewModel.recoveryCodeSaved() })
       }
     }
+    } // Column: banner above the NavHost
+  }
+}
+
+/** Said plainly and without alarm: the directory still works, it is just as of a date. */
+@Composable
+private fun SavedCopyBanner(at: java.time.Instant) {
+  Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+    Text(
+      "No connection. Showing the directory saved on this phone on ${at.longDate()}. Letters cannot be sent until you are back online; drafts are kept.",
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSecondaryContainer,
+      modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp).semantics { liveRegion = LiveRegionMode.Polite },
+    )
   }
 }

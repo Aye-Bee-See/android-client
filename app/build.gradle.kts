@@ -107,6 +107,8 @@ dependencies {
 
   // Instrumented tests (run on a device or emulator)
   androidTestImplementation(libs.androidx.junit)
+  // MigrationTestHelper: opens the database at an old version from the exported schema files, then upgrades it.
+  androidTestImplementation(libs.androidx.room.testing)
   androidTestImplementation(libs.androidx.espresso.core)
   androidTestImplementation(platform(libs.androidx.compose.bom))
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.db
 
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -38,7 +39,18 @@ interface DraftDao {
   suspend fun clear()
 }
 
-@Database(entities = [DraftEntity::class], version = 1, exportSchema = true)
+/**
+ * Version 2 adds the offline directory tables. The change only adds tables, so Room writes the
+ * upgrade itself (an auto-migration, generated at compile time by comparing the exported schema
+ * files in `app/schemas`); drafts already on a phone are untouched.
+ */
+@Database(
+  entities = [DraftEntity::class, CachedPrisoner::class, CachedFacility::class, CachedGroup::class, DirectoryMeta::class],
+  version = 2,
+  exportSchema = true,
+  autoMigrations = [AutoMigration(from = 1, to = 2)],
+)
 abstract class AppDatabase : RoomDatabase() {
   abstract fun drafts(): DraftDao
+  abstract fun directoryCache(): DirectoryCacheDao
 }

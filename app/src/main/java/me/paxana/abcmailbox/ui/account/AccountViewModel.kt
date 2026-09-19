@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.account
 
+import me.paxana.abcmailbox.data.offline.OfflineDirectory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +29,7 @@ data class AccountUiState(
 class AccountViewModel @Inject constructor(
   private val sessions: SessionRepository,
   private val devServer: DevServerRepository,
+  private val offline: OfflineDirectory,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(AccountUiState(serverUrl = devServer.baseUrl.value, serverDefault = devServer.default, serverOverridden = devServer.isOverridden))
@@ -57,6 +59,8 @@ class AccountViewModel @Inject constructor(
         onFailure = { it.message ?: "Invalid URL" },
       )
       _uiState.update { it.copy(serverChecking = false, serverResult = result, serverUrl = devServer.baseUrl.value, serverOverridden = devServer.isOverridden) }
+      // The saved directory belongs to the server it came from; a different server needs its own copy.
+      offline.download()
     }
   }
 
@@ -64,6 +68,7 @@ class AccountViewModel @Inject constructor(
     viewModelScope.launch {
       devServer.reset()
       _uiState.update { it.copy(serverResult = "Back to the default.", serverUrl = devServer.baseUrl.value, serverOverridden = devServer.isOverridden) }
+      offline.download()
     }
   }
 

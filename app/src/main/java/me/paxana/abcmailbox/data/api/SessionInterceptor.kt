@@ -25,7 +25,9 @@ class SessionInterceptor(private val cache: SessionCache) : Interceptor {
     // revoked": checking the current password before a password change would sign
     // the user out on a typo.
     val path = chain.request().url.encodedPath
-    val token = if (PUBLIC_AUTH_PATHS.any { path.endsWith(it) }) null else cache.token
+    // The offline directory download is anonymous on purpose; see [DirectorySyncApi].
+    val anonymous = chain.request().tag(Anonymous::class.java) != null
+    val token = if (anonymous || PUBLIC_AUTH_PATHS.any { path.endsWith(it) }) null else cache.token
     val request = if (token != null) {
       chain.request().newBuilder().header("Authorization", "Bearer $token").build()
     } else {

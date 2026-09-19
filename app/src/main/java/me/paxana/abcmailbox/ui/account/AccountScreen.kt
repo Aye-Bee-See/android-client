@@ -82,6 +82,7 @@ fun AccountScreen(
         }
       }
     }
+    OfflineCopySection()
     Text(
       "Build ${BuildConfig.VERSION_NAME} · " + when (mode) { EncryptionMode.E2E -> "end-to-end encrypted"; EncryptionMode.SERVER -> "server mode"; EncryptionMode.UNKNOWN -> "server not reached" } + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
       style = MaterialTheme.typography.labelSmall,

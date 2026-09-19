@@ -68,6 +68,9 @@ object AppModule {
 
   @Provides
   fun draftDao(db: AppDatabase): DraftDao = db.drafts()
+
+  @Provides
+  fun directoryCacheDao(db: AppDatabase): me.paxana.abcmailbox.data.db.DirectoryCacheDao = db.directoryCache()
 }
 
 /** Interface-to-implementation bindings; `@Binds` generates no code beyond the mapping. */
@@ -88,6 +91,9 @@ abstract class BindingsModule {
 
   @Binds
   abstract fun groupRepository(impl: DefaultGroupRepository): GroupRepository
+
+  @Binds
+  abstract fun offlineDirectory(impl: me.paxana.abcmailbox.data.offline.RoomOfflineDirectory): me.paxana.abcmailbox.data.offline.OfflineDirectory
 
   @Binds
   @Singleton
