@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -62,7 +63,7 @@ fun LoginScreen(
       .padding(horizontal = 24.dp, vertical = 32.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
-    Text("Sign in", style = MaterialTheme.typography.headlineMedium)
+    Text("Sign in", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     Text(
       "Writers and support groups sign in here.",
       style = MaterialTheme.typography.bodyMedium,

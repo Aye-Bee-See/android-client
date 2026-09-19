@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.letters
 
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import me.paxana.abcmailbox.ui.common.spokenWithoutArrows
+import me.paxana.abcmailbox.ui.common.AttachmentRow
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -101,7 +104,7 @@ fun ThreadScreen(
           // A group records what came back from the prisoner, on any thread it can see.
           if (ui.isStaff && writer != null) ExtendedFloatingActionButton(
             onClick = { onRecordReply(t.prisonerId, writer.id) },
-            icon = { Text("←") }, text = { Text("Record reply") },
+            icon = { Text("←", modifier = Modifier.clearAndSetSemantics { }) }, text = { Text("Record reply") },
             containerColor = MaterialTheme.colorScheme.secondary, contentColor = MaterialTheme.colorScheme.onSecondary,
           )
           // A writer writes in their own thread; a group only for writers it manages or as its anonymous writer.
@@ -178,6 +181,7 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(
         if (letter.fromPrisoner) "← Received" else "→ Sent",
+        modifier = Modifier.spokenWithoutArrows(if (letter.fromPrisoner) "← Received" else "→ Sent"),
         style = MaterialTheme.typography.titleMedium,
         color = if (letter.fromPrisoner) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
       )
@@ -196,16 +200,7 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
         Text(it, style = MaterialTheme.typography.bodyMedium)
       }
     }
-    letter.attachments.forEach { a ->
-      Row(
-        Modifier.fillMaxWidth().clickable { onOpen(a) }.padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-      ) {
-        Text("📎", style = MaterialTheme.typography.bodyLarge)
-        Text(a.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
-        Text(a.sizeLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-      }
-    }
+    letter.attachments.forEach { a -> AttachmentRow(a.name, a.sizeLabel, onOpen = { onOpen(a) }) }
     val statusLine = when (letter.status) {
       LetterStatus.QUEUED -> when {
         letter.relayGroupName != null -> "Waiting for ${letter.relayGroupName} to print it"

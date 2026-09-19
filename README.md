@@ -22,6 +22,32 @@ Requires JDK 17 or newer on the path (Android Studio's bundled JDK works). Andro
 ./gradlew :crypto:test :app:assembleDebug
 ```
 
+### Build types
+
+| Type | For | Shrunk (R8) | Server | Installs as |
+| --- | --- | --- | --- | --- |
+| `debug` | development | no (about 24 MB) | emulator's host by default; hidden server dialog on the Account tab (five taps on the build line) | `me.paxana.abcmailbox` |
+| `internal` | testers, and checking the shrunk build, until there is a domain | yes (about 4 MB) | same as debug, plain HTTP allowed | `me.paxana.abcmailbox.internal` |
+| `release` | the store | yes | HTTPS only; `-PapiBaseUrl=https://…` sets the address | `me.paxana.abcmailbox` |
+
+```bash
+./gradlew :app:assembleInternal
+```
+
+Release signing reads `keystore.properties` (copy `keystore.properties.example`; git ignores the real one) or the `ABC_KEYSTORE_*` environment variables. Without them `assembleRelease` produces an unsigned APK. Every push runs the tests, lint and the internal build on GitHub Actions and keeps the APK as an artifact.
+
+### Tests
+
+```bash
+./gradlew :crypto:test :app:testDebugUnitTest :app:lintDebug
+```
+
+```bash
+./gradlew :app:connectedDebugAndroidTest
+```
+
+The second needs an emulator or phone (Room SQL, the database migration, the Keystore) and uninstalls the debug app when it finishes. After the API changes, run the contract check described in `tools/capture-contract.py`.
+
 One build works against both API modes: the app asks `GET /health` which letter contract the server speaks (`server` or `e2e`) and encrypts on the device when it must. The crypto is proven against libsodium.js in both directions; see `tools/` (`npm install` there once, then `node make-e2e-fixture.mjs`, `node verify-kotlin-fixture.mjs`, `node verify-account.mjs`; for the group side, `node verify-claim-token.mjs`, `node verify-member-holds-group-key.mjs`, `node verify-group-can-read.mjs`).
 
 ## Run against a local API

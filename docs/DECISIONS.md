@@ -2,6 +2,24 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-19: offline means a downloaded public copy, not an HTTP cache
+
+**Context.** Volunteers write letters together in rooms with no signal and need addresses and mail rules there.
+
+**Decision.** Download the whole public directory into Room and query it locally, network first with the copy as fallback. The download carries no session token, so the copy is exactly what the public sees. Rows are stored as the API's JSON with a few indexed columns.
+
+**Consequences.** Search and filters work offline for every record, not only pages someone happened to open. The API can add fields without a migration here. The cost is a full download (about 100 KB for the development data, of the order of a megabyte for a thousand records) roughly once a day. A record unpublished since the last download stays visible offline until the next one; online, the server's 404 wins.
+
+**Rejected.** An OkHttp response cache (only seen pages, no search). Paging's `RemoteMediator` (built for feeds too large to hold; this directory is small, and per-query remote keys would be more code than the whole copy). Caching whatever the signed-in user can see (would put unpublished records and verification notes on disk).
+
+## 2026-09-19: an `internal` build type stands in for release until there is a domain
+
+**Decision.** Release is strict (HTTPS only, no developer tools) and cannot talk to anything yet. `internal` is shrunk identically but keeps the server override and plain HTTP, with its own application id. Every R8-sensitive path is verified on it.
+
+## 2026-09-19: strings move to resources area by area, when a language is chosen
+
+**Decision.** Only the shell and shared components are in `strings.xml` today. Reasons and sizes are in `docs/PLAN.md`, phase 7c.
+
 ## 2026-09-17: group and custody keys live in memory only, and are checked when opened
 
 **Context.** A group member reads through up to three keys: their own, the group's (sealed to them), and those of unclaimed writers (sealed to the group). The member's own keypair is already kept on disk under an Android Keystore key so they are not asked for a password at every launch.

@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.ui.common.SecretCodeText
+import me.paxana.abcmailbox.ui.common.AttachmentRow
+import me.paxana.abcmailbox.ui.common.ErrorText
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -162,11 +165,7 @@ private fun LetterWorkBody(
     if (letter.locked) Text("🔒 This letter is encrypted and this device does not hold a key that opens it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
     else androidx.compose.foundation.text.selection.SelectionContainer { Text(letter.body.ifBlank { "(No text. See the attached file.)" }, style = MaterialTheme.typography.bodyLarge) }
 
-    letter.attachments.forEach { a ->
-      Row(Modifier.fillMaxWidth().clickable { onOpen(a) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("📎"); Text(a.name, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f)); Text(a.sizeLabel, style = MaterialTheme.typography.labelSmall)
-      }
-    }
+    letter.attachments.forEach { a -> AttachmentRow(a.name, a.sizeLabel, onOpen = { onOpen(a) }) }
 
     if (!letter.locked && letter.body.isNotBlank()) OutlinedButton(onClick = onPrint, modifier = Modifier.fillMaxWidth()) { Text("Print the letter") }
     when (letter.status) {
@@ -195,7 +194,7 @@ fun AddWriterScreen(onBack: () -> Unit, onDone: (ManagedWriter, thenWrite: Boole
       OutlinedTextField(ui.email, viewModel::onEmail, label = { Text("Email (optional)") }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
       OutlinedTextField(ui.note, viewModel::onNote, label = { Text("Internal note (optional)") }, supportingText = { Text("Only your group sees this. Never shown to the writer.") }, minLines = 2, enabled = !ui.busy, modifier = Modifier.fillMaxWidth())
-      ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+      ui.error?.let { ErrorText(it) }
       Button(onClick = { viewModel.submit(thenWrite = true) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth()) { Text("Add writer and start a letter") }
       OutlinedButton(onClick = { viewModel.submit(thenWrite = false) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("writer-add")) { Text("Add writer") }
     }
@@ -228,18 +227,14 @@ fun HandoffScreen(onBack: () -> Unit, viewModel: HandoffViewModel = hiltViewMode
         // This screen cannot see an earlier token, only cancel it; once that is done there is nothing left to revoke.
         if (!ui.revoked) OutlinedButton(onClick = viewModel::revoke, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text("Revoke the current token") }
       } else {
-        Text(
-          SecretCodes.pretty(token.token).chunked(15).joinToString("\n") { it.trim('-') },
-          fontFamily = FontFamily.Monospace, fontSize = 26.sp, lineHeight = 38.sp, textAlign = TextAlign.Center,
-          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(vertical = 20.dp).testTag("token"),
-        )
+        SecretCodeText(token.token)
         token.expiresAt?.let { Text("Expires ${it.longDate()}. Shown once: when you leave this screen it cannot be shown again, only replaced.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(token.token))) }) { Text("Copy") }
         AlertBanner("Give this to ${ui.writerName} in person, or over a channel you both trust such as Signal. Do not email it or post it anywhere. They enter it in the app under Sign in, \"I have a claim token\".")
         OutlinedButton(onClick = viewModel::generate, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text("Regenerate (cancels this one)") }
         TextButton(onClick = viewModel::revoke, enabled = !ui.busy) { Text("Revoke", color = MaterialTheme.colorScheme.error) }
       }
-      ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+      ui.error?.let { ErrorText(it) }
     }
   }
 }

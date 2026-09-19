@@ -1,5 +1,17 @@
 package me.paxana.abcmailbox.ui.common
 
+import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -53,9 +65,9 @@ fun DetailScaffold(title: String, onBack: () -> Unit, content: @Composable (Padd
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1) },
+        title = { Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.asHeading()) },
         navigationIcon = {
-          IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+          IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back)) }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
         windowInsets = WindowInsets(0, 0, 0, 0),
@@ -88,7 +100,7 @@ fun <T> ChipRow(
   selected: T?,
   onSelect: (T?) -> Unit,
   modifier: Modifier = Modifier,
-  allLabel: String = "All",
+  allLabel: String = stringResource(R.string.filter_all),
   showAll: Boolean = true,
 ) {
   Row(
@@ -142,7 +154,20 @@ fun AlertBanner(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-  Text(text, style = MaterialTheme.typography.titleLarge, modifier = modifier.padding(top = 8.dp))
+  // Marked as a heading: a screen-reader user moves through a long page heading by heading, as a sighted one skims.
+  Text(text, style = MaterialTheme.typography.titleLarge, modifier = modifier.padding(top = 8.dp).semantics { heading() })
+}
+
+/** A page's main title. Same reason as [SectionTitle]: it is a landmark, not just big text. */
+fun Modifier.asHeading(): Modifier = semantics { heading() }
+
+/**
+ * An error under a form. It appears after the fact, somewhere the user is not looking, so it is a
+ * live region: TalkBack reads it out when it shows up instead of leaving the user to go and find it.
+ */
+@Composable
+fun ErrorText(message: String, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.bodyMedium) {
+  Text(message, color = MaterialTheme.colorScheme.error, style = style, modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite })
 }
 
 @Composable
@@ -169,14 +194,14 @@ fun RecordRow(
   Column(
     modifier
       .fillMaxWidth()
-      .clickable(onClick = onClick)
+      .clickable(role = Role.Button, onClick = onClick)
       .padding(horizontal = horizontalPadding, vertical = 12.dp),
     verticalArrangement = Arrangement.spacedBy(4.dp),
   ) {
     notice?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
     Text(title, style = MaterialTheme.typography.titleMedium)
     secondary?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-    subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+    subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.spokenWithoutArrows(it)) }
     TagRow(tags)
   }
 }
@@ -190,7 +215,7 @@ fun LoadingBox(modifier: Modifier = Modifier) {
 fun ErrorBox(error: AppError, onRetry: () -> Unit, modifier: Modifier = Modifier) {
   Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(error.readable(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-    Button(onClick = onRetry) { Text("Try again") }
+    Button(onClick = onRetry) { Text(stringResource(R.string.action_try_again)) }
   }
 }
 
@@ -202,10 +227,12 @@ fun EmptyBox(text: String, modifier: Modifier = Modifier) {
 }
 
 /** A sentence for any [AppError], including the ones that carry no server text. */
+@Composable
 fun AppError.readable(): String = when (this) {
-  is AppError.Network -> "Can't reach the server. Check your connection and try again."
-  is AppError.NotFound -> info ?: "That record doesn't exist or is not public."
-  else -> userMessage ?: "Something went wrong. Please try again."
+  is AppError.Network -> stringResource(R.string.error_network)
+  is AppError.NotFound -> info ?: stringResource(R.string.error_not_found)
+  // The server's own sentence when it sent one: it is more specific than anything the app could say.
+  else -> userMessage ?: stringResource(R.string.error_generic)
 }
 
 /**
@@ -226,4 +253,42 @@ fun MailRulesList(rules: me.paxana.abcmailbox.domain.MailRules, emptyText: Strin
     if (rules.isEmpty) Text(emptyText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     rules.lines().forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
   }
+}
+
+/**
+ * The arrows in "← Received" and "→ Sent" are a visual cue; the word beside them already says it.
+ * A screen reader would announce "leftwards arrow", so the spoken form leaves them out.
+ */
+fun Modifier.spokenWithoutArrows(text: String): Modifier =
+  if (text.any { it == '←' || it == '→' }) semantics { contentDescription = text.replace("← ", "").replace("→ ", "") } else this
+
+/**
+ * A file attached to a letter. At least 48dp tall (the minimum comfortable touch target; the text
+ * alone is about 20dp), announced as a button with what it does, and the paperclip is decoration.
+ */
+@Composable
+fun AttachmentRow(name: String, sizeLabel: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+  Row(
+    modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClickLabel = stringResource(R.string.action_open_file), onClick = onOpen),
+    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
+    Text("📎", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clearAndSetSemantics { })
+    Text(name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
+    Text(sizeLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+}
+
+/**
+ * A claim token or recovery code, large and monospaced for copying by hand. Read aloud one
+ * character at a time, in its groups of four: as a word, "7ND4" is noise; "7, N, D, 4" can be written down.
+ */
+@Composable
+fun SecretCodeText(code: String, modifier: Modifier = Modifier) {
+  val pretty = me.paxana.abcmailbox.crypto.SecretCodes.pretty(code)
+  Text(
+    pretty.chunked(15).joinToString("\n") { it.trim('-') },
+    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 26.sp, lineHeight = 38.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+    modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(vertical = 20.dp)
+      .semantics { contentDescription = pretty.split('-').joinToString(". ") { group -> group.toList().joinToString(" ") } },
+  )
 }

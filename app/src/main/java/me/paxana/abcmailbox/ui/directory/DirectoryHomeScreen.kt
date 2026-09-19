@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.directory
 
+import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,7 +41,7 @@ fun DirectoryHomeScreen(
 
   Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
     Column(Modifier.padding(horizontal = 20.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      Text("Letters matter.", style = MaterialTheme.typography.displaySmall)
+      Text("Letters matter.", style = MaterialTheme.typography.displaySmall, modifier = Modifier.asHeading())
       Text("Write one today.", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.secondary)
       Text(
         "Browse prisoner profiles, find a support group near you, and learn exactly what each facility requires before you write.",
@@ -72,7 +73,7 @@ fun DirectoryHomeScreen(
 @Composable
 private fun DoorRow(title: String, subtitle: String, onClick: () -> Unit) {
   Row(
-    Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
+    Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
     Column(Modifier.weight(1f)) {

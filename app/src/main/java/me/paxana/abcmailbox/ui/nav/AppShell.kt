@@ -25,6 +25,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import me.paxana.abcmailbox.ui.common.longDate
 import me.paxana.abcmailbox.data.repo.DirectorySource
+import androidx.compose.ui.res.stringResource
+import me.paxana.abcmailbox.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,12 +71,12 @@ import me.paxana.abcmailbox.ui.letters.InboxScreen
 import me.paxana.abcmailbox.ui.letters.ThreadScreen
 import kotlin.reflect.KClass
 
-private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
+private data class Tab(val route: Any, val routeClass: KClass<*>, @androidx.annotation.StringRes val label: Int, val icon: ImageVector)
 
 private val tabs = listOf(
-  Tab(DirectoryGraph, DirectoryGraph::class, "Directory", Icons.Outlined.MenuBook),
-  Tab(InboxGraph, InboxGraph::class, "Inbox", Icons.Outlined.Mail),
-  Tab(AccountRoute, AccountRoute::class, "Account", Icons.Outlined.Person),
+  Tab(DirectoryGraph, DirectoryGraph::class, R.string.tab_directory, Icons.Outlined.MenuBook),
+  Tab(InboxGraph, InboxGraph::class, R.string.tab_inbox, Icons.Outlined.Mail),
+  Tab(AccountRoute, AccountRoute::class, R.string.tab_account, Icons.Outlined.Person),
 )
 
 /**
@@ -101,6 +103,12 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
   val showBars = fullScreen.none { destination?.hasRoute(it) == true }
   val snackbar = remember { SnackbarHostState() }
+  // Snackbars are shown from callbacks, where there is no composition to read resources in, so the
+  // sentences are resolved here, where there is.
+  val sessionEnded = stringResource(R.string.notice_session_ended)
+  val passwordChangedElsewhereOut = stringResource(R.string.notice_password_changed_elsewhere_signed_out)
+  val accountClaimed = stringResource(R.string.notice_account_claimed)
+  val passwordChangedSignedIn = stringResource(R.string.notice_password_changed_signed_in)
 
   val pendingCode by viewModel.pendingRecoveryCode.collectAsStateWithLifecycle()
   val keysLocked by viewModel.keysLocked.collectAsStateWithLifecycle()
@@ -108,7 +116,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
 
   LaunchedEffect(Unit) {
-    viewModel.expired.collect { snackbar.showSnackbar("Your session ended. Please sign in again.") }
+    viewModel.expired.collect { snackbar.showSnackbar(sessionEnded) }
   }
   // When the account changes (sign-out, an expired session, or a different person signing in), nothing the
   // previous account had open may stay reachable. Tabs keep a saved back stack each, so a thread opened by
@@ -152,7 +160,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
                 }
               },
               icon = { Icon(tab.icon, contentDescription = null) },
-              label = { Text(tab.label) },
+              label = { Text(stringResource(tab.label)) },
             )
           }
         }
@@ -229,7 +237,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
         composable<PickPrisonerRoute> { entry ->
           val pick = entry.toRoute<PickPrisonerRoute>()
           PrisonersScreen(
-            title = pick.writerName?.let { "Write as $it to…" } ?: "Write to…",
+            title = pick.writerName?.let { stringResource(R.string.title_write_as_to, it) } ?: stringResource(R.string.title_write_to),
             onBack = { navController.popBackStack() },
             onPrisoner = { navController.navigate(ComposeRoute(it, writerId = pick.writerId, writerName = pick.writerName)) { popUpTo<PickPrisonerRoute> { inclusive = true } } },
           )
@@ -288,7 +296,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           onBack = { navController.popBackStack() },
           onDone = {
             navController.popBackStack()
-            scope.launch { snackbar.showSnackbar("Password changed. Other devices were signed out.") }
+            scope.launch { snackbar.showSnackbar(passwordChangedElsewhereOut) }
           },
         )
       }
@@ -309,7 +317,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           mode = mode,
           onClaimed = {
             navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
-            scope.launch { snackbar.showSnackbar("Account claimed. You are signed in.") }
+            scope.launch { snackbar.showSnackbar(accountClaimed) }
           },
           onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
         )
@@ -321,7 +329,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
           onClaim = { navController.navigate(ClaimRoute()) },
           onRecovered = {
             navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
-            scope.launch { snackbar.showSnackbar("Password changed. You are signed in.") }
+            scope.launch { snackbar.showSnackbar(passwordChangedSignedIn) }
           },
         )
       }
@@ -343,7 +351,7 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
 private fun SavedCopyBanner(at: java.time.Instant) {
   Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
     Text(
-      "No connection. Showing the directory saved on this phone on ${at.longDate()}. Letters cannot be sent until you are back online; drafts are kept.",
+      stringResource(R.string.offline_banner, at.longDate()),
       style = MaterialTheme.typography.bodySmall,
       color = MaterialTheme.colorScheme.onSecondaryContainer,
       modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp).semantics { liveRegion = LiveRegionMode.Polite },

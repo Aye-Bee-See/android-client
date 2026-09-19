@@ -1,3 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings of the app shell and the components every screen shares. The rest of the app's text is
+  still written in the Kotlin sources; docs/PLAN.md (phase 7c) says how and when that moves here.
+  To translate, copy this file to res/values-<language>/strings.xml and translate the values.
+-->
 <resources>
     <string name="app_name">ABC Mailbox</string>
+
+    <!-- Bottom navigation. Keep each to one short word if the language allows: they sit side by side. -->
+    <string name="tab_directory">Directory</string>
+    <string name="tab_inbox">Inbox</string>
+    <string name="tab_account">Account</string>
+
+    <!-- Read aloud by screen readers for the arrow at the top left of a page. -->
+    <string name="action_back">Back</string>
+    <string name="action_try_again">Try again</string>
+    <!-- What a screen reader says a double-tap will do on a file attached to a letter. -->
+    <string name="action_open_file">Open the file</string>
+    <!-- The first filter chip in a row, meaning "do not filter". -->
+    <string name="filter_all">All</string>
+
+    <!-- Shown above the directory when the phone has no connection. %1$s is a date such as "19 September 2026". -->
+    <string name="offline_banner">No connection. Showing the directory saved on this phone on %1$s. Letters cannot be sent until you are back online; drafts are kept.</string>
+
+    <string name="error_network">Can\'t reach the server. Check your connection and try again.</string>
+    <string name="error_not_found">That record doesn\'t exist or is not public.</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+
+    <string name="notice_session_ended">Your session ended. Please sign in again.</string>
+    <string name="notice_password_changed_elsewhere_signed_out">Password changed. Other devices were signed out.</string>
+    <string name="notice_account_claimed">Account claimed. You are signed in.</string>
+    <string name="notice_password_changed_signed_in">Password changed. You are signed in.</string>
+
+    <!-- Title of the page where a group member picks who a new letter is for. -->
+    <string name="title_write_to">Write to…</string>
+    <!-- The same, when writing on behalf of a writer. %1$s is the writer\'s name. -->
+    <string name="title_write_as_to">Write as %1$s to…</string>
 </resources>

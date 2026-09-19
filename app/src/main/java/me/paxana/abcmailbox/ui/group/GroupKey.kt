@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,7 +63,7 @@ fun GroupKeyBanner(onMembers: () -> Unit, viewModel: GroupKeyViewModel = hiltVie
         "It is made on this phone, once, and you then hand it to the other members.",
     ) {
       Button(onClick = viewModel::setUp, enabled = !ui.busy) { Text(if (ui.busy) "Setting up…" else "Set up the group key") }
-      ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+      ui.error?.let { ErrorText(it, style = MaterialTheme.typography.bodySmall) }
     }
     is GroupKeyState.NotHeld -> Notice(
       title = "You have not been given the group key yet",
@@ -108,7 +109,7 @@ fun GroupKeyScreen(onBack: () -> Unit, viewModel: GroupKeyViewModel = hiltViewMo
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
               Text("Each member holds their own sealed copy of the group key, so nobody shares a password. Hand the key to a member and they can read and print the group's letters.", style = MaterialTheme.typography.bodyMedium)
               Text("Taking a member off this list stops new copies being given to them. It cannot take back a copy their phone has already opened: if someone should lose access for good, rotate the group key on the website.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-              ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+              ui.error?.let { ErrorText(it) }
             }
             HorizontalDivider()
           }

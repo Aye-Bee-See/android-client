@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.ui.common.SecretCodeText
+import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.selection.toggleable
 import androidx.activity.compose.BackHandler
@@ -52,16 +54,12 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit) {
     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 32.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
-    Text("Save your recovery code", style = MaterialTheme.typography.headlineMedium)
+    Text("Save your recovery code", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     Text(
       "Your letters are encrypted with a key only you hold. Your password unlocks it. If you ever forget the password, this code is the only other way in. We cannot see it and cannot send it to you again.",
       style = MaterialTheme.typography.bodyLarge,
     )
-    Text(
-      SecretCodes.pretty(code).chunked(15).joinToString("\n") { it.trim('-') },
-      fontFamily = FontFamily.Monospace, fontSize = 26.sp, lineHeight = 38.sp, textAlign = TextAlign.Center,
-      modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(vertical = 20.dp).testTag("recovery-code"),
-    )
+    SecretCodeText(code, modifier = Modifier.testTag("recovery-code"))
     OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(code))) }) { Text("Copy") }
     AlertBanner("Write it on paper or put it in a password manager. Do not keep it only on this phone, and do not send it to anyone.")
     // The whole row is the control: tapping the sentence ticks the box, and a screen reader hears one checkbox with its label.

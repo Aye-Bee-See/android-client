@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.ui.common.asHeading
+import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,7 +53,7 @@ fun InboxScreen(
   onGroupKey: () -> Unit = {},
 ) {
   Column(Modifier.fillMaxSize()) {
-    Text("Inbox", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
+    Text("Inbox", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading().padding(horizontal = 20.dp, vertical = 16.dp))
     when (sessionState) {
       SessionState.Loading -> Unit
       SessionState.SignedOut -> Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -126,7 +128,7 @@ private fun UnlockPrompt(viewModel: UnlockViewModel = hiltViewModel()) {
       keyboardActions = KeyboardActions(onDone = { viewModel.unlock() }),
       modifier = Modifier.fillMaxWidth(),
     )
-    ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+    ui.error?.let { ErrorText(it) }
     Button(onClick = viewModel::unlock, enabled = !ui.busy && ui.password.isNotEmpty()) { Text(if (ui.busy) "Unlocking…" else "Unlock") }
   }
 }

@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.ui.common.asHeading
+import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -73,12 +75,12 @@ fun ClaimScreen(
           modifier = Modifier.fillMaxWidth().testTag("token"),
         )
         Text("24 letters and digits. Dashes, spaces, and lower case are fine. The letters I, L, O, and U are never used.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (ui.tokenDead) AlertBanner(ui.error.orEmpty()) else ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        if (ui.tokenDead) AlertBanner(ui.error.orEmpty()) else ui.error?.let { ErrorText(it) }
         Button(onClick = viewModel::check, enabled = ui.canCheck, modifier = Modifier.fillMaxWidth()) { Text(if (ui.busy) "Checking…" else "Check token") }
         return@Column
       }
 
-      Text("Set up your account", style = MaterialTheme.typography.headlineSmall)
+      Text("Set up your account", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.asHeading())
       Text(
         "This account (${info.writerName}) was created for you" + (info.groupName?.let { " by $it" } ?: "") + ". Choose a username and password to take independent control of your correspondence." +
           (info.expiresAt?.let { " The token expires on ${it.longDate()}." } ?: ""),
@@ -113,7 +115,7 @@ fun ClaimScreen(
         Text("I understand that a lost password cannot be reset by email.", style = MaterialTheme.typography.bodyMedium)
       }
 
-      if (ui.tokenDead) AlertBanner(ui.error.orEmpty()) else ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+      if (ui.tokenDead) AlertBanner(ui.error.orEmpty()) else ui.error?.let { ErrorText(it) }
       Button(onClick = viewModel::claim, enabled = ui.canClaim, modifier = Modifier.fillMaxWidth().testTag("claim-submit")) { Text(if (ui.busy) "Claiming… this takes a few seconds" else "Claim account") }
       TextButton(onClick = viewModel::startOver, enabled = !ui.busy) { Text("Use a different token") }
     }

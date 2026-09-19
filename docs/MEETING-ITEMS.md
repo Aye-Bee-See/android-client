@@ -46,6 +46,14 @@ Raised 12 September 2026 from phases 0 to 2. Each item names who it affects and 
 - **Writers made before the switch to end-to-end have no keypair.** The API lets the managing group set one once; Android does this automatically the first time a token or a letter needs it. The web client should do the same, or those writers cannot be written for.
 - **Who edits a managed writer's queued letter?** Android lets a group edit or delete queued letters only for writers it writes for (managed or anonymous), never for independent writers whose letters it merely relays. Confirm the web does the same.
 
+## Before a public release (project owner, web)
+
+- **Contrast on the website.** The templates' muted grey `#767676` on the paper background `#F2F0ED` is 3.99:1; WCAG AA asks 4.5:1 for body text. It passes only on pure white. Android now uses `#6C6C6C` (4.62:1). The web developer should check the same pair.
+- **Languages.** Which languages, if any, beyond English for v1? It decides when the remaining ~540 Android strings move to resources (sized in the Android plan, phase 7c), and the server already lets clients translate mail rules by `tag`.
+- **Release keystore.** The project owner makes it (command in `keystore.properties.example`) and backs it up with its passwords: an app can only ever be updated by the key that first signed it. Decide who holds it.
+- **Domain and hosting** unblock, for Android: the release API address, verified `https` claim links (needs `assetlinks.json` on the domain), and the Play listing, which also needs a privacy policy URL.
+- **Testers before then** can use the `internal` build (an APK from each CI run) pointed at any reachable server.
+
 ## Decisions the Android side made alone (confirm or object)
 
 - **Scope order:** anonymous directory, then writer flows, then group-member flows. Admin stays web-only.

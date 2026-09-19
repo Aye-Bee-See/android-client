@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -143,7 +144,7 @@ fun ComposeScreen(
         }
         Text("PDF, JPG, PNG, or WebP · max 20 MB. A scan of a handwritten letter works well.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        ui.error?.let { ErrorText(it) }
 
         Button(onClick = viewModel::send, enabled = ui.canSend, modifier = Modifier.fillMaxWidth()) {
           Text(ui.progress ?: when { ui.recordingReply -> "Save reply"; ui.editing -> "Save changes"; else -> "Send letter" })

@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,8 +54,10 @@ fun GroupInbox(
   var tab by rememberSaveable { mutableIntStateOf(0) }
   Column(Modifier.fillMaxSize()) {
     GroupKeyBanner(onMembers = onGroupKey)
-    PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
-      listOf("To print", "Conversations", "Writers").forEachIndexed { i, label -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label) }) }
+    // Scrollable, so each tab is as wide as its label: with fixed thirds, "Conversations" broke
+    // mid-word at large font sizes. One line per label, always.
+    PrimaryScrollableTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background, edgePadding = 8.dp) {
+      listOf("To print", "Conversations", "Writers").forEachIndexed { i, label -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1, softWrap = false) }) }
     }
     // When the group key opens, letters that were locked become readable: rebuilding the tab
     // under a new key re-runs its resume effect, which refreshes the list.

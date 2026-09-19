@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.directory
 
+import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -76,7 +77,7 @@ private fun PrisonerBody(p: Prisoner, facilityDetail: Facility?, onFacility: (In
     p.photoUrl?.let {
       AsyncImage(model = it, contentDescription = "Photo of ${p.name}", modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(4.dp)))
     }
-    Text(p.name, style = MaterialTheme.typography.headlineMedium)
+    Text(p.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     val alsoKnown = listOfNotNull(p.birthName) + p.aliases
     if (alsoKnown.isNotEmpty()) Text(alsoKnown.joinToString("  ·  "), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
@@ -158,7 +159,7 @@ private fun FacilityBody(f: Facility, onPrisoner: (Int) -> Unit, onGroup: (Int) 
     if (f.verification.isStale()) {
       AlertBanner("⚠ This record has not been verified in over 6 months. Mail rules and routing details may have changed.")
     }
-    Text(f.name, style = MaterialTheme.typography.headlineMedium)
+    Text(f.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     f.shortLocation.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
     if (f.addressLines.isNotEmpty()) {
@@ -222,7 +223,7 @@ private fun GroupBody(g: Group, onPrisoner: (Int) -> Unit, onFacility: (Int) -> 
   val uriHandler = LocalUriHandler.current
   Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
     g.announcement?.let { AlertBanner(it) }
-    Text(g.name, style = MaterialTheme.typography.headlineMedium)
+    Text(g.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     g.location.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
     val links = buildList {

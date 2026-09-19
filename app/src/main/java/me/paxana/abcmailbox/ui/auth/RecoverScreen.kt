@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -136,7 +137,7 @@ fun RecoverScreen(sessionState: SessionState, onBack: () -> Unit, onClaim: () ->
         OutlinedTextField(ui.confirm, viewModel::onConfirm, label = { Text("Confirm new password") }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
           isError = ui.confirm.isNotEmpty() && !ui.matches,
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth().testTag("recover-confirm"))
-        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        ui.error?.let { ErrorText(it) }
         Button(onClick = viewModel::submit, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("recover-submit")) { Text(if (ui.busy) "Recovering…" else "Set new password") }
         Text("Lost the code too? Then the letters on this account cannot be recovered by anyone. A network admin can help you start a new account.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
       } else {

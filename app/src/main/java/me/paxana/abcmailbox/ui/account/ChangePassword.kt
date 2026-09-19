@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.account
 
+import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -103,7 +104,7 @@ fun ChangePasswordScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: Chan
         isError = ui.confirm.isNotEmpty() && !ui.matches,
         supportingText = { if (ui.confirm.isNotEmpty() && !ui.matches) Text("Passwords do not match.") },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth().testTag("pw-confirm"))
-      ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+      ui.error?.let { ErrorText(it) }
       Button(onClick = viewModel::submit, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("pw-submit")) { Text(if (ui.busy) "Changing…" else "Change password") }
     }
   }

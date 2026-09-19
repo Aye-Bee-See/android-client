@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.account
 
+import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,7 +49,7 @@ fun AccountScreen(
     modifier = Modifier.fillMaxSize().padding(24.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
-    Text("Account", style = MaterialTheme.typography.headlineMedium)
+    Text("Account", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     when (sessionState) {
       SessionState.Loading -> Unit
       SessionState.SignedOut -> {
