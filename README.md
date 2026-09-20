@@ -18,7 +18,7 @@ The Android client for Aye Bee See, a correspondence network for political priso
 
 ## Build
 
-Requires JDK 17 or newer on the path (Android Studio's bundled JDK works). Android Studio must be a 2026 release to open the project; the command line needs only the wrapper.
+Requires JDK 17 or newer on the path; use a long-term-support release (17, 21, 25) or Android Studio's bundled one (`export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`). OpenJDK 20.0.2 on Apple silicon crashes the Gradle daemon during `lint` (a JIT bug: `Field too big for insn` in `hs_err_pid*.log`); that is the JDK, not the project. Android Studio must be a 2026 release to open the project; the command line needs only the wrapper.
 
 ```bash
 ./gradlew :crypto:test :app:assembleDebug

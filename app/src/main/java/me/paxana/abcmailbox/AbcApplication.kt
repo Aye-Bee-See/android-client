@@ -4,6 +4,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
+import me.paxana.abcmailbox.data.activity.ActivityNotifier
 import me.paxana.abcmailbox.data.dev.DevServerRepository
 import javax.inject.Inject
 
@@ -25,6 +26,12 @@ class AbcApplication : Application(), Configuration.Provider {
    * start-up is switched off in the manifest and it reads this configuration on first use.
    */
   @Inject lateinit var workerFactory: HiltWorkerFactory
+  @Inject lateinit var notifier: ActivityNotifier
   override val workManagerConfiguration: Configuration
     get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
+
+  override fun onCreate() {
+    super.onCreate() // Hilt fills the @Inject fields in here, so they are only usable after this line
+    notifier.prepare()
+  }
 }

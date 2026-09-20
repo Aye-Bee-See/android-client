@@ -610,8 +610,6 @@
     <string name="notice_writer_added">%1$s: remitente añadido.</string>
 
     <!-- Activity notifications. They appear on lock screens, so they name nobody and quote nothing. -->
-    <string name="activity_channel_name">Cartas y respuestas</string>
-    <string name="activity_channel_description">Te avisa cuando una carta tuya se imprime o se envía, cuando llega una respuesta y, si eres miembro de un grupo, cuando hay una carta pendiente de imprimir.</string>
     <string name="activity_reply">Ha llegado una respuesta a una de tus cartas.</string>
     <string name="activity_printed">Una de tus cartas se ha impreso.</string>
     <string name="activity_mailed">Una de tus cartas ya está en el correo.</string>
@@ -639,4 +637,13 @@
     <string name="push_on">Activado.</string>
     <string name="push_off">Desactivado. Ya no se llamará a este teléfono.</string>
     <string name="push_failed">No se pudo cambiar: %1$s</string>
+
+    <!-- Notification channels: people can silence each kind separately in Android's settings -->
+    <string name="channel_replies">Respuestas</string>
+    <string name="channel_replies_description">Se ha registrado la respuesta de una persona presa en una de tus conversaciones. Se muestra como aviso emergente.</string>
+    <string name="channel_progress">Progreso de las cartas</string>
+    <string name="channel_progress_description">Tu carta se ha impreso o enviado, o se ha decidido sobre un cambio que propusiste. Discreto.</string>
+    <string name="channel_queue">Cartas por imprimir</string>
+    <string name="channel_queue_description">Para miembros de grupos: hay una carta esperando a que tu grupo la imprima.</string>
+    <string name="action_view">Ver</string>
 </resources>

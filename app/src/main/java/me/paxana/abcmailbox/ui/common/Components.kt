@@ -293,3 +293,20 @@ fun SecretCodeText(code: String, modifier: Modifier = Modifier) {
       .semantics { contentDescription = pretty.split('-').joinToString(". ") { group -> group.toList().joinToString(" ") } },
   )
 }
+
+/**
+ * Goes up by one each time news arrives from the server while the app is on screen (a reply was recorded, a
+ * letter was printed, a letter joined the group's queue). Screens that show such things reload when it changes:
+ * `LaunchedEffect(LocalNewsTick.current) { … }`. Provided by the app shell; 0 means nothing has arrived yet.
+ *
+ * A CompositionLocal, not a parameter, because it is ambient: any screen may care, and none should have to be
+ * handed it through every screen above. (The same reasoning as `LocalContext`.)
+ */
+val LocalNewsTick = androidx.compose.runtime.compositionLocalOf { 0 }
+
+/** Runs [reload] whenever news arrives while this screen is showing. Not on first composition: screens load themselves. */
+@Composable
+fun ReloadOnNews(reload: () -> Unit) {
+  val tick = LocalNewsTick.current
+  androidx.compose.runtime.LaunchedEffect(tick) { if (tick > 0) reload() }
+}

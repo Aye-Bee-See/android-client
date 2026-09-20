@@ -27,3 +27,7 @@ local.properties
 # Firebase project values: they belong to whoever runs the network
 /firebase.properties
 google-services.json
+
+# JVM crash reports (a Gradle daemon that died leaves these in the project folder)
+hs_err_pid*.log
+replay_pid*.log

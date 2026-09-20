@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.ui.common.ReloadOnNews
 import me.paxana.abcmailbox.text.rememberStrings
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -86,6 +87,7 @@ private fun SignedInInbox(name: String, onThread: (Int) -> Unit, onNewLetter: ((
   val items = viewModel.threads.collectAsLazyPagingItems()
   // Coming back from compose or a thread: reload so new letters and status changes show.
   LifecycleResumeEffect(Unit) { items.refresh(); onPauseOrDispose { } }
+  ReloadOnNews { items.refresh() }
   Box(Modifier.fillMaxSize()) {
     PagedList(
       items = items,

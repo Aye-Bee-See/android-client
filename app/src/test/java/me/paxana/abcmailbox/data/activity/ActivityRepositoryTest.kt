@@ -1,10 +1,15 @@
 package me.paxana.abcmailbox.data.activity
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.runTest
 import me.paxana.abcmailbox.data.api.NotificationsApi
 import me.paxana.abcmailbox.data.session.SessionUser
@@ -64,6 +69,27 @@ class ActivityRepositoryTest {
     assertTrue(repo.sync().isEmpty())
     assertEquals("/auth/notifications?since=3&unread=true&page_size=50", server.next().path)
     assertEquals("nothing new, nothing rung", 1, shown.size)
+  }
+
+  @Test
+  fun `with the app on screen the news goes to the screen, and no system notification is posted`() = runTest {
+    // The shell subscribes only while the app is visible; this stands in for it.
+    val seen = mutableListOf<List<Activity>>()
+    val attached = CompletableDeferred<Unit>() // `launch` only promises to start soon; wait until it has
+    val watching = scope.launch { repo.arrivals.onSubscription { attached.complete(Unit) }.collect { seen += it } }
+    attached.await()
+
+    server.enqueue(feed(entry(4, "letter.reply")))
+    repo.sync()
+    withTimeout(5_000) { while (seen.isEmpty()) kotlinx.coroutines.delay(10) }
+    assertEquals(listOf(Activity.Kind.REPLY), seen.single().map { it.kind })
+    assertTrue("somebody is looking: no banner over their own screen", shown.isEmpty())
+
+    // The app leaves the screen: the same news now has to reach them another way.
+    watching.cancelAndJoin()
+    server.enqueue(feed(entry(5, "letter.status", """{"status":"mailed"}""")))
+    repo.sync()
+    assertEquals(listOf(Activity.Kind.MAILED), shown.single().map { it.kind })
   }
 
   @Test

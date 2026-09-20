@@ -7,6 +7,11 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 private val LightColors = lightColorScheme(
+  // The snackbar is drawn in the "inverse" colours: a dark bar on the light theme. Unset, they are Material's
+  // purple-grey and lavender. The action's red is the lighter one, 5.3:1 on ink.
+  inverseSurface = Ink,
+  inverseOnSurface = Paper,
+  inversePrimary = RedOnWashDark,
   primary = Ink,
   onPrimary = Paper,
   secondary = Red,
@@ -34,6 +39,9 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
+  inverseSurface = InkDark, // a light bar on the dark theme
+  inverseOnSurface = PaperDark,
+  inversePrimary = Red, // 4.9:1 on the light bar
   primary = InkDark,
   onPrimary = PaperDark,
   secondary = RedDark,

@@ -4,7 +4,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -22,6 +25,8 @@ import javax.inject.Singleton
 
 /** Shows and clears the system notification. An interface so the repository can be tested on the JVM. */
 interface ActivityNotifier {
+  /** Whatever the system needs before anything can be shown (on Android: the notification channels). */
+  fun prepare() {}
   fun show(fresh: List<Activity>)
   fun clear()
 }
@@ -29,6 +34,12 @@ interface ActivityNotifier {
 interface ActivityRepository {
   /** Entries the account has not read, for the badge on the Inbox tab. */
   val unread: StateFlow<Int>
+  /**
+   * News that arrived while the app is on screen. Whoever is showing a screen collects this (only while it is
+   * visible), and then the news is theirs to present: a line at the bottom of the screen, a list that reloads.
+   * When nobody is collecting, nobody is looking, and the news becomes a system notification instead.
+   */
+  val arrivals: SharedFlow<List<Activity>>
   /**
    * Fetches what is new since this phone last looked and rings for it. Called by the periodic worker, by the
    * push doorbell, and when the app opens. Quiet when signed out or offline: this is housekeeping.
@@ -48,6 +59,8 @@ class DefaultActivityRepository @Inject constructor(
 ) : ActivityRepository {
 
   private val _unread = MutableStateFlow(0)
+  private val _arrivals = MutableSharedFlow<List<Activity>>(extraBufferCapacity = 8)
+  override val arrivals: SharedFlow<List<Activity>> = _arrivals.asSharedFlow()
   override val unread: StateFlow<Int> = _unread.asStateFlow()
 
   private val userId: Int? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
@@ -68,7 +81,10 @@ class DefaultActivityRepository @Inject constructor(
       Activity(e.id, Activity.kindOf(e.event, runCatching { e.detail?.get("status")?.jsonPrimitive?.contentOrNull }.getOrNull()), e.chat, e.message)
     }
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }
-    if (announce && fresh.isNotEmpty()) notifier.show(fresh)
+    if (announce && fresh.isNotEmpty()) {
+      // A banner over the app you are already using is noise, and it would leave the screen underneath stale.
+      if (_arrivals.subscriptionCount.value > 0) _arrivals.emit(fresh) else notifier.show(fresh)
+    }
     return fresh
   }
 

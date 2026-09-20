@@ -26,3 +26,26 @@ First run: 19 September 2026, project `abc-mailbox`, API instance with `"push": 
 7. Try a phone without Google services if one is to hand: the switch is disabled and says why.
 
 Until then, the hidden developer dialog (five taps on the build line) has "Simulate a push in 8 s", which does exactly what the FCM service does on a ring.
+
+## What the person sees when news arrives
+
+Found on the second run (19 September 2026): a reply was recorded from the iOS app, the push reached the Android emulator 0.6 s later, the feed check ran, a notification was posted, and the person at the emulator saw nothing. Two reasons, both fixed.
+
+**The notification made no banner.** The single channel was created at default importance, which on Android means an icon in the status bar and a sound, no banner. On a muted emulator, or a phone in a pocket, that is nothing. There are now three channels, so Android's own settings let a person choose per kind:
+
+| Channel | id | Importance | Carries |
+|---|---|---|---|
+| Replies | `activity-replies` | high (banner) | a prisoner's reply was recorded |
+| Letter progress | `activity-progress` | default | printed, mailed, a directory change decided |
+| Group queue | `activity-queue` | default | a letter is waiting for the group |
+
+A batch goes out on the channel of its most important entry. A channel's importance is fixed when it is first created (afterwards only the person can change it), so the old `activity` channel is deleted, not edited. Channels are made when the app starts (`ActivityNotifier.prepare()` from `AbcApplication.onCreate`), so they are listed in system settings before the first notification, and their names follow a change of language.
+
+**With the app open, nothing happened at all.** The notification was posted over the person's own screen, and the screens did not change. Now the repository asks whether anyone is watching:
+
+- `ActivityRepository.arrivals` is a `SharedFlow`. `sync()` sends news there if it has a subscriber, and to the notifier if it has none.
+- The only subscriber is the app shell, inside `repeatOnLifecycle(STARTED)`: it exists exactly while the app is visible. A ViewModel must never subscribe: it outlives the screen, would count as "someone is watching" in the background, and would silence every notification.
+- The shell raises `LocalNewsTick`; the Inbox, an open conversation and the group's queue reload on it (`ReloadOnNews { … }`). An open conversation that grew scrolls to the new letter.
+- If the news is about the conversation on screen, that is all: it appears, and the feed is marked read. Otherwise a bar at the bottom says the same sentence the notification would, with "View".
+
+Checked on the emulator against the FCM-enabled instance: app open on another tab, the bar within a second, badge 1 to 2, no system notification; conversation open, the reply appeared and scrolled into view with no bar; app in the background, a heads-up banner on `activity-replies`, and tapping it opened that conversation. Pinned by `ActivityRepositoryTest` ("with the app on screen the news goes to the screen…").

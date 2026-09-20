@@ -629,8 +629,6 @@
     <string name="notice_writer_added">Автор добавлен: %1$s.</string>
 
     <!-- Activity notifications. They appear on lock screens, so they name nobody and quote nothing. -->
-    <string name="activity_channel_name">Письма и ответы</string>
-    <string name="activity_channel_description">Сообщает, когда ваше письмо напечатано или отправлено, когда приходит ответ, а участникам групп — когда письмо ждёт печати.</string>
     <string name="activity_reply">Пришёл ответ на одно из ваших писем.</string>
     <string name="activity_printed">Одно из ваших писем напечатано.</string>
     <string name="activity_mailed">Одно из ваших писем отправлено почтой.</string>
@@ -660,4 +658,13 @@
     <string name="push_on">Включено.</string>
     <string name="push_off">Выключено. На этот телефон больше не будут звонить.</string>
     <string name="push_failed">Не удалось изменить: %1$s</string>
+
+    <!-- Notification channels: people can silence each kind separately in Android's settings -->
+    <string name="channel_replies">Ответы</string>
+    <string name="channel_replies_description">В одной из ваших переписок записан ответ заключённого. Показывается всплывающим уведомлением.</string>
+    <string name="channel_progress">Движение писем</string>
+    <string name="channel_progress_description">Ваше письмо напечатано или отправлено, либо по предложенному вами изменению принято решение. Без звука.</string>
+    <string name="channel_queue">Письма к печати</string>
+    <string name="channel_queue_description">Для участников групп: письмо ждёт, пока ваша группа его напечатает.</string>
+    <string name="action_view">Открыть</string>
 </resources>

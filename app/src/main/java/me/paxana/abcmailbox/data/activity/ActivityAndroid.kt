@@ -72,13 +72,39 @@ class WorkManagerActivityScheduler @Inject constructor(@ApplicationContext priva
 @Singleton
 class AndroidActivityNotifier @Inject constructor(@ApplicationContext private val context: Context, private val strings: Strings) : ActivityNotifier {
 
+  /**
+   * Makes the channels. Called when the app starts, not only when the first notification is due, so that the
+   * three of them are already listed in Android's settings for anyone who goes looking. Creating a channel
+   * that exists changes nothing except its name and description, which is what a change of language needs.
+   */
+  override fun prepare() {
+    val manager = NotificationManagerCompat.from(context)
+    // One channel per kind of news, so that Android's own settings let a person keep the banner for replies and
+    // silence the rest. A reply is what people are waiting for, so it is the only one that interrupts.
+    // (Importance is fixed when a channel is first created; only its owner can change it afterwards. The first
+    // version had a single channel at default importance: a status-bar icon and no banner, which on a quiet
+    // phone is easy to miss entirely. It is deleted here.)
+    manager.deleteNotificationChannel("activity")
+    listOf(
+      Triple(REPLIES, R.string.channel_replies to R.string.channel_replies_description, NotificationManager.IMPORTANCE_HIGH),
+      Triple(PROGRESS, R.string.channel_progress to R.string.channel_progress_description, NotificationManager.IMPORTANCE_DEFAULT),
+      Triple(QUEUE, R.string.channel_queue to R.string.channel_queue_description, NotificationManager.IMPORTANCE_DEFAULT),
+    ).forEach { (id, words, importance) ->
+      manager.createNotificationChannel(NotificationChannel(id, strings.get(words.first), importance).apply { description = strings.get(words.second) })
+    }
+  }
+
   override fun show(fresh: List<Activity>) {
     if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
     val manager = NotificationManagerCompat.from(context)
     if (!manager.areNotificationsEnabled()) return
-    manager.createNotificationChannel(
-      NotificationChannel(CHANNEL, strings.get(R.string.activity_channel_name), NotificationManager.IMPORTANCE_DEFAULT).apply { description = strings.get(R.string.activity_channel_description) }
-    )
+    prepare()
+    // A batch goes out on the channel of its most important entry.
+    val channel = when {
+      fresh.any { it.kind == Activity.Kind.REPLY } -> REPLIES
+      fresh.any { it.kind == Activity.Kind.QUEUED_FOR_GROUP } -> QUEUE
+      else -> PROGRESS
+    }
     val lines = fresh.map { it.sentence(strings) }.distinct()
     val title = if (fresh.size == 1) strings.get(R.string.app_name) else strings.plural(R.plurals.activity_summary, fresh.size)
     val text = lines.first() + if (lines.size > 1) " " + strings.plural(R.plurals.activity_and_more, lines.size - 1) else ""
@@ -88,11 +114,12 @@ class AndroidActivityNotifier @Inject constructor(@ApplicationContext private va
     val chat = fresh.mapNotNull { it.chatId }.distinct().singleOrNull().takeIf { fresh.all { a -> a.kind != Activity.Kind.QUEUED_FOR_GROUP } }
     val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
       .setAction(Intent.ACTION_VIEW).setData((if (chat != null) "$THREAD_LINK/$chat" else INBOX_LINK).toUri())
-    val notification = NotificationCompat.Builder(context, CHANNEL)
+    val notification = NotificationCompat.Builder(context, channel)
       .setSmallIcon(R.drawable.ic_stat_letter)
       .setContentTitle(title).setContentText(text).setStyle(if (lines.size > 1) style else NotificationCompat.BigTextStyle().bigText(text))
       .setContentIntent(PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
       .setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+      .setCategory(if (channel == REPLIES) NotificationCompat.CATEGORY_MESSAGE else NotificationCompat.CATEGORY_STATUS)
       .build()
     @Suppress("MissingPermission") // checked above
     manager.notify(ID, notification)
@@ -101,7 +128,9 @@ class AndroidActivityNotifier @Inject constructor(@ApplicationContext private va
   override fun clear() = NotificationManagerCompat.from(context).cancel(ID)
 
   companion object {
-    private const val CHANNEL = "activity"
+    private const val REPLIES = "activity-replies"
+    private const val PROGRESS = "activity-progress"
+    private const val QUEUE = "activity-queue"
     private const val ID = 10
     /** Handled inside the app only (an explicit intent to MainActivity); no other app can open these. */
     const val THREAD_LINK = "abcmailbox://open/thread"

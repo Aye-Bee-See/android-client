@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.nav
 
+import me.paxana.abcmailbox.domain.Activity
 import me.paxana.abcmailbox.data.activity.ActivityRepository
 import me.paxana.abcmailbox.data.activity.ActivityScheduler
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +37,8 @@ class SessionViewModel @Inject constructor(
 ) : ViewModel() {
   /** Feed entries not yet seen (a reply arrived, a letter was mailed…): added to the Inbox tab's badge. */
   val unreadActivity: StateFlow<Int> = activity.unread
+  /** News arriving while the app is on screen; the shell says it in a line at the bottom. */
+  val arrivals: SharedFlow<List<Activity>> = activity.arrivals
 
   /** The Inbox is on screen: what the feed had to say has been seen. Also clears the system notification. */
   fun inboxSeen() { viewModelScope.launch { activity.markAllRead() } }

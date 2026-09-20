@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.letters
 
+import me.paxana.abcmailbox.ui.common.ReloadOnNews
 import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.text.rememberStrings
 import me.paxana.abcmailbox.R
@@ -34,6 +35,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,6 +78,7 @@ fun ThreadScreen(
   var confirmDelete by remember { mutableStateOf<Int?>(null) }
 
   LifecycleResumeEffect(Unit) { viewModel.load(); onPauseOrDispose { } }
+  ReloadOnNews { viewModel.load() } // a reply recorded while this conversation is open appears by itself
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
   LaunchedEffect(ui.openFile) {
     ui.openFile?.let { (file, mime) ->
@@ -151,7 +154,17 @@ private fun ThreadBody(
   onDelete: (Int) -> Unit,
   showWriter: Boolean = false,
 ) {
-  LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 170.dp)) {
+  // A reply that arrives while the conversation is open lands at the bottom, possibly off screen. Go to it, as a
+  // messaging app would, but only when the conversation grew while it was showing: the first load, a deletion
+  // and an ordinary reload leave the reader where they were. (`remember` without a key survives recomposition,
+  // so `seen` is the count from the previous time round.)
+  val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+  var seen by remember { mutableIntStateOf(thread.letters.size) }
+  LaunchedEffect(thread.letters.size) {
+    if (thread.letters.size > seen) listState.animateScrollToItem(thread.letters.size) // index 0 is the header, so this is the last letter
+    seen = thread.letters.size
+  }
+  LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 170.dp)) {
     item("header") {
       Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         thread.prisoner?.let { p ->

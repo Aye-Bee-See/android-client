@@ -641,8 +641,6 @@
     <string name="notice_writer_added">%1$s added.</string>
 
     <!-- Activity notifications. They appear on lock screens, so they name nobody and quote nothing. -->
-    <string name="activity_channel_name">Letters and replies</string>
-    <string name="activity_channel_description">Tells you when a letter of yours is printed or mailed, when a reply arrives, and, for group members, when a letter is waiting to be printed.</string>
     <string name="activity_reply">A reply to one of your letters has arrived.</string>
     <string name="activity_printed">One of your letters has been printed.</string>
     <string name="activity_mailed">One of your letters is in the post.</string>
@@ -668,4 +666,13 @@
     <string name="push_on">Turned on.</string>
     <string name="push_off">Turned off. This phone will no longer be rung.</string>
     <string name="push_failed">Could not change this: %1$s</string>
+
+    <!-- Notification channels: people can silence each kind separately in Android's settings -->
+    <string name="channel_replies">Replies</string>
+    <string name="channel_replies_description">A reply from a prisoner has been recorded on one of your conversations. Shown as a banner.</string>
+    <string name="channel_progress">Letter progress</string>
+    <string name="channel_progress_description">Your letter was printed or mailed, or a change you proposed was decided. Quiet.</string>
+    <string name="channel_queue">Letters to print</string>
+    <string name="channel_queue_description">For group members: a letter is waiting for your group to print it.</string>
+    <string name="action_view">View</string>
 </resources>

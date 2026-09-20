@@ -41,6 +41,14 @@ import android.content.Intent
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import me.paxana.abcmailbox.data.activity.AndroidActivityNotifier
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
+import me.paxana.abcmailbox.ui.common.LocalNewsTick
+import me.paxana.abcmailbox.text.rememberStrings
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -137,6 +145,31 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
     activity?.addOnNewIntentListener(listener)
     onDispose { activity?.removeOnNewIntentListener(listener) }
   }
+  val snackbar = remember { SnackbarHostState() }
+  // News from the server while the app is on screen. Collected only while the app is visible (STARTED): that is
+  // how the repository knows somebody is looking, and shows a system notification when nobody is.
+  var newsTick by remember { mutableIntStateOf(0) }
+  val lifecycleOwner = LocalLifecycleOwner.current
+  val newsStrings = rememberStrings()
+  val viewLabel = stringResource(R.string.action_view)
+  LaunchedEffect(lifecycleOwner, navController) {
+    lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+      viewModel.arrivals.collect { fresh ->
+        newsTick++ // screens showing lists or a conversation reload themselves
+        val chat = fresh.mapNotNull { it.chatId }.distinct().singleOrNull()
+        val lookingAtIt = chat != null && navController.currentBackStackEntry?.let { e -> e.destination.hasRoute<ThreadRoute>() && e.toRoute<ThreadRoute>().chatId == chat } == true
+        if (lookingAtIt) { viewModel.inboxSeen(); return@collect } // it just appeared in front of them; nothing to announce
+        launch {
+          val lines = fresh.map { it.sentence(newsStrings) }.distinct()
+          val text = lines.first() + if (lines.size > 1) " " + newsStrings.plural(R.plurals.activity_and_more, lines.size - 1) else ""
+          if (snackbar.showSnackbar(text, actionLabel = viewLabel, duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+            if (chat != null) navController.navigate(ThreadRoute(chat)) { launchSingleTop = true }
+            else navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }
+          }
+        }
+      }
+    }
+  }
   var landed by rememberSaveable { mutableStateOf(false) }
   LaunchedEffect(Unit) {
     if (landOnAccount && !landed) navController.navigate(AccountRoute) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true }
@@ -147,7 +180,6 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val destination = backStackEntry?.destination
   val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
   val showBars = fullScreen.none { destination?.hasRoute(it) == true }
-  val snackbar = remember { SnackbarHostState() }
   // Snackbars are shown from callbacks, where there is no composition to read resources in, so the
   // sentences are resolved here, where there is.
   val sessionEnded = stringResource(R.string.notice_session_ended)
@@ -213,6 +245,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
     val onDirectoryScreen = destination?.hierarchy?.any { it.hasRoute(DirectoryGraph::class) } == true ||
       destination?.hasRoute(ComposeRoute::class) == true || destination?.hasRoute(PickPrisonerRoute::class) == true
     val saved = directorySource as? DirectorySource.Saved
+    CompositionLocalProvider(LocalNewsTick provides newsTick) {
     Column(Modifier.padding(innerPadding)) {
       if (saved != null && onDirectoryScreen) SavedCopyBanner(saved.at)
     NavHost(
@@ -400,6 +433,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
       }
     }
     } // Column: banner above the NavHost
+    } // LocalNewsTick
   }
 }
 

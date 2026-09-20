@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.ui.common.ReloadOnNews
 import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -82,6 +83,7 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
   val status by viewModel.status.collectAsStateWithLifecycle()
   val items = viewModel.items.collectAsLazyPagingItems()
   LifecycleResumeEffect(Unit) { items.refresh(); onPauseOrDispose { } }
+  ReloadOnNews { items.refresh() } // a letter joined the queue
   if (!viewModel.hasGroup) {
     Text(stringResource(R.string.not_in_group), modifier = Modifier.padding(20.dp))
     return
