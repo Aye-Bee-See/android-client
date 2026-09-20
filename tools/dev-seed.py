@@ -105,7 +105,9 @@ step(f"prison {p4['id']} '{p4['prisonName']}': no relay group (direct mail)")
 
 # 3. Mail rules: tags and the three valued rules (API PR #86) ------------------------
 call("PUT", "/prison/prison", {"id": p1["id"], "mailRules": ["return_address_required", "plain_envelopes", "no_photos", "no_enclosures", "mail_read_by_staff"],
-                                "pageLimit": 4, "mailLanguages": ["en"]}, token=admin)
+                                # The API's own seed may have given this prison a photo limit, and since API PR #94 a
+                                # facility cannot both refuse pictures and limit them: clear it in the same request.
+                                "photoLimit": None, "pageLimit": 4, "mailLanguages": ["en"]}, token=admin)
 call("PUT", "/prison/prison", {"id": p2["id"], "mailRules": ["full_name_and_number", "ink_blue_or_black", "no_polaroids"],
                                 "photoLimit": 3, "mailLanguages": ["en", "es"]}, token=admin)
 call("PUT", "/prison/prison", {"id": p3["id"], "mailRules": ["handwritten_only", "originals_destroyed", "delivery_not_confirmed"]}, token=admin)
