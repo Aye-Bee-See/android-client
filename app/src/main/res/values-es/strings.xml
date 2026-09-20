@@ -650,35 +650,10 @@
     <!-- Deleting one's account (API PR #104). The page has to say in words what goes, and that it cannot be undone -->
     <string name="action_delete_account">Eliminar mi cuenta…</string>
     <string name="delete_title">Eliminar mi cuenta</string>
-    <string name="delete_intro">Esto elimina tu cuenta y todo lo que escribiste o recibiste a través de ella. No se puede deshacer: ni tú ni nadie más podrá recuperarlo.</string>
     <string name="delete_goes_heading">Qué se eliminará</string>
-    <string name="delete_goes_letters">Todas las cartas que escribiste, estén en espera, impresas o ya enviadas, y todas las respuestas registradas para ti. Las cartas que aún esperan a ser impresas no se enviarán nunca.</string>
-    <string name="delete_goes_files">Las fotos y archivos adjuntos a ellas.</string>
-    <plurals name="delete_goes_threads">
-        <item quantity="one">Tu única conversación.</item>
-        <item quantity="many">Tus %d conversaciones, todas.</item>
-        <item quantity="other">Tus %d conversaciones, todas.</item>
-    </plurals>
-    <string name="delete_goes_threads_unknown">Todas tus conversaciones.</string>
-    <plurals name="delete_goes_unsent">
-        <item quantity="one">%d carta en este teléfono que todavía no ha salido. No se enviará nunca.</item>
-        <item quantity="many">%d cartas en este teléfono que todavía no han salido. No se enviarán nunca.</item>
-        <item quantity="other">%d cartas en este teléfono que todavía no han salido. No se enviarán nunca.</item>
-    </plurals>
-    <string name="delete_goes_phone">Los borradores y los archivos que este teléfono guardó para leerlos.</string>
-    <string name="delete_goes_name">Tu nombre de usuario. Queda libre de inmediato: otra persona puede tomarlo.</string>
-    <string name="delete_goes_keys">Tus claves. Tu código de recuperación deja de servir, y nadie, tampoco nosotros, podrá volver a abrir tus cartas.</string>
-    <string name="delete_cannot_heading">Lo que esto no puede hacer</string>
-    <string name="delete_cannot_paper">Las cartas ya enviadas están en papel, en manos de la persona a quien escribiste. Eliminar tu cuenta no las trae de vuelta.</string>
-    <string name="delete_cannot_group">Las cartas que gestionaste para tu grupo pertenecen al grupo y se quedan con él.</string>
-    <string name="delete_ack">Entiendo que esto no se puede deshacer.</string>
     <string name="label_your_password">Tu contraseña</string>
-    <string name="help_password_to_delete">Se pide de nuevo para que nadie que tenga tu teléfono pueda hacer esto por ti.</string>
-    <string name="action_delete_forever">Eliminar mi cuenta para siempre</string>
     <string name="action_deleting">Eliminando…</string>
     <string name="action_keep_account">Conservar mi cuenta</string>
-    <string name="error_delete_wrong_password">Esa contraseña no es correcta. No se ha eliminado nada.</string>
-    <string name="error_delete_network">No se pudo contactar con el servidor. Para eliminar la cuenta hace falta conexión; inténtalo de nuevo cuando la tengas.</string>
     <string name="error_delete_only_admin">Esta es la única cuenta de administración. Nombra antes a otra persona administradora, o nadie podría gestionar el sitio. No se ha eliminado nada.</string>
     <string name="error_delete_last_key_holder">Eres la última persona que tiene la clave de tu grupo. Entrégasela antes a otro miembro (Clave del grupo, en la página del grupo), o tu grupo no podría volver a leer sus cartas. No se ha eliminado nada.</string>
     <string name="error_delete_refused">El servidor no eliminará esta cuenta tal como están las cosas. No se ha eliminado nada.</string>
@@ -715,4 +690,40 @@
     <string name="farewell_nothing">La cuenta, que aún no tenía cartas.</string>
     <string name="farewell_footer">En este teléfono no queda nada tuyo. Gracias por escribir.</string>
     <string name="action_close">Cerrar</string>
+
+    <!-- Deleting one's account, second pass: worded as the iOS app words it, so both say the same thing -->
+    <string name="delete_banner">Esto no se puede deshacer. Nadie, ni tu grupo ni la administración de la red, podrá recuperar nada.</string>
+    <plurals name="delete_goes_threads">
+        <item quantity="one">Tu única conversación, con todas las cartas que escribiste en ella, sea cual sea su estado, y todas las respuestas registradas para ti.</item>
+        <item quantity="many">Tus %d conversaciones, con todas las cartas que escribiste en ellas, sea cual sea su estado, y todas las respuestas registradas para ti.</item>
+        <item quantity="other">Tus %d conversaciones, con todas las cartas que escribiste en ellas, sea cual sea su estado, y todas las respuestas registradas para ti.</item>
+    </plurals>
+    <string name="delete_goes_letters">Todas las cartas que escribiste, sea cual sea su estado, y todas las respuestas registradas para ti, con las conversaciones en que están.</string>
+    <string name="delete_goes_files">Todos los archivos adjuntos a esas cartas.</string>
+    <plurals name="delete_goes_unsent">
+        <item quantity="one">La %d carta que espera en este teléfono para enviarse, y tus borradores. No se enviarán nunca.</item>
+        <item quantity="many">Las %d cartas que esperan en este teléfono para enviarse, y tus borradores. No se enviarán nunca.</item>
+        <item quantity="other">Las %d cartas que esperan en este teléfono para enviarse, y tus borradores. No se enviarán nunca.</item>
+    </plurals>
+    <string name="delete_goes_phone">Tus borradores en este teléfono, y los archivos que guardó para leerlos.</string>
+    <string name="delete_goes_name">La cuenta misma. Tu nombre de usuario queda libre de inmediato para cualquiera.</string>
+    <string name="delete_goes_keys">Tu clave de cifrado. Tu código de recuperación deja de servir: no quedará nada que pueda abrir.</string>
+    <string name="delete_cannot_heading">Lo que esto no hace</string>
+    <string name="delete_cannot_paper">No recupera una carta que ya está impresa o en el correo. La persona presa la recibirá igualmente. Si responde, no habrá una cuenta en la que un grupo pueda registrar su respuesta.</string>
+    <string name="delete_cannot_group">Lo que hiciste para tu grupo se queda, sin tu nombre: cartas que marcaste como impresas o enviadas, invitaciones, cambios que propusiste al directorio. Las cartas de quienes escriben con ayuda de tu grupo son del grupo, y se quedan.</string>
+    <string name="delete_not_yet_heading">Todavía no</string>
+    <string name="delete_last_holder_notice">Eres el único miembro que tiene la clave de tu grupo. Si esta cuenta desapareciera ahora, nadie podría volver a leer las cartas del grupo, así que el servidor se negará. Entrega antes la clave a otro miembro.</string>
+    <string name="delete_nobody_to_hand">Ningún otro miembro ha iniciado sesión todavía, así que no hay a quién entregársela. Invita a un segundo miembro o espera a que llegue, y vuelve después.</string>
+    <string name="delete_could_hand">Se le podría entregar ahora a: %s.</string>
+    <string name="action_open_group_key">Abrir la pantalla de la clave del grupo</string>
+    <string name="delete_sure_heading">Si lo tienes claro</string>
+    <string name="label_type_username">Escribe tu nombre de usuario, %s, para mostrar que va en serio</string>
+    <string name="help_password_to_delete">Lo comprueba el servidor, para que no baste con un teléfono prestado.</string>
+    <string name="delete_ack">Entiendo que esto no se puede deshacer.</string>
+    <string name="action_delete_forever">Eliminar mi cuenta y todas mis cartas</string>
+    <string name="delete_confirm_title">¿Eliminar @%s y todas sus cartas?</string>
+    <string name="delete_confirm_body">Este es el último paso. No se puede deshacer.</string>
+    <string name="action_delete_everything">Eliminar todo</string>
+    <string name="error_delete_wrong_password">Esa no es la contraseña de esta cuenta. No se ha eliminado nada.</string>
+    <string name="error_delete_network">No se puede contactar con el servidor. No se ha eliminado nada.</string>
 </resources>

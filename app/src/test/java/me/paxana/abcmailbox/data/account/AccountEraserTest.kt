@@ -9,20 +9,26 @@ import kotlinx.coroutines.test.runTest
 import me.paxana.abcmailbox.data.activity.ActivityRepository
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
+import me.paxana.abcmailbox.data.crypto.EncryptionMode
+import me.paxana.abcmailbox.data.crypto.FixedMode
 import me.paxana.abcmailbox.data.files.LocalFilesContract
 import me.paxana.abcmailbox.data.files.StagedFile
 import me.paxana.abcmailbox.data.push.PushProvider
 import me.paxana.abcmailbox.data.push.PushRegistrar
 import me.paxana.abcmailbox.data.repo.DraftsRepository
+import me.paxana.abcmailbox.data.repo.GroupRepository
 import me.paxana.abcmailbox.data.repo.LettersRepository
 import me.paxana.abcmailbox.data.repo.OutboxItem
 import me.paxana.abcmailbox.data.repo.OutboxRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.data.session.SessionUser
 import me.paxana.abcmailbox.domain.Activity
+import me.paxana.abcmailbox.domain.GroupMember
 import me.paxana.abcmailbox.ui.auth.FakeSessionRepository
+import me.paxana.abcmailbox.ui.group.GroupViewModelsTest
 import me.paxana.abcmailbox.ui.letters.ComposeViewModelTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,11 +67,33 @@ class AccountEraserTest {
     override suspend fun markAllRead() = Unit
     override suspend fun forget(userId: Int) { told += "activity:$userId" }
   }
-  private val eraser = DefaultAccountEraser(sessions, letters, outbox, drafts, files, push, activity)
+  private var members = listOf<GroupMember>()
+  private val group = object : GroupRepository by GroupViewModelsTest.FakeGroup() { override suspend fun members(): ApiResult<List<GroupMember>> = ApiResult.Success(members) }
+  private fun eraser(mode: EncryptionMode = EncryptionMode.SERVER) = DefaultAccountEraser(sessions, letters, outbox, drafts, files, push, activity, FixedMode(mode), group)
+  private val eraser = eraser()
 
   @Test
-  fun `before anything is asked, the page can say how much there is`() = runTest {
-    assertEquals(DeletionPreview(threads = 4, unsentOnPhone = 0), eraser.preview())
+  fun `before anything is asked, a writer is told how many conversations are theirs`() = runTest {
+    assertEquals(DeletionPreview(threads = 4), eraser.preview())
+  }
+
+  @Test
+  fun `a group member is not, because the list they see is the group's, and the group's letters stay`() = runTest {
+    sessions.signInAs(SessionUser(5, "member1", null, null, "chapter", 1))
+    assertNull(eraser.preview().threads)
+  }
+
+  @Test
+  fun `the only holder of a group's key is told before they type anything, and who could take it`() = runTest {
+    sessions.signInAs(SessionUser(5, "member1", null, null, "chapter", 1))
+    members = listOf(GroupMember(5, "Mem One", hasOwnKey = true, holdsGroupKey = true, isMe = true), GroupMember(6, "River", hasOwnKey = true, holdsGroupKey = false, isMe = false), GroupMember(7, "Not yet signed in", hasOwnKey = false, holdsGroupKey = false, isMe = false))
+    val alone = eraser(EncryptionMode.E2E).preview()
+    assertTrue(alone.endToEnd); assertTrue(alone.isLastKeyHolder)
+    assertEquals("only someone with a key of their own can be handed the group's", listOf("River"), alone.membersWhoCouldHoldTheKey)
+
+    members = members.map { if (it.id == 6) it.copy(holdsGroupKey = true) else it }
+    assertFalse("River holds it too now: free to go", eraser(EncryptionMode.E2E).preview().isLastKeyHolder)
+    assertFalse("and in server mode there is no group key to strand", eraser(EncryptionMode.SERVER).preview().isLastKeyHolder)
   }
 
   @Test

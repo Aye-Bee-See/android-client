@@ -388,7 +388,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onDeleteAccount = { navController.navigate(DeleteAccountRoute) },
         )
       }
-      composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }) }
+      composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }, onGroupKey = { navController.navigate(GroupKeyRoute) }) }
       composable<ChangePasswordRoute> {
         ChangePasswordScreen(
           onBack = { navController.popBackStack() },

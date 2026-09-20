@@ -679,34 +679,11 @@
     <!-- Deleting one's account (API PR #104). The page has to say in words what goes, and that it cannot be undone -->
     <string name="action_delete_account">Delete my account…</string>
     <string name="delete_title">Delete my account</string>
-    <string name="delete_intro">This deletes your account and everything you wrote or received through it. It cannot be undone, by you or by anyone else.</string>
     <string name="delete_goes_heading">What will be deleted</string>
-    <string name="delete_goes_letters">Every letter you wrote, whether it is waiting, printed or already mailed, and every reply recorded for you. Letters still waiting to be printed will never be sent.</string>
-    <string name="delete_goes_files">The photos and files attached to them.</string>
     <!-- The number of threads the account has -->
-    <plurals name="delete_goes_threads">
-        <item quantity="one">Your one conversation.</item>
-        <item quantity="other">All %d of your conversations.</item>
-    </plurals>
-    <string name="delete_goes_threads_unknown">All of your conversations.</string>
-    <plurals name="delete_goes_unsent">
-        <item quantity="one">%d letter on this phone that has not gone out yet. It will never be sent.</item>
-        <item quantity="other">%d letters on this phone that have not gone out yet. They will never be sent.</item>
-    </plurals>
-    <string name="delete_goes_phone">Drafts, and files this phone kept for reading.</string>
-    <string name="delete_goes_name">Your username. It is free at once: someone else can take it.</string>
-    <string name="delete_goes_keys">Your keys. Your recovery code becomes useless, and nobody, including us, can ever open your letters again.</string>
-    <string name="delete_cannot_heading">What this cannot do</string>
-    <string name="delete_cannot_paper">Letters that were already mailed are on paper, with the person you wrote to. Deleting your account does not bring them back.</string>
-    <string name="delete_cannot_group">Letters you handled for your group belong to the group and stay with it.</string>
-    <string name="delete_ack">I understand that this cannot be undone.</string>
     <string name="label_your_password">Your password</string>
-    <string name="help_password_to_delete">Asked again so that nobody holding your phone can do this for you.</string>
-    <string name="action_delete_forever">Delete my account forever</string>
     <string name="action_deleting">Deleting…</string>
     <string name="action_keep_account">Keep my account</string>
-    <string name="error_delete_wrong_password">That password is wrong. Nothing was deleted.</string>
-    <string name="error_delete_network">Could not reach the server. Deleting needs a connection; try again when you are online.</string>
     <string name="error_delete_only_admin">This is the only admin account. Make someone else an admin first, or nobody could run the site. Nothing was deleted.</string>
     <string name="error_delete_last_key_holder">You are the last person holding your group’s key. Hand it to another member first (Group key, on the Group page), or your group could never read its letters again. Nothing was deleted.</string>
     <string name="error_delete_refused">The server will not delete this account as things stand. Nothing was deleted.</string>
@@ -738,4 +715,39 @@
     <string name="farewell_nothing">The account, which had no letters yet.</string>
     <string name="farewell_footer">Nothing of yours is left on this phone. Thank you for writing.</string>
     <string name="action_close">Close</string>
+
+    <!-- Deleting one's account, second pass: worded as the iOS app words it, so both say the same thing -->
+    <string name="delete_banner">This cannot be undone. Nobody, not your group and not a network admin, can bring any of it back.</string>
+    <plurals name="delete_goes_threads">
+        <item quantity="one">Your one conversation, with every letter you wrote in it, whatever its status, and every reply recorded for you.</item>
+        <item quantity="other">Your %d conversations, with every letter you wrote in them, whatever its status, and every reply recorded for you.</item>
+    </plurals>
+    <string name="delete_goes_letters">Every letter you wrote, whatever its status, and every reply recorded for you, with the conversations they are in.</string>
+    <string name="delete_goes_files">Every file attached to those letters.</string>
+    <plurals name="delete_goes_unsent">
+        <item quantity="one">The %d letter waiting on this phone to be sent, and your drafts. They will never be sent.</item>
+        <item quantity="other">The %d letters waiting on this phone to be sent, and your drafts. They will never be sent.</item>
+    </plurals>
+    <string name="delete_goes_phone">Your drafts on this phone, and the files it kept for reading.</string>
+    <string name="delete_goes_name">The account itself. Your username is free for anyone to take, at once.</string>
+    <string name="delete_goes_keys">Your encryption key. Your recovery code becomes useless: there will be nothing left for it to open.</string>
+    <string name="delete_cannot_heading">What this does not do</string>
+    <string name="delete_cannot_paper">It does not recall a letter that is already printed or in the post. The prisoner will still receive it. If they write back, there will be no account for a group to record their reply on.</string>
+    <string name="delete_cannot_group">What you did for your group stays, without your name on it: letters you marked printed or mailed, invitations, changes you proposed to the directory. The letters of writers your group looks after are the group’s, and stay.</string>
+    <string name="delete_not_yet_heading">Not yet</string>
+    <string name="delete_last_holder_notice">You are the only member who holds your group’s key. If this account went now, nobody could ever read the group’s letters again, so the server will refuse. Hand the key to another member first.</string>
+    <string name="delete_nobody_to_hand">No other member has signed in yet, so there is nobody to hand it to. Invite or wait for a second member, then come back.</string>
+    <!-- %s is one or more member names, separated by commas -->
+    <string name="delete_could_hand">Could be handed it now: %s.</string>
+    <string name="action_open_group_key">Open the Group key screen</string>
+    <string name="delete_sure_heading">If you are sure</string>
+    <string name="label_type_username">Type your username, %s, to show you mean it</string>
+    <string name="help_password_to_delete">Checked by the server, so that a borrowed phone is not enough.</string>
+    <string name="delete_ack">I understand this cannot be undone.</string>
+    <string name="action_delete_forever">Delete my account and all my letters</string>
+    <string name="delete_confirm_title">Delete @%s and every letter in it?</string>
+    <string name="delete_confirm_body">This is the last step. It cannot be undone.</string>
+    <string name="action_delete_everything">Delete everything</string>
+    <string name="error_delete_wrong_password">That is not this account’s password. Nothing was deleted.</string>
+    <string name="error_delete_network">Can’t reach the server. Nothing was deleted.</string>
 </resources>

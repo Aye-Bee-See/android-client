@@ -671,37 +671,10 @@
     <!-- Deleting one's account (API PR #104). The page has to say in words what goes, and that it cannot be undone -->
     <string name="action_delete_account">Удалить мой аккаунт…</string>
     <string name="delete_title">Удаление аккаунта</string>
-    <string name="delete_intro">Это удалит ваш аккаунт и всё, что вы через него написали или получили. Отменить это нельзя: ни вам, ни кому-либо ещё.</string>
     <string name="delete_goes_heading">Что будет удалено</string>
-    <string name="delete_goes_letters">Все письма, которые вы написали: ожидающие, напечатанные и уже отправленные, и все ответы, записанные для вас. Письма, ещё ожидающие печати, отправлены не будут.</string>
-    <string name="delete_goes_files">Фотографии и файлы, приложенные к ним.</string>
-    <plurals name="delete_goes_threads">
-        <item quantity="one">Ваша %d переписка.</item>
-        <item quantity="few">Все ваши %d переписки.</item>
-        <item quantity="many">Все ваши %d переписок.</item>
-        <item quantity="other">Все ваши %d переписки.</item>
-    </plurals>
-    <string name="delete_goes_threads_unknown">Все ваши переписки.</string>
-    <plurals name="delete_goes_unsent">
-        <item quantity="one">%d письмо на этом телефоне, которое ещё не ушло. Оно не будет отправлено.</item>
-        <item quantity="few">%d письма на этом телефоне, которые ещё не ушли. Они не будут отправлены.</item>
-        <item quantity="many">%d писем на этом телефоне, которые ещё не ушли. Они не будут отправлены.</item>
-        <item quantity="other">%d письма на этом телефоне, которые ещё не ушли. Они не будут отправлены.</item>
-    </plurals>
-    <string name="delete_goes_phone">Черновики и файлы, которые этот телефон сохранил для чтения.</string>
-    <string name="delete_goes_name">Ваше имя пользователя. Оно освобождается сразу: его может занять кто-то другой.</string>
-    <string name="delete_goes_keys">Ваши ключи. Код восстановления станет бесполезным, и никто, включая нас, больше не сможет открыть ваши письма.</string>
-    <string name="delete_cannot_heading">Чего это сделать не может</string>
-    <string name="delete_cannot_paper">Уже отправленные письма существуют на бумаге, у того, кому вы писали. Удаление аккаунта их не вернёт.</string>
-    <string name="delete_cannot_group">Письма, с которыми вы работали для своей группы, принадлежат группе и остаются у неё.</string>
-    <string name="delete_ack">Я понимаю, что это нельзя отменить.</string>
     <string name="label_your_password">Ваш пароль</string>
-    <string name="help_password_to_delete">Запрашивается снова, чтобы никто, взявший ваш телефон, не сделал это за вас.</string>
-    <string name="action_delete_forever">Удалить мой аккаунт навсегда</string>
     <string name="action_deleting">Удаление…</string>
     <string name="action_keep_account">Оставить аккаунт</string>
-    <string name="error_delete_wrong_password">Неверный пароль. Ничего не удалено.</string>
-    <string name="error_delete_network">Не удалось связаться с сервером. Для удаления нужно подключение; повторите, когда будете в сети.</string>
     <string name="error_delete_only_admin">Это единственный аккаунт администратора. Сначала назначьте администратором кого-то ещё, иначе сайтом некому будет управлять. Ничего не удалено.</string>
     <string name="error_delete_last_key_holder">Вы последний, у кого есть ключ вашей группы. Сначала передайте его другому участнику («Ключ группы» на странице группы), иначе группа больше не сможет читать свои письма. Ничего не удалено.</string>
     <string name="error_delete_refused">Сервер не станет удалять этот аккаунт в нынешнем положении. Ничего не удалено.</string>
@@ -743,4 +716,42 @@
     <string name="farewell_nothing">Аккаунт, в котором ещё не было писем.</string>
     <string name="farewell_footer">На этом телефоне не осталось ничего вашего. Спасибо, что писали.</string>
     <string name="action_close">Закрыть</string>
+
+    <!-- Deleting one's account, second pass: worded as the iOS app words it, so both say the same thing -->
+    <string name="delete_banner">Это нельзя отменить. Никто, ни ваша группа, ни администратор сети, не сможет ничего вернуть.</string>
+    <plurals name="delete_goes_threads">
+        <item quantity="one">Ваша %d переписка, со всеми письмами, которые вы в ней написали, в любом состоянии, и всеми ответами, записанными для вас.</item>
+        <item quantity="few">Ваши %d переписки, со всеми письмами, которые вы в них написали, в любом состоянии, и всеми ответами, записанными для вас.</item>
+        <item quantity="many">Ваши %d переписок, со всеми письмами, которые вы в них написали, в любом состоянии, и всеми ответами, записанными для вас.</item>
+        <item quantity="other">Ваши %d переписки, со всеми письмами, которые вы в них написали, в любом состоянии, и всеми ответами, записанными для вас.</item>
+    </plurals>
+    <string name="delete_goes_letters">Все письма, которые вы написали, в любом состоянии, и все ответы, записанные для вас, вместе с переписками, в которых они находятся.</string>
+    <string name="delete_goes_files">Все файлы, приложенные к этим письмам.</string>
+    <plurals name="delete_goes_unsent">
+        <item quantity="one">%d письмо, ожидающее отправки на этом телефоне, и ваши черновики. Они не будут отправлены.</item>
+        <item quantity="few">%d письма, ожидающие отправки на этом телефоне, и ваши черновики. Они не будут отправлены.</item>
+        <item quantity="many">%d писем, ожидающих отправки на этом телефоне, и ваши черновики. Они не будут отправлены.</item>
+        <item quantity="other">%d письма, ожидающие отправки на этом телефоне, и ваши черновики. Они не будут отправлены.</item>
+    </plurals>
+    <string name="delete_goes_phone">Ваши черновики на этом телефоне и файлы, которые он сохранил для чтения.</string>
+    <string name="delete_goes_name">Сам аккаунт. Ваше имя пользователя сразу становится свободным для любого.</string>
+    <string name="delete_goes_keys">Ваш ключ шифрования. Код восстановления станет бесполезным: открывать им будет нечего.</string>
+    <string name="delete_cannot_heading">Чего это не делает</string>
+    <string name="delete_cannot_paper">Это не отзывает письмо, которое уже напечатано или отправлено почтой. Заключённый всё равно его получит. Если он ответит, не будет аккаунта, в который группа могла бы записать ответ.</string>
+    <string name="delete_cannot_group">То, что вы сделали для группы, остаётся, но без вашего имени: письма, которые вы отметили напечатанными или отправленными, приглашения, предложенные вами изменения справочника. Письма авторов, которых ведёт ваша группа, принадлежат группе и остаются.</string>
+    <string name="delete_not_yet_heading">Пока нельзя</string>
+    <string name="delete_last_holder_notice">Вы единственный участник, у которого есть ключ группы. Если этот аккаунт исчезнет сейчас, никто больше не сможет читать письма группы, поэтому сервер откажет. Сначала передайте ключ другому участнику.</string>
+    <string name="delete_nobody_to_hand">Никто из других участников ещё не входил, поэтому передать ключ некому. Пригласите второго участника или дождитесь его, затем возвращайтесь.</string>
+    <string name="delete_could_hand">Ключ уже можно передать: %s.</string>
+    <string name="action_open_group_key">Открыть экран ключа группы</string>
+    <string name="delete_sure_heading">Если вы уверены</string>
+    <string name="label_type_username">Введите своё имя пользователя, %s, чтобы подтвердить намерение</string>
+    <string name="help_password_to_delete">Проверяется сервером, чтобы чужого телефона в руках было недостаточно.</string>
+    <string name="delete_ack">Я понимаю, что это нельзя отменить.</string>
+    <string name="action_delete_forever">Удалить мой аккаунт и все мои письма</string>
+    <string name="delete_confirm_title">Удалить @%s и все письма в нём?</string>
+    <string name="delete_confirm_body">Это последний шаг. Отменить его нельзя.</string>
+    <string name="action_delete_everything">Удалить всё</string>
+    <string name="error_delete_wrong_password">Это не пароль от этого аккаунта. Ничего не удалено.</string>
+    <string name="error_delete_network">Не удаётся связаться с сервером. Ничего не удалено.</string>
 </resources>
