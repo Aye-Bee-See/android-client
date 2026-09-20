@@ -37,6 +37,9 @@ interface DraftDao {
   @Query("DELETE FROM drafts WHERE userId = :userId AND prisonerId = :prisonerId")
   suspend fun delete(userId: Int, prisonerId: Int)
 
+  @Query("DELETE FROM drafts WHERE userId = :userId")
+  suspend fun deleteFor(userId: Int)
+
   @Query("DELETE FROM drafts")
   suspend fun clear()
 }

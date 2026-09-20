@@ -13,6 +13,8 @@ interface DraftsRepository {
   suspend fun load(userId: Int, prisonerId: Int): Draft?
   suspend fun save(userId: Int, prisonerId: Int, draft: Draft)
   suspend fun delete(userId: Int, prisonerId: Int)
+  /** Every draft of an account that no longer exists. */
+  suspend fun eraseFor(userId: Int) {}
 }
 
 /** Drafts are plaintext letters on disk, so they get the same Keystore-backed encryption as the session. */
@@ -37,4 +39,5 @@ class DefaultDraftsRepository @Inject constructor(
   }
 
   override suspend fun delete(userId: Int, prisonerId: Int) = dao.delete(userId, prisonerId)
+  override suspend fun eraseFor(userId: Int) = dao.deleteFor(userId)
 }

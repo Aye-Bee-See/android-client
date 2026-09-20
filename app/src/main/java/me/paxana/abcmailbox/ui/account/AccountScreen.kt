@@ -39,6 +39,7 @@ fun AccountScreen(
   mode: EncryptionMode,
   onSignIn: () -> Unit,
   onChangePassword: () -> Unit,
+  onDeleteAccount: () -> Unit = {},
   viewModel: AccountViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.uiState.collectAsStateWithLifecycle()
@@ -83,6 +84,10 @@ fun AccountScreen(
         }
         TextButton(onClick = { viewModel.signOut(everywhere = true) }, enabled = !ui.signingOut) {
           Text(stringResource(R.string.action_sign_out_everywhere))
+        }
+        // Last and quiet. It opens a page that explains; nothing is deleted from here.
+        TextButton(onClick = onDeleteAccount, enabled = !ui.signingOut, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+          Text(stringResource(R.string.action_delete_account))
         }
       }
     }

@@ -40,4 +40,7 @@ interface OutboxDao {
   @Insert suspend fun insert(row: OutboxEntity): Long
   @Update suspend fun update(row: OutboxEntity)
   @Query("DELETE FROM outbox WHERE id = :id") suspend fun delete(id: Long)
+  @Query("SELECT * FROM outbox WHERE userId = :userId") suspend fun allFor(userId: Int): List<OutboxEntity>
+  @Query("DELETE FROM outbox WHERE userId = :userId") suspend fun deleteFor(userId: Int)
+  @Query("SELECT COUNT(*) FROM outbox") suspend fun countAll(): Int
 }

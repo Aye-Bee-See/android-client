@@ -2,6 +2,18 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-20: the guard on "delete my account" is a page, a tick and the password, and nothing slower
+
+**Context.** API PR #104 lets people delete their account with everything in it, irreversibly, and asks clients for "a confirmation that says in words what will be deleted and that it cannot be undone". The people who use this app may be at risk for writing to political prisoners. So the guard has two jobs that pull against each other: it must stop an accident and stop somebody else holding the phone, and it must not stand in the way of an owner who needs to leave now.
+
+**Decision.** A full page, not a dialog (there is too much to say, and dialogs are dismissed by reflex). What goes, in words, with the account's own numbers. What it cannot do (mailed letters are paper). Then two acts: a tick on "I understand that this cannot be undone", and the password. The button is red, says "forever", and is disabled until both. The keyboard's Done key closes the keyboard and does not submit. "Keep my account" is as large as the way through. Afterwards a receipt that stays until closed.
+
+Each act answers one threat. The password answers "somebody else": the server requires it, a stolen token or an unlocked phone is not enough, and guesses are rate limited. The tick answers "by accident", and is separate from the password because a password manager can fill a password field without the person deciding anything.
+
+**Rejected.** A waiting period or an emailed link (the standard pattern for consumer accounts): it keeps a person's letters on a server for days after they decided they must go, and email may not be safe for them either. A countdown on the button: theatre, and the same delay. Typing the username or the word DELETE: friction that proves nothing the password has not proved better. A second "are you sure?" dialog after the button: the page already is that. Queueing the deletion when offline, as letters are: it would mean keeping the password on disk.
+
+**Consequences.** The deletion is only as recoverable as the person's own memory of it, by design; support cannot undo it. The phone-side wipe (`AccountEraser`) must be kept in step with every new store that holds something per account: a new one needs a `forget`/`eraseFor` and a line in `AccountEraserTest`.
+
 ## 2026-09-19: push is a doorbell, opt-in, and Firebase starts only when asked
 
 **Context.** The API rings phones through FCM with an empty payload and keeps what happened in a feed. People who write to political prisoners include people who do not want Google to know they have this app.

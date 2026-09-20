@@ -63,6 +63,12 @@ interface PushRegistrar {
   suspend fun turnOff(): ApiResult<Unit>
   /** The provider issued a new address for this phone. */
   fun onNewToken(token: String)
+  /**
+   * The account was deleted, and the server's record of this phone went with it. The switch is kept per phone,
+   * so left on it would quietly register the next person who signs in here. Off, and the phone's address is
+   * given up, without asking a server that would only answer "who are you?".
+   */
+  suspend fun forgetLocally() {}
 }
 
 @Singleton
@@ -106,6 +112,11 @@ class DefaultPushRegistrar @Inject constructor(
     dataStore.edit { it[enabledKey] = false; it.remove(deviceIdKey) }
     runCatching { provider.forget() }
     return if (deviceId == null) ApiResult.Success(Unit) else apiCall(json) { api.removeDevice(IdBody(deviceId)) }.map { }
+  }
+
+  override suspend fun forgetLocally() {
+    dataStore.edit { it[enabledKey] = false; it.remove(deviceIdKey) }
+    runCatching { provider.forget() }
   }
 
   override fun onNewToken(token: String) {

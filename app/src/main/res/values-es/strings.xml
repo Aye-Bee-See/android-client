@@ -646,4 +646,73 @@
     <string name="channel_queue">Cartas por imprimir</string>
     <string name="channel_queue_description">Para miembros de grupos: hay una carta esperando a que tu grupo la imprima.</string>
     <string name="action_view">Ver</string>
+
+    <!-- Deleting one's account (API PR #104). The page has to say in words what goes, and that it cannot be undone -->
+    <string name="action_delete_account">Eliminar mi cuenta…</string>
+    <string name="delete_title">Eliminar mi cuenta</string>
+    <string name="delete_intro">Esto elimina tu cuenta y todo lo que escribiste o recibiste a través de ella. No se puede deshacer: ni tú ni nadie más podrá recuperarlo.</string>
+    <string name="delete_goes_heading">Qué se eliminará</string>
+    <string name="delete_goes_letters">Todas las cartas que escribiste, estén en espera, impresas o ya enviadas, y todas las respuestas registradas para ti. Las cartas que aún esperan a ser impresas no se enviarán nunca.</string>
+    <string name="delete_goes_files">Las fotos y archivos adjuntos a ellas.</string>
+    <plurals name="delete_goes_threads">
+        <item quantity="one">Tu única conversación.</item>
+        <item quantity="many">Tus %d conversaciones, todas.</item>
+        <item quantity="other">Tus %d conversaciones, todas.</item>
+    </plurals>
+    <string name="delete_goes_threads_unknown">Todas tus conversaciones.</string>
+    <plurals name="delete_goes_unsent">
+        <item quantity="one">%d carta en este teléfono que todavía no ha salido. No se enviará nunca.</item>
+        <item quantity="many">%d cartas en este teléfono que todavía no han salido. No se enviarán nunca.</item>
+        <item quantity="other">%d cartas en este teléfono que todavía no han salido. No se enviarán nunca.</item>
+    </plurals>
+    <string name="delete_goes_phone">Los borradores y los archivos que este teléfono guardó para leerlos.</string>
+    <string name="delete_goes_name">Tu nombre de usuario. Queda libre de inmediato: otra persona puede tomarlo.</string>
+    <string name="delete_goes_keys">Tus claves. Tu código de recuperación deja de servir, y nadie, tampoco nosotros, podrá volver a abrir tus cartas.</string>
+    <string name="delete_cannot_heading">Lo que esto no puede hacer</string>
+    <string name="delete_cannot_paper">Las cartas ya enviadas están en papel, en manos de la persona a quien escribiste. Eliminar tu cuenta no las trae de vuelta.</string>
+    <string name="delete_cannot_group">Las cartas que gestionaste para tu grupo pertenecen al grupo y se quedan con él.</string>
+    <string name="delete_ack">Entiendo que esto no se puede deshacer.</string>
+    <string name="label_your_password">Tu contraseña</string>
+    <string name="help_password_to_delete">Se pide de nuevo para que nadie que tenga tu teléfono pueda hacer esto por ti.</string>
+    <string name="action_delete_forever">Eliminar mi cuenta para siempre</string>
+    <string name="action_deleting">Eliminando…</string>
+    <string name="action_keep_account">Conservar mi cuenta</string>
+    <string name="error_delete_wrong_password">Esa contraseña no es correcta. No se ha eliminado nada.</string>
+    <string name="error_delete_network">No se pudo contactar con el servidor. Para eliminar la cuenta hace falta conexión; inténtalo de nuevo cuando la tengas.</string>
+    <string name="error_delete_only_admin">Esta es la única cuenta de administración. Nombra antes a otra persona administradora, o nadie podría gestionar el sitio. No se ha eliminado nada.</string>
+    <string name="error_delete_last_key_holder">Eres la última persona que tiene la clave de tu grupo. Entrégasela antes a otro miembro (Clave del grupo, en la página del grupo), o tu grupo no podría volver a leer sus cartas. No se ha eliminado nada.</string>
+    <string name="error_delete_refused">El servidor no eliminará esta cuenta tal como están las cosas. No se ha eliminado nada.</string>
+    <string name="error_delete_generic">No se pudo eliminar la cuenta. No se ha eliminado nada.</string>
+
+    <!-- The receipt after an account was deleted -->
+    <string name="farewell_title">Tu cuenta se ha eliminado</string>
+    <string name="farewell_heading">Se ha ido para siempre:</string>
+    <plurals name="farewell_letters">
+        <item quantity="one">%d carta</item>
+        <item quantity="many">%d cartas</item>
+        <item quantity="other">%d cartas</item>
+    </plurals>
+    <plurals name="farewell_replies">
+        <item quantity="one">%d respuesta</item>
+        <item quantity="many">%d respuestas</item>
+        <item quantity="other">%d respuestas</item>
+    </plurals>
+    <plurals name="farewell_files">
+        <item quantity="one">%d archivo</item>
+        <item quantity="many">%d archivos</item>
+        <item quantity="other">%d archivos</item>
+    </plurals>
+    <plurals name="farewell_threads">
+        <item quantity="one">%d conversación</item>
+        <item quantity="many">%d conversaciones</item>
+        <item quantity="other">%d conversaciones</item>
+    </plurals>
+    <plurals name="farewell_unsent">
+        <item quantity="one">%d carta sin enviar en este teléfono</item>
+        <item quantity="many">%d cartas sin enviar en este teléfono</item>
+        <item quantity="other">%d cartas sin enviar en este teléfono</item>
+    </plurals>
+    <string name="farewell_nothing">La cuenta, que aún no tenía cartas.</string>
+    <string name="farewell_footer">En este teléfono no queda nada tuyo. Gracias por escribir.</string>
+    <string name="action_close">Cerrar</string>
 </resources>

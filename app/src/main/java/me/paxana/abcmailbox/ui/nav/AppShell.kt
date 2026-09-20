@@ -74,6 +74,8 @@ import androidx.navigation.toRoute
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.ui.account.AccountScreen
 import me.paxana.abcmailbox.ui.account.ChangePasswordScreen
+import me.paxana.abcmailbox.ui.account.FarewellDialog
+import me.paxana.abcmailbox.ui.account.DeleteAccountScreen
 import me.paxana.abcmailbox.ui.auth.ClaimScreen
 import me.paxana.abcmailbox.ui.auth.RecoverScreen
 import me.paxana.abcmailbox.ui.auth.RecoveryCodeScreen
@@ -130,6 +132,10 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
     lastAccountId = accountId
   }
   key(generation) { Shell(viewModel, sessionState, landOnAccount = generation > 0) }
+
+  // Outside `key`, so it survives the rebuild that the deletion itself causes.
+  val farewell by viewModel.farewell.collectAsStateWithLifecycle()
+  farewell?.let { FarewellDialog(it, onClose = viewModel::farewellSeen) }
 }
 
 @Composable
@@ -379,8 +385,10 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           mode = mode,
           onSignIn = { navController.navigate(LoginRoute) },
           onChangePassword = { navController.navigate(ChangePasswordRoute) },
+          onDeleteAccount = { navController.navigate(DeleteAccountRoute) },
         )
       }
+      composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }) }
       composable<ChangePasswordRoute> {
         ChangePasswordScreen(
           onBack = { navController.popBackStack() },

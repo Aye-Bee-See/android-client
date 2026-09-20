@@ -26,6 +26,13 @@ interface LocalFilesContract {
   fun newOutboxFile(): File = error("not used")
   /** A scratch file to decrypt a queued attachment into, just before it is uploaded. */
   fun newStagingFile(name: String): File = error("not used")
+  fun emptyOutboxFolder() {}
+  /**
+   * Everything letter-related in the cache: attachments opened for reading (these are in the clear: a photo
+   * of somebody's reply), files picked for a letter not yet sent, camera shots. None of it is per account, and
+   * all of it can be fetched or picked again, so after an account is deleted the whole lot goes.
+   */
+  fun emptyCaches() {}
 }
 
 /**
@@ -62,6 +69,8 @@ class LocalFiles @Inject constructor(@ApplicationContext private val context: Co
     staged.file.delete()
   }
 
+  override fun emptyOutboxFolder() { File(context.filesDir, "outbox").listFiles()?.forEach { it.delete() } }
+  override fun emptyCaches() { listOf("staging", "attachments", "camera").forEach { File(context.cacheDir, it).deleteRecursively() } }
   override fun newOutboxFile(): File = File(File(context.filesDir, "outbox").apply { mkdirs() }, "${java.util.UUID.randomUUID()}.bin")
   override fun newStagingFile(name: String): File = File(staging, "${System.nanoTime()}_${name.replace(File.separatorChar, '_')}")
 

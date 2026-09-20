@@ -47,6 +47,8 @@ interface ActivityRepository {
   suspend fun sync(announce: Boolean = true): List<Activity>
   /** The person is looking at their Inbox: everything counts as seen, here and on their other devices. */
   suspend fun markAllRead()
+  /** The account was deleted: its place in its feed, the badge, and any notification still showing. */
+  suspend fun forget(userId: Int) {}
 }
 
 @Singleton
@@ -86,6 +88,12 @@ class DefaultActivityRepository @Inject constructor(
       if (_arrivals.subscriptionCount.value > 0) _arrivals.emit(fresh) else notifier.show(fresh)
     }
     return fresh
+  }
+
+  override suspend fun forget(userId: Int) {
+    dataStore.edit { it.remove(lastSeenKey(userId)) }
+    _unread.value = 0
+    notifier.clear()
   }
 
   override suspend fun markAllRead() {

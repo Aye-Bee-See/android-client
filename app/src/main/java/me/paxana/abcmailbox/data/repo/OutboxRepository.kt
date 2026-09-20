@@ -88,6 +88,8 @@ interface OutboxRepository {
   /** Sends what can be sent now. Safe to call at any time and from anywhere; runs one at a time. */
   suspend fun flush(): FlushOutcome
   suspend fun hasWaiting(): Boolean
+  /** The account was deleted: its unsent letters and their files go too. Takes the id, because by then nobody is signed in. Answers how many letters went. */
+  suspend fun eraseFor(userId: Int): Int = 0
 }
 
 /**
@@ -164,6 +166,15 @@ class DefaultOutboxRepository @Inject constructor(
     val row = dao.get(id)?.takeIf { it.userId == myId } ?: return
     unseal(row)?.attachments?.forEach { File(it.path).delete() }
     dao.delete(id)
+  }
+
+  override suspend fun eraseFor(userId: Int): Int = flushing.withLock { // not while the worker is half way through sending one of them
+    val rows = dao.allFor(userId)
+    rows.forEach { row -> unseal(row)?.attachments?.forEach { File(it.path).delete() } }
+    dao.deleteFor(userId)
+    // A row that could not be opened cannot name its files. If nobody else has letters waiting, nothing in the folder is needed.
+    if (dao.countAll() == 0) files.emptyOutboxFolder()
+    rows.size
   }
 
   override suspend fun retry(id: Long) {

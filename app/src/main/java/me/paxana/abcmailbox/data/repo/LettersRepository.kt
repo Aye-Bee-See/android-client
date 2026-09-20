@@ -50,6 +50,8 @@ data class LetterEdit(val messageId: Int, val body: String, val relayNote: Strin
 
 interface LettersRepository {
   fun threads(): Flow<PagingData<Thread>>
+  /** How many conversations the account has, for the page that says what deleting it would delete. Null when it cannot be known now. */
+  suspend fun threadCount(): Int? = null
   suspend fun thread(chatId: Int): ApiResult<Thread>
   suspend fun threadForPrisoner(prisonerId: Int): ApiResult<Thread?>
   suspend fun letter(messageId: Int): ApiResult<Letter>
@@ -72,6 +74,8 @@ class DefaultLettersRepository @Inject constructor(
 ) : LettersRepository {
 
   private fun me.paxana.abcmailbox.data.api.ChatDto.decoded() = toDomain(letter = codec::incoming, preview = codec::preview)
+
+  override suspend fun threadCount(): Int? = (apiCall(json) { api.chats(full = false, pageSize = 1) } as? ApiResult.Success)?.value?.total
 
   override fun threads(): Flow<PagingData<Thread>> = Pager(PagingConfig(pageSize = 20, initialLoadSize = 20)) {
     PagePagingSource { page, size ->

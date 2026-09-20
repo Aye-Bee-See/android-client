@@ -108,6 +108,9 @@ abstract class BindingsModule {
   abstract fun pushProvider(impl: me.paxana.abcmailbox.data.push.FcmPushProvider): me.paxana.abcmailbox.data.push.PushProvider
 
   @Binds
+  abstract fun accountEraser(impl: me.paxana.abcmailbox.data.account.DefaultAccountEraser): me.paxana.abcmailbox.data.account.AccountEraser
+
+  @Binds
   abstract fun pushRegistrar(impl: me.paxana.abcmailbox.data.push.DefaultPushRegistrar): me.paxana.abcmailbox.data.push.PushRegistrar
 
   @Binds

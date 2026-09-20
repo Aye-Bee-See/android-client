@@ -71,6 +71,18 @@ class FakeSessionRepository(
     return login(username, newPassword)
   }
 
+  /** Set to make the next deletion fail the way the server would. */
+  var deleteError: AppError? = null
+  var deleteReport = me.paxana.abcmailbox.data.api.DeletionReportDto(deleted = 1, letters = 3, replies = 1, attachments = 1, threads = 2)
+  override suspend fun deleteAccount(password: String, wipe: suspend (userId: Int) -> Unit): ApiResult<me.paxana.abcmailbox.data.api.DeletionReportDto> {
+    val me = (_state.value as? SessionState.SignedIn)?.session?.user ?: return ApiResult.Failure(AppError.Unauthorized(null))
+    deleteError?.let { return ApiResult.Failure(it) }
+    if (password != currentPassword) return ApiResult.Failure(AppError.Forbidden("The password is wrong; nothing was deleted."))
+    wipe(me.id)
+    _state.value = SessionState.SignedOut
+    return ApiResult.Success(deleteReport)
+  }
+
   override suspend fun changePassword(current: String, new: String): ApiResult<Unit> {
     if (current != currentPassword) return ApiResult.Failure(AppError.Validation(listOf("Your current password is incorrect.")))
     passwordChangedTo = new

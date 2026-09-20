@@ -198,6 +198,22 @@ class OutboxRepositoryTest {
   }
 
   @Test
+  fun `a deleted account's unsent letters and their files go, and only that account's`() = runTest {
+    outbox.queue("Jane Smith", null, letter, listOf(staged("scan.pdf")))
+    sessions.signInAs(SessionUser(3, "user2", null, null, "user", null))
+    outbox.queue("Sam Example", null, letter, listOf(staged("photo.jpg")))
+    val filesBefore = tmp.root.listFiles()!!.count { it.name.startsWith("outbox-") }
+    assertEquals(2, filesBefore)
+
+    // By id, not by "whoever is signed in": by the time this runs for real, nobody is.
+    sessions.logout()
+    assertEquals(1, outbox.eraseFor(2))
+    assertEquals(listOf(3), rows().map { it.userId })
+    assertEquals("user1's encrypted file is gone, user2's is still waiting", 1, tmp.root.listFiles()!!.count { it.name.startsWith("outbox-") })
+    assertEquals("nothing to erase twice", 0, outbox.eraseFor(2))
+  }
+
+  @Test
   fun `reopening a queued letter hands back its text and its files, readable again`() = runTest {
     val id = outbox.queue("Jane Smith", "Rosa L.", letter.copy(asWriterId = 43), listOf(staged("scan.pdf")))
     val (payload, files) = outbox.open(id)!!
@@ -218,6 +234,9 @@ class OutboxRepositoryTest {
     override suspend fun insert(row: OutboxEntity): Long { val id = next++; rows.value = rows.value + row.copy(id = id); return id }
     override suspend fun update(row: OutboxEntity) { rows.value = rows.value.map { if (it.id == row.id) row else it } }
     override suspend fun delete(id: Long) { rows.value = rows.value.filterNot { it.id == id } }
+    override suspend fun allFor(userId: Int) = rows.value.filter { it.userId == userId }
+    override suspend fun deleteFor(userId: Int) { rows.value = rows.value.filterNot { it.userId == userId } }
+    override suspend fun countAll() = rows.value.size
   }
 
   /** Answers from a script, then succeeds. Records what was really posted and uploaded. */

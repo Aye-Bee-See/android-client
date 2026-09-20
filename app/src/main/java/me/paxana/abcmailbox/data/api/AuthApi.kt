@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonElement
 import me.paxana.abcmailbox.crypto.KdfParams
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Query
@@ -24,6 +25,15 @@ interface AuthApi {
   /** Ends this token, or every token for the account with `everywhere = true`. */
   @POST("auth/logout")
   suspend fun logout(@Body body: LogoutRequest = LogoutRequest()): ApiEnvelope<JsonElement>
+
+  /**
+   * Deletes an account and everything the person wrote or received through it (API PR #104). One's own account
+   * needs the password again: 403 when it is wrong (nothing deleted), 429 after too many guesses, and
+   * 409 `AccountDeleteError` when the account may not go (the only admin, the last holder of a group's key).
+   * DELETE with a body, like every delete in this API, which Retrofit only allows through `@HTTP`.
+   */
+  @HTTP(method = "DELETE", path = "auth/user", hasBody = true)
+  suspend fun deleteUser(@Body body: DeleteAccountRequest): ApiEnvelope<DeletionReportDto>
 
   @GET("auth/user")
   suspend fun user(@Query("id") id: Int): ApiEnvelope<UserDto>
@@ -114,6 +124,13 @@ data class UpdateUserData(val token: TokenDto? = null)
 
 @Serializable
 data class LoginRequest(val username: String, val password: String)
+
+@Serializable
+data class DeleteAccountRequest(val id: Int, val password: String? = null)
+
+/** What went with the account. Defaults, so an API that stops counting something does not break leaving. */
+@Serializable
+data class DeletionReportDto(val deleted: Int = 0, val letters: Int = 0, val replies: Int = 0, val attachments: Int = 0, val threads: Int = 0)
 
 @Serializable
 data class LogoutRequest(val everywhere: Boolean = false)

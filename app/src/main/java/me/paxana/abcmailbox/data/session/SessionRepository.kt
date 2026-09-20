@@ -1,5 +1,9 @@
 package me.paxana.abcmailbox.data.session
 
+import me.paxana.abcmailbox.data.api.DeletionReportDto
+import me.paxana.abcmailbox.data.api.DeleteAccountRequest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
 import me.paxana.abcmailbox.data.crypto.lockedError
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
@@ -63,6 +67,14 @@ interface SessionRepository {
 
   /** Verifies `current` by signing in with it, changes the password, and adopts the fresh token. */
   suspend fun changePassword(current: String, new: String): ApiResult<Unit>
+
+  /**
+   * Deletes the signed-in account on the server. Only if that succeeded: runs [wipe] with the account's id
+   * (whatever else on this phone belonged to it), then forgets the session and the keys. In that order,
+   * because forgetting the session is what makes the screens change, and because the wipe must not be cut
+   * short by the screen that asked for it going away. A failure changes nothing, here or there.
+   */
+  suspend fun deleteAccount(password: String, wipe: suspend (userId: Int) -> Unit = {}): ApiResult<DeletionReportDto>
 
   // End-to-end mode -----------------------------------------------------------------------
 
@@ -255,6 +267,23 @@ class DefaultSessionRepository @Inject constructor(
         // Every older token (including the one just used) is dead now; keep this device signed in.
         r.value.data?.token?.let { store.save(session.copy(token = it.token, expiresAtMillis = it.expires)) }
         ApiResult.Success(Unit)
+      }
+    }
+  }
+
+  override suspend fun deleteAccount(password: String, wipe: suspend (userId: Int) -> Unit): ApiResult<DeletionReportDto> {
+    val session = (state.value as? SessionState.SignedIn)?.session
+      ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
+    return when (val r = apiCall(json) { api.deleteUser(DeleteAccountRequest(session.user.id, password)) }) {
+      is ApiResult.Failure -> r
+      is ApiResult.Success -> withContext(NonCancellable) {
+        // NonCancellable: the account is gone whatever happens next. A ViewModel scope cancelled half way
+        // (the screens are rebuilt when the session goes) must not leave this person's letters on the phone.
+        runCatching { wipe(session.user.id) }
+        store.clear()
+        vault.clear()
+        _pendingRecoveryCode.value = null
+        ApiResult.Success(r.value.data ?: DeletionReportDto())
       }
     }
   }

@@ -34,7 +34,11 @@ class SessionViewModel @Inject constructor(
   outboxScheduler: OutboxScheduler,
   private val activity: ActivityRepository,
   activityScheduler: ActivityScheduler,
+  private val eraser: me.paxana.abcmailbox.data.account.AccountEraser,
 ) : ViewModel() {
+  /** The receipt for an account just deleted. Lives above every screen, because every screen is rebuilt when the session goes. */
+  val farewell: StateFlow<me.paxana.abcmailbox.data.account.DeletionReport?> = eraser.farewell
+  fun farewellSeen() = eraser.farewellSeen()
   /** Feed entries not yet seen (a reply arrived, a letter was mailed…): added to the Inbox tab's badge. */
   val unreadActivity: StateFlow<Int> = activity.unread
   /** News arriving while the app is on screen; the shell says it in a line at the bottom. */

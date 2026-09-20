@@ -301,6 +301,7 @@ class ComposeViewModelTest {
     override suspend fun claimInfo(token: String) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun claim(token: String, username: String, password: String, email: String?) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun changePassword(current: String, new: String) = ApiResult.Success(Unit)
+    override suspend fun deleteAccount(password: String, wipe: suspend (userId: Int) -> Unit): ApiResult<me.paxana.abcmailbox.data.api.DeletionReportDto> = error("not used")
     override val pendingRecoveryCode = MutableStateFlow<String?>(null)
     override fun recoveryCodeSaved() = Unit
     override val keysLocked = MutableStateFlow(false)
