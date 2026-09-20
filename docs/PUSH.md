@@ -15,7 +15,7 @@ A ring with the payload `{"type":"sync"}`, identical for every event. No names, 
 
 ## Checking it, the first time
 
-Nothing below has been run against a real project yet (as of 19 September 2026 none exists). The code that has not been exercised is three calls in `data/push/Fcm.kt`: starting Firebase from the four values, asking for a token, deleting it.
+First run: 19 September 2026, project `abc-mailbox`, API instance with `"push": ["fcm"]`, Pixel 9 emulator with Google Play services, debug build. Steps 1 to 5 passed: the switch was live; turning it on answered "Turned on." and the server listed the phone (without its token); a status change by another account produced "One of your letters has been printed." **three seconds** later with the app in the background, and "One of your letters is in the post." **one second** later with the app's process killed (the push started it); turning it off emptied the server's device list, and a reply recorded afterwards did not ring the phone but was in the feed for the next check. Steps 6 and 7 have not been run: a second account taking the phone over, and a phone without Google services. Nor has a physical phone, where battery optimisation can delay a push in ways an emulator never shows.
 
 1. Build and install. Account tab: the "Instant notifications" switch is enabled (not "Not available in this build").
 2. Turn it on. Expect "Turned on." If it says the server cannot ring phones yet, the API has no service-account file: `GET /health` should list `"push": ["fcm"]`.

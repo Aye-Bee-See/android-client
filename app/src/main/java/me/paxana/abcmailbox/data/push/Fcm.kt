@@ -26,8 +26,9 @@ import javax.inject.Singleton
  * runs until someone turns instant notifications on. Until a Firebase project exists the values are empty
  * and this reports [PushProvider.Availability.NOT_CONFIGURED].
  *
- * NOT YET EXERCISED AGAINST A REAL FIREBASE PROJECT (19 Sep 2026: none exists). Everything around it is
- * tested; the three calls into the Firebase SDK below are written from its documentation.
+ * Exercised against a real Firebase project (`abc-mailbox`) on 19 Sep 2026, on an emulator with Google Play
+ * services: start-up from the four values, a token, registration, delivery in one to three seconds with the
+ * app in the background and with its process killed, and deletion of the token. See docs/PUSH.md.
  */
 @Singleton
 class FcmPushProvider @Inject constructor(@ApplicationContext private val context: Context) : PushProvider {
