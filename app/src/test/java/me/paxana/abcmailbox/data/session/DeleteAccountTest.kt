@@ -55,8 +55,12 @@ class DeleteAccountTest {
 
   @After fun tearDown() = server.shutdown()
 
+  /** The sign-in that proves the password, which now comes before every delete request. */
+  private fun passwordAccepted() = server.enqueue(MockResponse().setBody("""{"data":{"user":{"id":7,"username":"carol","role":"user"},"token":{"token":"jwt-2","expires":1}},"success":true,"status":200}"""))
+
   @Test
   fun `the right password deletes the account, then the phone's share, then the session, in that order`() = runTest {
+    passwordAccepted()
     server.enqueue(MockResponse().setBody("""{"data":{"deleted":1,"letters":3,"replies":1,"attachments":1,"threads":2},"info":"Successfully deleted user.","success":true,"status":200,"name":"user remove"}"""))
     var wipedFor: Int? = null
     val result = repo.deleteAccount("password1") { id ->
@@ -64,6 +68,7 @@ class DeleteAccountTest {
       // The stores being wiped still need to know whose things these are; the screens must not have changed yet.
       assertNotNull("the session goes last", store.flow.value)
     }
+    assertEquals("/auth/login", server.next().path)
     val request = server.next()
     assertEquals("DELETE", request.method); assertEquals("/auth/user", request.path)
     assertEquals("""{"id":7,"password":"password1"}""", request.body.readUtf8())
@@ -73,17 +78,29 @@ class DeleteAccountTest {
   }
 
   @Test
-  fun `a wrong password deletes nothing, on the server or on the phone`() = runTest {
-    server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"The password is wrong; nothing was deleted.","status":403}"""))
+  fun `a wrong password is caught by the phone, and no delete request is ever sent`() = runTest {
+    // What the API answers a failed sign-in with. An old server would have deleted the account had it been asked.
+    server.enqueue(MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}"""))
     var wiped = false
     val result = repo.deleteAccount("not-it") { wiped = true }
     assertTrue((result as ApiResult.Failure).error is AppError.Forbidden)
+    assertEquals("/auth/login", server.next().path)
+    assertEquals("the sign-in was the only request", 1, server.requestCount)
     assertTrue("nothing local was touched", !wiped)
     assertNotNull(store.flow.value); assertNotNull(vault.keyPair(7))
   }
 
   @Test
+  fun `a server that checks the password itself and says no is believed too`() = runTest {
+    passwordAccepted()
+    server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"The password is wrong; nothing was deleted.","status":403}"""))
+    assertTrue((repo.deleteAccount("password1") as ApiResult.Failure).error is AppError.Forbidden)
+    assertNotNull(store.flow.value)
+  }
+
+  @Test
   fun `a refusal arrives with its name, and changes nothing`() = runTest {
+    passwordAccepted()
     server.enqueue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"AccountDeleteError","error":"This is the only admin account. Make another admin first, or nobody could run the site.","status":409}"""))
     val error = (repo.deleteAccount("password1") as ApiResult.Failure).error
     assertEquals("AccountDeleteError", (error as AppError.Conflict).name)
@@ -92,6 +109,7 @@ class DeleteAccountTest {
 
   @Test
   fun `a phone failing to tidy up does not leave the person signed in to an account that is gone`() = runTest {
+    passwordAccepted()
     server.enqueue(MockResponse().setBody("""{"data":{"deleted":1,"letters":0,"replies":0,"attachments":0,"threads":0},"success":true,"status":200,"name":"user remove"}"""))
     val result = repo.deleteAccount("password1") { error("disk full") }
     assertTrue(result is ApiResult.Success)

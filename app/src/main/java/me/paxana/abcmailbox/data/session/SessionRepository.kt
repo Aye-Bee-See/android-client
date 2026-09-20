@@ -274,6 +274,14 @@ class DefaultSessionRepository @Inject constructor(
   override suspend fun deleteAccount(password: String, wipe: suspend (userId: Int) -> Unit): ApiResult<DeletionReportDto> {
     val session = (state.value as? SessionState.SignedIn)?.session
       ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
+    // The phone proves the password before asking, as the iOS app does. An API build from before PR #104
+    // ignores the password on this endpoint and deletes anyway (seen for real: a server that had not been
+    // restarted since the merge). Signing in with it first means a wrong password can never delete anything,
+    // whatever is on the other end. The token that sign-in issues is never stored; it goes with the account.
+    when (val check = apiCall(json) { api.login(LoginRequest(session.user.username, password)) }) {
+      is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_delete_wrong_password))) else check
+      is ApiResult.Success -> Unit
+    }
     return when (val r = apiCall(json) { api.deleteUser(DeleteAccountRequest(session.user.id, password)) }) {
       is ApiResult.Failure -> r
       is ApiResult.Success -> withContext(NonCancellable) {
