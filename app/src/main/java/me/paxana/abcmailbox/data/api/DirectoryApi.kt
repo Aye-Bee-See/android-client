@@ -138,6 +138,15 @@ data class ChapterDto(
   val networkRole: String? = null,
   val accountStatus: String? = null,
   val vouchedBy: Int? = null,
+  // Counted by the server, read-only (API PR #112). `lettersSent` is text on the wire and null until the group has
+  // mailed 20, so that a small group is not put on show; `averageTimeDays` is null with too little to go on. Read as
+  // an element because a count that arrives as a number one day must not cost the whole record.
+  val lettersSent: kotlinx.serialization.json.JsonElement? = null,
+  val averageTimeDays: Int? = null,
+  /** Staff only. */
+  val lettersSentBefore: Int? = null,
+  /** Staff only, read-only. */
+  val lettersCounted: Int? = null,
   val recordStatus: String? = null,
   @SerialName("supported_prisoners") val supportedPrisoners: List<PrisonerDto>? = null,
   @SerialName("relay_prisons") val relayPrisons: List<PrisonDto>? = null,

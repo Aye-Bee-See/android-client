@@ -12,6 +12,9 @@ import me.paxana.abcmailbox.crypto.Sodium
 import me.paxana.abcmailbox.data.api.AddEnvelopeRequest
 import me.paxana.abcmailbox.data.api.AddWriterRequest
 import me.paxana.abcmailbox.data.api.ApiResult
+import me.paxana.abcmailbox.data.api.LettersSentBeforeRequest
+import me.paxana.abcmailbox.data.api.MessageDto
+import me.paxana.abcmailbox.data.api.BatchStatusRequest
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.api.AuthApi
 import me.paxana.abcmailbox.data.api.GroupApi
@@ -50,6 +53,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** How a letter came back: the reason the group chose, and what the envelope said (200 characters, never encrypted, shown to the writer). */
+const val BATCH_MAX = 200
+
+/**
+ * A group's numbers as its members see them (API PR #112). Only [before] is typed by anyone; the server counts the
+ * rest. [published] is what the public page says: null until the total reaches twenty, so a small group is not put on show.
+ */
+data class GroupNumbers(val groupName: String, val before: Int, val countedHere: Int, val published: String?, val averageDaysToMail: Int?) {
+  val total: Int get() = before + countedHere
+}
+
 data class ReturnedAs(val reason: me.paxana.abcmailbox.domain.ReturnReason, val note: String? = null) { companion object { const val NOTE_MAX = 200 } }
 
 /**
@@ -68,6 +81,11 @@ interface GroupRepository {
   /** The queued letters that are held: the person was moved or freed after they were written. */
   fun held(groupId: Int): Flow<PagingData<QueueItem>> = kotlinx.coroutines.flow.emptyFlow()
   suspend fun queueItem(messageId: Int): ApiResult<QueueItem>
+  /** Null when the server does not count yet (an API from before PR #112). */
+  suspend fun numbers(): ApiResult<GroupNumbers?> = ApiResult.Success(null)
+  suspend fun setLettersSentBefore(count: Int): ApiResult<Unit> = ApiResult.Failure(AppError.Unexpected(UnsupportedOperationException()))
+  /** Moves several letters together, all or none (API PR #111). Answers how many moved; a failure names the letter that stopped it. */
+  suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus): ApiResult<Int> = ApiResult.Failure(AppError.Unexpected(UnsupportedOperationException()))
   /** [returned] is required for, and only for, `RETURNED`. [release] prints a held letter knowingly. */
   suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs? = null, release: Boolean = false): ApiResult<Letter>
   suspend fun writers(): ApiResult<List<ManagedWriter>>
@@ -116,13 +134,16 @@ class DefaultGroupRepository @Inject constructor(
     GroupKeyState.Locked -> ApiResult.Failure(codec.locked)
     is GroupKeyState.NotSetUp -> ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_group_key_not_set_up)))
     is GroupKeyState.NotHeld -> ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_group_key_not_held)))
+    is GroupKeyState.GroupNotActive -> ApiResult.Failure(AppError.Forbidden(strings.get(R.string.group_not_active_text)))
     GroupKeyState.NotNeeded -> ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
   }
 
-  // Queue rows name the prisoner by id only, so each distinct prisoner is fetched once and remembered.
+  // Since API PR #111 a queue row brings its prisoner and facility with it. Against an older API a row names the
+  // prisoner by id only, and then each distinct prisoner is fetched once and remembered, as before.
   private val prisoners = ConcurrentHashMap<Int, Prisoner>()
   private suspend fun prisoner(id: Int): Prisoner? =
     prisoners[id] ?: (directory.prisoner(id) as? ApiResult.Success)?.value?.also { prisoners[id] = it }
+  private suspend fun MessageDto.toQueueItem() = QueueItem(codec.incoming(this), prisonerDetails?.toDomain() ?: prisoner(prisoner))
 
   override fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>> = Pager(PagingConfig(pageSize = 20, initialLoadSize = 20)) {
     PagePagingSource { page, size ->
@@ -131,7 +152,7 @@ class DefaultGroupRepository @Inject constructor(
         is ApiResult.Failure -> r
         is ApiResult.Success -> {
           val p = r.value.toPage()
-          ApiResult.Success(Page(p.items.map { dto -> QueueItem(codec.incoming(dto), prisoner(dto.prisoner)) }, p.total, p.page, p.pageSize))
+          ApiResult.Success(Page(p.items.map { it.toQueueItem() }, p.total, p.page, p.pageSize))
         }
       }
     }
@@ -144,15 +165,45 @@ class DefaultGroupRepository @Inject constructor(
         is ApiResult.Failure -> r
         is ApiResult.Success -> {
           val p = r.value.toPage()
-          ApiResult.Success(Page(p.items.map { dto -> QueueItem(codec.incoming(dto), prisoner(dto.prisoner)) }, p.total, p.page, p.pageSize).onlyHeld())
+          ApiResult.Success(Page(p.items.map { it.toQueueItem() }, p.total, p.page, p.pageSize).onlyHeld())
         }
       }
     }
   }.flow
 
-  override suspend fun queueItem(messageId: Int): ApiResult<QueueItem> = when (val r = letters.letter(messageId)) {
-    is ApiResult.Failure -> r
-    is ApiResult.Success -> ApiResult.Success(QueueItem(r.value, r.value.prisonerId?.let { prisoner(it) }))
+  override suspend fun queueItem(messageId: Int): ApiResult<QueueItem> {
+    codec.ready()
+    return apiCall(json) { api.letter(messageId) }.map { checkNotNull(it.data).toQueueItem() }
+  }
+
+  override suspend fun numbers(): ApiResult<GroupNumbers?> {
+    val groupId = viewer?.chapterId ?: return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
+    return apiCall(json) { api.ownGroup(groupId) }.map { env ->
+      val dto = checkNotNull(env.data)
+      val group = dto.toDomain()
+      // Staff-only fields: absent means the server is older than the counting, not that the count is zero.
+      if (dto.lettersSentBefore == null && dto.lettersCounted == null) null
+      else GroupNumbers(group.name, dto.lettersSentBefore ?: 0, dto.lettersCounted ?: 0, group.lettersSent, group.averageDaysToMail)
+    }
+  }
+
+  override suspend fun setLettersSentBefore(count: Int): ApiResult<Unit> {
+    val groupId = viewer?.chapterId ?: return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
+    if (count < 0) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_not_negative))))
+    // Only the id and the one field: `lettersSent` and `averageTimeDays` are the server's, and sending them changes nothing.
+    return apiCall(json) { api.setLettersSentBefore(LettersSentBeforeRequest(groupId, count)) }.map { }
+  }
+
+  override suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus): ApiResult<Int> {
+    if (messageIds.isEmpty()) return ApiResult.Success(0)
+    // The API takes 200 at a time. More than that would stop being all-or-none, so it is refused here, not split quietly.
+    if (messageIds.size > BATCH_MAX) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_batch_too_many, BATCH_MAX))))
+    return when (val r = apiCall(json) { api.setStatusBatch(BatchStatusRequest(messageIds.distinct(), status.key)) }) {
+      is ApiResult.Success -> ApiResult.Success(r.value.data?.count ?: messageIds.size)
+      // An API from before PR #111 has no such address. Say that, not "not found", which would read as a missing letter.
+      // Express answers an address it does not have with "Cannot PUT /…"; a letter that does not exist reads "Message 42 not found".
+      is ApiResult.Failure -> if (r.error is AppError.NotFound && r.error.info?.startsWith("Cannot ") == true) ApiResult.Failure(AppError.Server(404, strings.get(R.string.error_batch_not_supported))) else r
+    }
   }
 
   override suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs?, release: Boolean): ApiResult<Letter> {
@@ -255,7 +306,13 @@ class DefaultGroupRepository @Inject constructor(
       is ApiResult.Success -> r.value.data?.members.orEmpty().firstOrNull { it.id == memberId }?.publicKey
         ?: return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_member_no_key))))
     }
-    return apiCall(json) { api.handKey(MemberKeyRequest(group.groupId, memberId, engine.sealPrivateKey(group.keyPair.privateKey, theirKey))) }.map { }
+    val result = apiCall(json) { api.handKey(MemberKeyRequest(group.groupId, memberId, engine.sealPrivateKey(group.keyPair.privateKey, theirKey), keyVersion = group.version)) }
+    // The group rotated its key while this phone was sealing the old one. Forget the old one now; the next try uses the new.
+    if (((result as? ApiResult.Failure)?.error as? AppError.Conflict)?.name == "KeyVersionError") {
+      keyring.load(force = true)
+      return ApiResult.Failure(AppError.Conflict(strings.get(R.string.error_group_key_rotated), "KeyVersionError"))
+    }
+    return result.map { }
   }
 
   override suspend fun stopHandingKeyTo(memberId: Int): ApiResult<Unit> {

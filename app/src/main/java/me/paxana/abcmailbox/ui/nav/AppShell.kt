@@ -389,8 +389,10 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onSignIn = { navController.navigate(LoginRoute) },
           onChangePassword = { navController.navigate(ChangePasswordRoute) },
           onDeleteAccount = { navController.navigate(DeleteAccountRoute) },
+          onGroupNumbers = { navController.navigate(GroupNumbersRoute) },
         )
       }
+      composable<GroupNumbersRoute> { me.paxana.abcmailbox.ui.group.GroupNumbersScreen(onBack = { navController.popBackStack() }) }
       composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }, onGroupKey = { navController.navigate(GroupKeyRoute) }) }
       composable<ChangePasswordRoute> {
         ChangePasswordScreen(

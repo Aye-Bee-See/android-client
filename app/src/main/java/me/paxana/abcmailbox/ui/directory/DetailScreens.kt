@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.directory
 
+import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.text.rememberStrings
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -245,6 +246,10 @@ private fun GroupBody(g: Group, onPrisoner: (Int) -> Unit, onFacility: (Int) -> 
     Text(stringResource(NetworkRoles.labelRes(g.networkRole)), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
     g.about?.let { SectionTitle(stringResource(R.string.section_about)); Text(it, style = MaterialTheme.typography.bodyLarge) }
+
+    // Counted by the server and absent for a small group. KeyValue draws nothing for a null: no "0 letters", no empty label.
+    KeyValue(stringResource(R.string.label_letters_mailed), g.lettersSent)
+    KeyValue(stringResource(R.string.label_usual_time_to_mail), g.averageDaysToMail?.let { pluralStringResource(R.plurals.days_count, it, it) })
 
     if (g.supportedPrisoners.isNotEmpty()) {
       SectionTitle(stringResource(R.string.section_prisoners_we_support))

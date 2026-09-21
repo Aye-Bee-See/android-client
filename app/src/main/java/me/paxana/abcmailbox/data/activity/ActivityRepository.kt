@@ -84,6 +84,7 @@ class DefaultActivityRepository @Inject constructor(
       Activity(
         e.id, Activity.kindOf(e.event, runCatching { e.detail?.get("status")?.jsonPrimitive?.contentOrNull }.getOrNull()), e.chat, e.message,
         held = runCatching { e.detail?.get("held")?.jsonPrimitive?.intOrNull }.getOrNull() ?: 0,
+        count = (runCatching { e.detail?.get("count")?.jsonPrimitive?.intOrNull }.getOrNull() ?: 1).coerceAtLeast(1),
       )
     }
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }

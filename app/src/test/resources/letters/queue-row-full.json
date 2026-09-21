@@ -1,0 +1,143 @@
+{
+ "data": [
+  {
+   "id": 49,
+   "chat": 43,
+   "sender": "user",
+   "prisoner": 4,
+   "status": "queued",
+   "relayChapter": 1,
+   "statusChangedAt": "2026-09-21T17:21:44.207Z",
+   "keep": false,
+   "statusChangedBy": 2,
+   "returnReason": null,
+   "heldReason": null,
+   "resendOf": null,
+   "user": 2,
+   "createdAt": "2026-09-21T17:21:44.207Z",
+   "updatedAt": "2026-09-21T17:21:44.207Z",
+   "relay_group": {
+    "id": 1,
+    "name": "Test Chapter"
+   },
+   "messageText": "Letter night letter 3",
+   "relayNote": null,
+   "prisoner_details": {
+    "id": 4,
+    "birthName": "Michael Wilson",
+    "chosenName": "Michelle Wilson",
+    "aliases": null,
+    "prison": 1,
+    "country": "United States",
+    "inmateID": "4",
+    "releaseDate": "2032-07-08T23:24:24.819Z",
+    "detainedSince": null,
+    "sentence": null,
+    "charges": null,
+    "estimatedRelease": null,
+    "bio": "Test bio 4",
+    "interests": [
+     "art",
+     "history"
+    ],
+    "photoUrl": null,
+    "supportWebsite": null,
+    "donationInfo": null,
+    "status": "incarcerated",
+    "statusNotice": null,
+    "featured": true,
+    "verifiedBy": null,
+    "verifiedAt": null,
+    "verificationNotes": null,
+    "recordStatus": "published",
+    "createdAt": "2026-09-21T16:39:59.296Z",
+    "updatedAt": "2026-09-21T17:21:44.193Z",
+    "prison_details": {
+     "mailRules": [
+      "return_address_required",
+      "plain_envelopes",
+      "no_photos",
+      "no_enclosures",
+      "mail_read_by_staff"
+     ],
+     "id": 1,
+     "prisonName": "Test Prison",
+     "address": {
+      "street": "123 Fake Street"
+     },
+     "country": "United States",
+     "routing": "direct",
+     "scanService": null,
+     "pageLimit": 4,
+     "photoLimit": null,
+     "mailLanguages": [
+      "en"
+     ],
+     "notes": null,
+     "verifiedBy": null,
+     "verifiedAt": null,
+     "verificationNotes": null,
+     "recordStatus": "published",
+     "createdAt": "2026-09-21T16:39:59.186Z",
+     "updatedAt": "2026-09-21T16:40:15.030Z",
+     "mail_rule_details": [
+      {
+       "id": 1,
+       "tag": "return_address_required",
+       "category": "addressing",
+       "label": "Return address required",
+       "description": "Every envelope needs a full sender name and postal address or it is refused.",
+       "retiredAt": null
+      },
+      {
+       "id": 3,
+       "tag": "plain_envelopes",
+       "category": "addressing",
+       "label": "Plain envelopes only",
+       "description": "White or manila envelopes with no stickers, tape, drawings, or coloured ink.",
+       "retiredAt": null
+      },
+      {
+       "id": 19,
+       "tag": "no_photos",
+       "category": "photos",
+       "label": "No pictures",
+       "description": "Letters must be text only; photographs and printed images are returned.",
+       "retiredAt": null
+      },
+      {
+       "id": 23,
+       "tag": "no_enclosures",
+       "category": "enclosures",
+       "label": "Nothing enclosed",
+       "description": "Nothing may be enclosed with a letter: no stamps, cash, cards, or objects of any kind.",
+       "retiredAt": null
+      },
+      {
+       "id": 33,
+       "tag": "mail_read_by_staff",
+       "category": "handling",
+       "label": "Mail opened and read",
+       "description": "All incoming mail except legal mail is opened and read by staff before delivery.",
+       "retiredAt": null
+      }
+     ]
+    }
+   },
+   "user_details": {
+    "id": 2,
+    "name": null,
+    "username": "user1",
+    "managedBy": null,
+    "anonymousForChapter": null
+   }
+  }
+ ],
+ "info": "Successfully retireved message list",
+ "success": true,
+ "status": 200,
+ "name": "message many",
+ "total": 1,
+ "page": 1,
+ "page_size": 100
+}

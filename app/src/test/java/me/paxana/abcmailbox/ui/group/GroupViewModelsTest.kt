@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.ui.auth.FakeSessionRepository
+import me.paxana.abcmailbox.data.session.SessionUser
 import me.paxana.abcmailbox.data.repo.ReturnedAs
 import me.paxana.abcmailbox.domain.HeldReason
 import me.paxana.abcmailbox.domain.ReturnReason
@@ -51,6 +53,13 @@ class GroupViewModelsTest {
     private fun letter() = Letter(41, 41, 1, 4, false, status, "Dear Jane", null, 1, "Test Chapter", false, null, null, emptyList(), emptyList())
     override fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>> = emptyFlow()
     var looks = 0
+    // Letter nights (API PR #111) and the group's numbers (PR #112).
+    val batches = mutableListOf<Pair<List<Int>, LetterStatus>>(); var batchRefusal: AppError? = null
+    override suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus): ApiResult<Int> { batchRefusal?.let { return ApiResult.Failure(it) }; batches += messageIds to status; return ApiResult.Success(messageIds.size) }
+    var numbers: me.paxana.abcmailbox.data.repo.GroupNumbers? = me.paxana.abcmailbox.data.repo.GroupNumbers("Test Chapter", before = 0, countedHere = 1, published = null, averageDaysToMail = null)
+    val savedBefore = mutableListOf<Int>()
+    override suspend fun numbers() = ApiResult.Success(numbers)
+    override suspend fun setLettersSentBefore(count: Int): ApiResult<Unit> { refuse?.let { return ApiResult.Failure(it) }; savedBefore += count; numbers = numbers?.copy(before = count, published = (count + 1).takeIf { it >= 20 }?.toString()); return ApiResult.Success(Unit) }
     override suspend fun queueItem(messageId: Int): ApiResult<QueueItem> { looks++; return ApiResult.Success(QueueItem(letter(), null)) }
     /** What came with each move: how it came back, and whether a hold was knowingly released. */
     val returnedAs = mutableListOf<me.paxana.abcmailbox.data.repo.ReturnedAs?>(); val releases = mutableListOf<Boolean>()
@@ -166,6 +175,62 @@ class GroupViewModelsTest {
 
     vm.advance(release = true); dispatcher.scheduler.advanceUntilIdle()
     assertEquals(listOf(LetterStatus.PRINTED), group.moves); assertEquals(listOf(true), group.releases)
+  }
+
+  private fun queued(id: Int, held: HeldReason? = null) = QueueItem(Letter(id, 1, 1, 3, false, LetterStatus.QUEUED, "x", null, 1, null, false, null, null, emptyList(), emptyList(), heldReason = held), null)
+  private fun queueVm(group: FakeGroup) = QueueViewModel(group, FakeSessionRepository().apply { signInAs(SessionUser(9, "member1", "Sam", null, "chapter", 1)) }, TestStrings())
+
+  @Test
+  fun `a letter night, thirty letters marked together, except the held ones, which are decided one at a time`() = runTest {
+    val group = FakeGroup(); val vm = queueVm(group)
+    vm.toggle(queued(47)); assertFalse("ticks mean nothing until selecting has started", vm.selection.value.selecting)
+    vm.startSelecting()
+    vm.toggle(queued(47)); vm.toggle(queued(48)); vm.toggle(queued(4, held = HeldReason.PRISONER_FREE)); vm.toggle(queued(49)); vm.toggle(queued(49))
+    assertEquals("the held letter cannot be swept up, and a second tap un-ticks", setOf(47, 48), vm.selection.value.selected)
+    vm.markSelected(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(listOf(47, 48) to LetterStatus.PRINTED), group.batches)
+    assertEquals("2 letters marked as printed.", vm.selection.value.notice); assertFalse(vm.selection.value.selecting); assertEquals("the list is told to reload", 1, vm.selection.value.done)
+  }
+
+  @Test
+  fun `all or none, and when it is none the ticks stay so that the rest can still go`() = runTest {
+    val group = FakeGroup().apply { batchRefusal = AppError.Conflict("Letter 47: a printed letter cannot move to printed.", "LetterStatusError") }
+    val vm = queueVm(group); vm.startSelecting(); vm.toggle(queued(47)); vm.toggle(queued(48))
+    vm.markSelected(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Nothing was changed. Letter 47: a printed letter cannot move to printed.", vm.selection.value.notice)
+    assertEquals(setOf(47, 48), vm.selection.value.selected); assertFalse(vm.selection.value.busy)
+  }
+
+  @Test
+  fun `the next step follows the filter, a tick never carries from one to another, and some pages have no step to take together`() = runTest {
+    val vm = queueVm(FakeGroup())
+    assertEquals(LetterStatus.PRINTED, vm.nextStep)
+    vm.startSelecting(); vm.toggle(queued(47))
+    vm.setFilter(QueueFilter.ByStatus(LetterStatus.PRINTED))
+    assertEquals(LetterStatus.MAILED, vm.nextStep); assertFalse("a letter ticked to be printed must not be marked mailed", vm.selection.value.selecting)
+    for (f in listOf(QueueFilter.Held, QueueFilter.ByStatus(LetterStatus.MAILED), QueueFilter.ByStatus(LetterStatus.RETURNED))) {
+      vm.setFilter(f); assertEquals(null, vm.nextStep); vm.startSelecting(); assertFalse("$f", vm.selection.value.selecting)
+    }
+  }
+
+  @Test
+  fun `a group types one number, and the page says what the public sees, which for a small group is nothing`() = runTest {
+    val group = FakeGroup(); val vm = GroupNumbersViewModel(group, TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    val loaded = (vm.ui.value.numbers as Loadable.Loaded).value!!
+    assertEquals(null, loaded.published); assertEquals(1, loaded.total); assertEquals("0", vm.ui.value.typed)
+    assertFalse("nothing changed, nothing to save", vm.ui.value.canSave)
+    vm.onTyped("4o.5-"); assertEquals("digits only: a whole number, not negative", "45", vm.ui.value.typed)
+    vm.onTyped("40"); assertTrue(vm.ui.value.canSave)
+    vm.save(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(40), group.savedBefore); assertTrue(vm.ui.value.saved)
+    assertEquals("the page shows what the server now publishes", "41", (vm.ui.value.numbers as Loadable.Loaded).value?.published)
+    vm.onTyped(""); assertFalse("an empty field is not a zero", vm.ui.value.canSave)
+  }
+
+  @Test
+  fun `a server that does not count yet is said so, with nothing to edit`() = runTest {
+    val vm = GroupNumbersViewModel(FakeGroup().apply { numbers = null }, TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(null, (vm.ui.value.numbers as Loadable.Loaded).value); assertFalse(vm.ui.value.canSave)
   }
 
   @Test

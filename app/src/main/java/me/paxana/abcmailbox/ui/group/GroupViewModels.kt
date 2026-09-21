@@ -47,9 +47,15 @@ sealed interface QueueFilter {
 }
 
 /** The print queue: letters this group relays, one filter at a time. */
+/** Marking several letters at once (API PR #111). `selected` null means "not selecting". */
+data class QueueSelection(val selected: Set<Int>? = null, val busy: Boolean = false, val notice: String? = null, /** Goes up after a batch went through, so the screen reloads the list. */ val done: Int = 0) {
+  val selecting: Boolean get() = selected != null
+  val count: Int get() = selected?.size ?: 0
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class QueueViewModel @Inject constructor(private val group: GroupRepository, sessions: SessionRepository) : ViewModel() {
+class QueueViewModel @Inject constructor(private val group: GroupRepository, sessions: SessionRepository, private val strings: Strings) : ViewModel() {
   private val groupId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.chapterId
   private val _filter = MutableStateFlow<QueueFilter>(QueueFilter.ByStatus(LetterStatus.QUEUED))
   val filter: StateFlow<QueueFilter> = _filter.asStateFlow()
@@ -60,7 +66,45 @@ class QueueViewModel @Inject constructor(private val group: GroupRepository, ses
     .flatMapLatest { f -> groupId?.let { id -> when (f) { is QueueFilter.ByStatus -> group.queue(id, f.status); QueueFilter.Held -> group.held(id) } } ?: emptyFlow() }
     .cachedIn(viewModelScope)
 
-  fun setFilter(f: QueueFilter) { _filter.value = f }
+  private val _selection = MutableStateFlow(QueueSelection())
+  val selection: StateFlow<QueueSelection> = _selection.asStateFlow()
+
+  /** Changing the filter ends a selection: "printed" and "mailed" are different next steps, and a tick must never carry over. */
+  fun setFilter(f: QueueFilter) { _filter.value = f; _selection.update { QueueSelection(done = it.done) } }
+
+  /** What the letters on this page can be moved to together, if anything. Held letters and returns are decided one at a time. */
+  val nextStep: LetterStatus? get() = when ((_filter.value as? QueueFilter.ByStatus)?.status) { LetterStatus.QUEUED -> LetterStatus.PRINTED; LetterStatus.PRINTED -> LetterStatus.MAILED; else -> null }
+
+  fun startSelecting() { if (nextStep != null) _selection.update { it.copy(selected = emptySet(), notice = null) } }
+  fun stopSelecting() = _selection.update { it.copy(selected = null) }
+  fun noticeShown() = _selection.update { it.copy(notice = null) }
+
+  fun toggle(item: QueueItem) {
+    if (item.letter.isHeld) return // printing a held letter is a decision about that letter (release), never part of a sweep
+    _selection.update { st ->
+      val now = st.selected ?: return@update st
+      when {
+        item.letter.id in now -> st.copy(selected = now - item.letter.id)
+        now.size >= me.paxana.abcmailbox.data.repo.BATCH_MAX -> st.copy(notice = strings.get(R.string.error_batch_too_many, me.paxana.abcmailbox.data.repo.BATCH_MAX))
+        else -> st.copy(selected = now + item.letter.id)
+      }
+    }
+  }
+
+  /** All or none, on the server: either every ticked letter moves, or none does and the sentence says which one stopped it. */
+  fun markSelected() {
+    val next = nextStep ?: return
+    val ids = _selection.value.selected?.toList()?.takeIf { it.isNotEmpty() } ?: return
+    if (_selection.value.busy) return
+    _selection.update { it.copy(busy = true, notice = null) }
+    viewModelScope.launch {
+      when (val r = group.setStatusOfMany(ids, next)) {
+        is ApiResult.Success -> _selection.update { QueueSelection(notice = strings.plural(if (next == LetterStatus.PRINTED) R.plurals.notice_many_printed else R.plurals.notice_many_mailed, r.value), done = it.done + 1) }
+        // The ticks stay: after un-ticking the one letter that stopped it, the rest can go.
+        is ApiResult.Failure -> _selection.update { it.copy(busy = false, notice = strings.get(R.string.error_batch_nothing_changed, r.error.userMessage ?: strings.get(R.string.error_update_letter))) }
+      }
+    }
+  }
 }
 
 @HiltViewModel

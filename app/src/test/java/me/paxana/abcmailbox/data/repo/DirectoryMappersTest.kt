@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import kotlinx.serialization.decodeFromString
 import me.paxana.abcmailbox.domain.MailRuleCatalog
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -120,6 +121,20 @@ class DirectoryMappersTest {
     // And it sorts with its category, not at the end with the unknowns.
     val tags = dto.toDomain(MailRuleCatalog.Compiled).rules.rules.map { it.tag }
     assertTrue(tags.indexOf("no_glitter_or_stickers") < tags.indexOf("mail_read_by_staff"))
+  }
+
+  @Test
+  fun `a group's public numbers are shown when the server gives them, and never as a zero`() {
+    fun group(fields: String) = json.decodeFromString<ChapterDto>("""{"id":1,"name":"Test Chapter",$fields}""").toDomain()
+    // Recorded from the API (PR #112): text once the group has mailed twenty, null before.
+    assertEquals("41", group(""""lettersSent":"41","averageTimeDays":6""").lettersSent); assertEquals(6, group(""""lettersSent":"41","averageTimeDays":6""").averageDaysToMail)
+    val small = group(""""lettersSent":null,"averageTimeDays":null""")
+    assertEquals(null, small.lettersSent); assertEquals(null, small.averageDaysToMail)
+    // Nothing, a blank, a zero: all "nothing to show". And a count that arrives as a number one day still reads.
+    assertEquals(null, group(""""lettersSent":"0","averageTimeDays":0""").lettersSent); assertEquals(null, group(""""lettersSent":"0","averageTimeDays":0""").averageDaysToMail)
+    assertEquals(null, group(""""lettersSent":"  """").lettersSent)
+    assertEquals("1240", group(""""lettersSent":1240""").lettersSent)
+    assertEquals("a record without the fields at all, as the offline copy from an older download has", null, group(""""country":"United States"""").lettersSent)
   }
 
   @Test

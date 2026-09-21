@@ -210,6 +210,7 @@ class LetterCodec @Inject constructor(
     is GroupKeyState.Failed -> error
     GroupKeyState.Locked -> locked
     is GroupKeyState.NotSetUp -> AppError.Forbidden(strings.get(R.string.error_group_key_not_set_up))
+    is GroupKeyState.GroupNotActive -> AppError.Forbidden(strings.get(R.string.group_not_active_text))
     is GroupKeyState.NotHeld -> AppError.Forbidden(strings.get(R.string.error_group_key_not_held))
     else -> AppError.Unexpected(IllegalStateException("The group key is not available."))
   }

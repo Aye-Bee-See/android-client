@@ -185,7 +185,8 @@ fun KeyValue(label: String, value: String?) {
 fun RecordRow(
   title: String,
   subtitle: String?,
-  onClick: () -> Unit,
+  /** Null when something around the row is the control (a row being ticked in a selection), so there are not two click targets in one. */
+  onClick: (() -> Unit)?,
   modifier: Modifier = Modifier,
   notice: String? = null,
   tags: List<String> = emptyList(),
@@ -195,7 +196,7 @@ fun RecordRow(
   Column(
     modifier
       .fillMaxWidth()
-      .clickable(role = Role.Button, onClick = onClick)
+      .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
       .padding(horizontal = horizontalPadding, vertical = 12.dp),
     verticalArrangement = Arrangement.spacedBy(4.dp),
   ) {

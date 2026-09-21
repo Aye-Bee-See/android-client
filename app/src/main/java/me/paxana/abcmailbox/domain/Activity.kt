@@ -12,6 +12,11 @@ data class Activity(
   val id: Int, val kind: Kind, val chatId: Int?, val messageId: Int?,
   /** With `MOVED` and `FREED`: how many of this person's queued letters to that prisoner are waiting for them now. */
   val held: Int = 0,
+  /**
+   * How many letters this entry is about. A group that marks thirty letters on a letter night tells each writer once
+   * (API PR #111): `messageId` is then null, and `chatId` is set only if the letters share a conversation.
+   */
+  val count: Int = 1,
 ) {
   enum class Kind { REPLY, PRINTED, MAILED, RETURNED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, OTHER }
 
@@ -20,7 +25,17 @@ data class Activity(
 
   fun sentence(strings: Strings): String = base(strings) + if ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0) " " + strings.plural(R.plurals.activity_waiting, held) else ""
 
-  private fun base(strings: Strings): String = strings.get(
+  private fun base(strings: Strings): String {
+    if (count > 1) when (kind) {
+      Kind.PRINTED -> return strings.plural(R.plurals.activity_printed_many, count)
+      Kind.MAILED -> return strings.plural(R.plurals.activity_mailed_many, count)
+      Kind.RETURNED -> return strings.plural(R.plurals.activity_returned_many, count)
+      else -> Unit
+    }
+    return single(strings)
+  }
+
+  private fun single(strings: Strings): String = strings.get(
     when (kind) {
       Kind.REPLY -> R.string.activity_reply
       Kind.PRINTED -> R.string.activity_printed

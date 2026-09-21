@@ -31,6 +31,11 @@ sealed interface GroupKeyState {
   data object NotNeeded : GroupKeyState
   /** The member's own key is locked on this device, so nothing sealed to them can be opened. */
   data object Locked : GroupKeyState
+  /**
+   * The group is waiting for the network's approval, or is suspended. Its accounts read what the public reads and get
+   * 403 on every group key endpoint, so there is nothing to set up yet, and nothing should be offered.
+   */
+  data class GroupNotActive(val groupId: Int) : GroupKeyState
   /** Nobody has made the group's keypair yet. Any member can, once. */
   data class NotSetUp(val groupId: Int) : GroupKeyState
   /** The group has a key, but no holder has handed it to this member. */
@@ -114,7 +119,12 @@ class DefaultGroupKeyring @Inject constructor(
       is ApiResult.Success -> r.value.data?.orgKey
     }
     val groupId = org?.chapterId ?: checkNotNull(me.chapterId)
-    val publicKey = org?.chapterPublicKey ?: return@withLock set(GroupKeyState.NotSetUp(groupId))
+    val publicKey = org?.chapterPublicKey ?: run {
+      // "No key yet" is also all a pending or suspended group's member is told. Asking any group key endpoint tells
+      // them apart: for such a group it answers 403. Without this the page offers a set-up that can only be refused.
+      val mayAct = apiCall(json) { groupApi.members(groupId) }
+      return@withLock set(if ((mayAct as? ApiResult.Failure)?.error is AppError.Forbidden) GroupKeyState.GroupNotActive(groupId) else GroupKeyState.NotSetUp(groupId))
+    }
     val sealed = org.wrappedOrgPrivateKey ?: return@withLock set(GroupKeyState.NotHeld(groupId))
     val groupPair = runCatching { engine.openSealedKey(sealed, mine, publicKey) }.getOrElse {
       // Sealed to a key this member no longer has (they recovered onto a new keypair), or tampered with.

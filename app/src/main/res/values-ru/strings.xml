@@ -844,4 +844,80 @@
         <item quantity="many">%d писем, которые вы ему написали, ждут вас.</item>
         <item quantity="other">%d письма, которые вы ему написали, ждут вас.</item>
     </plurals>
+
+    <!-- API changes of 19 to 21 September: a group that may not act yet, a rotated key, and one feed entry for several letters (PR #111) -->
+    <string name="group_not_active_title">Ваша группа пока не активна</string>
+    <string name="group_not_active_text">Ваша группа ждёт одобрения сети или приостановлена. Пока она не активна, у неё не может быть ключа, она не может печатать письма и вести авторов. Активирует её администратор; на этом телефоне ничего делать не нужно.</string>
+    <string name="error_group_key_rotated">Ваша группа только что сменила ключ. Новый уже получен; попробуйте ещё раз.</string>
+    <plurals name="activity_printed_many">
+        <item quantity="one">Напечатано %d ваше письмо.</item>
+        <item quantity="few">Напечатано %d ваших письма.</item>
+        <item quantity="many">Напечатано %d ваших писем.</item>
+        <item quantity="other">Напечатано %d ваших письма.</item>
+    </plurals>
+    <plurals name="activity_mailed_many">
+        <item quantity="one">%d ваше письмо отправлено почтой.</item>
+        <item quantity="few">%d ваших письма отправлены почтой.</item>
+        <item quantity="many">%d ваших писем отправлены почтой.</item>
+        <item quantity="other">%d ваших письма отправлены почтой.</item>
+    </plurals>
+    <plurals name="activity_returned_many">
+        <item quantity="one">%d ваше письмо вернулось по почте.</item>
+        <item quantity="few">%d ваших письма вернулись по почте.</item>
+        <item quantity="many">%d ваших писем вернулись по почте.</item>
+        <item quantity="other">%d ваших письма вернулись по почте.</item>
+    </plurals>
+
+    <!-- Letter nights: marking several letters at once (API PR #111). All or none -->
+    <string name="action_select_several">Выбрать несколько…</string>
+    <plurals name="selected_count">
+        <item quantity="one">Выбрано: %d</item>
+        <item quantity="few">Выбрано: %d</item>
+        <item quantity="many">Выбрано: %d</item>
+        <item quantity="other">Выбрано: %d</item>
+    </plurals>
+    <plurals name="notice_many_printed">
+        <item quantity="one">%d письмо отмечено как напечатанное.</item>
+        <item quantity="few">%d письма отмечены как напечатанные.</item>
+        <item quantity="many">%d писем отмечены как напечатанные.</item>
+        <item quantity="other">%d письма отмечены как напечатанные.</item>
+    </plurals>
+    <plurals name="notice_many_mailed">
+        <item quantity="one">%d письмо отмечено как отправленное.</item>
+        <item quantity="few">%d письма отмечены как отправленные.</item>
+        <item quantity="many">%d писем отмечены как отправленные.</item>
+        <item quantity="other">%d письма отмечены как отправленные.</item>
+    </plurals>
+    <plurals name="mark_many_mailed_title">
+        <item quantity="one">Отметить %d письмо как отправленное?</item>
+        <item quantity="few">Отметить %d письма как отправленные?</item>
+        <item quantity="many">Отметить %d писем как отправленные?</item>
+        <item quantity="other">Отметить %d письма как отправленные?</item>
+    </plurals>
+    <string name="error_batch_nothing_changed">Ничего не изменено. %s</string>
+    <string name="error_batch_too_many">За один раз можно отметить не больше %d писем.</string>
+    <string name="error_batch_not_supported">Этот сервер пока не умеет отмечать несколько писем сразу. Отмечайте их по одному.</string>
+
+    <!-- A group's numbers (API PR #112): counted by the server, shown only from twenty, and one field a person types -->
+    <string name="title_group_numbers">Показатели вашей группы</string>
+    <string name="group_numbers_intro">То, что справочник сообщает об объёме почты группы «%s». Это считает сайт; вручную это никто не вводит.</string>
+    <string name="group_numbers_public_heading">Что видят все</string>
+    <string name="group_numbers_not_shown">Пока ничего. Показатели группы публикуются после 20 отправленных писем, чтобы не выставлять напоказ маленькую или новую группу. У вашей сейчас %d.</string>
+    <string name="label_letters_mailed">Отправлено писем</string>
+    <string name="label_usual_time_to_mail">Обычное время от написания до отправки</string>
+    <plurals name="days_count">
+        <item quantity="one">%d день</item>
+        <item quantity="few">%d дня</item>
+        <item quantity="many">%d дней</item>
+        <item quantity="other">%d дня</item>
+    </plurals>
+    <string name="group_numbers_counted_heading">Как это считается</string>
+    <string name="label_marked_mailed_here">Отмечено отправленными на этом сайте</string>
+    <string name="label_letters_sent_before">Письма, отправленные до начала работы с сайтом</string>
+    <string name="help_letters_sent_before">Целое число, ваша честная оценка. Оно прибавляется к тому, что считает сайт.</string>
+    <string name="group_numbers_not_yet">Этот сервер пока не считает письма групп.</string>
+    <string name="error_not_negative">Число не может быть отрицательным.</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_saving">Сохранение…</string>
+    <string name="notice_saved">Сохранено.</string>
 </resources>

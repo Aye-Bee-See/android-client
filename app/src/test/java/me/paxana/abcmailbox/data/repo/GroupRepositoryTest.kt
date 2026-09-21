@@ -94,6 +94,77 @@ class GroupRepositoryTest {
     assertEquals("A printed letter cannot move to queued.", refused.error.userMessage)
   }
 
+  // API changes of 19 to 21 September (PRs #111 and #112). The answers below were recorded from the API on 21 Sep 2026.
+
+  private fun fixture(name: String) = javaClass.getResourceAsStream("/letters/$name")!!.reader().readText()
+  /** The single read carries the same two objects as a row of the list, so the recorded list row serves for both. */
+  private fun firstRowAsSingleRead(listBody: String): String {
+    val row = (kotlinx.serialization.json.Json.parseToJsonElement(listBody) as kotlinx.serialization.json.JsonObject)["data"].let { (it as kotlinx.serialization.json.JsonArray)[0] }
+    return """{"data":$row,"success":true,"status":200}"""
+  }
+
+  @Test
+  fun `a queue row brings the person and the facility with it, so nobody is looked up letter by letter`() = runTest {
+    sessions.signInAs(SessionUser(9, "member1", "Sam", null, "chapter", 1))
+    server.enqueue(MockResponse().setBody(firstRowAsSingleRead(fixture("queue-row-full.json"))))
+    val item = (repo.queueItem(49) as ApiResult.Success).value
+    assertEquals("/messaging/message?id=49&full=true", server.next().path)
+    assertEquals("Michelle Wilson", item.prisoner?.name); assertEquals("Test Prison", item.prisoner?.facility?.name)
+    assertEquals("the one request was the only one: NoDirectory would have answered 'not found'", 1, server.requestCount)
+  }
+
+  @Test
+  fun `an older server's row has no person in it, and then the directory is asked as before`() = runTest {
+    sessions.signInAs(SessionUser(9, "member1", "Sam", null, "chapter", 1))
+    server.enqueue(MockResponse().setBody("""{"data":{"id":41,"chat":41,"sender":"user","prisoner":1,"user":4,"status":"queued","relayChapter":1,"messageText":"Hi"},"success":true,"status":200}"""))
+    val item = (repo.queueItem(41) as ApiResult.Success).value
+    assertEquals(41, item.letter.id); assertEquals("no details, and this test's directory knows nobody", null, item.prisoner)
+  }
+
+  @Test
+  fun `several letters move together or not at all, and the refusal names the one that stopped it`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"data":{"status":"printed","count":2,"ids":[47,48]},"info":"Letter statuses updated.","success":true,"status":200,"name":"message updateStatusBatch"}"""))
+    assertEquals(2, (repo.setStatusOfMany(listOf(47, 48, 47), LetterStatus.PRINTED) as ApiResult.Success).value)
+    val req = server.next()
+    assertEquals("PUT", req.method); assertEquals("/messaging/status/batch", req.path)
+    assertEquals("an id ticked twice is sent once: the API wants different ids", """{"ids":[47,48],"status":"printed"}""", req.body.readUtf8())
+
+    server.enqueue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"LetterStatusError","info":"Error updating letter statuses; nothing was changed.","status":409,"error":"Letter 47: a printed letter cannot move to printed."}"""))
+    assertEquals("Letter 47: a printed letter cannot move to printed.", (repo.setStatusOfMany(listOf(47, 49), LetterStatus.PRINTED) as ApiResult.Failure).error.userMessage)
+
+    server.enqueue(MockResponse().setResponseCode(404).setBody("""{"success":false,"name":"NotFoundError","info":"Error updating letter statuses; nothing was changed.","status":404,"error":"Message 99999 not found"}"""))
+    assertEquals("the sentence that names the letter, not the general one above it", "Message 99999 not found", (repo.setStatusOfMany(listOf(49, 99999), LetterStatus.PRINTED) as ApiResult.Failure).error.userMessage)
+    server.next(); server.next()
+
+    // A server from before PR #111 does not have the address at all. That is not "a letter was not found".
+    server.enqueue(MockResponse().setResponseCode(404).setBody("""{"success":false,"name":"NotFoundError","info":"Cannot PUT /messaging/status/batch","status":404}"""))
+    assertEquals("This server cannot mark several letters at once yet. Mark them one at a time.", (repo.setStatusOfMany(listOf(1, 2), LetterStatus.PRINTED) as ApiResult.Failure).error.userMessage)
+    server.next()
+
+    assertTrue("more than the API takes is refused here, not split into halves that could each fail alone", repo.setStatusOfMany((1..201).toList(), LetterStatus.PRINTED) is ApiResult.Failure)
+    assertEquals("and nothing empty is sent", 0, (repo.setStatusOfMany(emptyList(), LetterStatus.PRINTED) as ApiResult.Success).value)
+    assertEquals(4, server.requestCount)
+  }
+
+  @Test
+  fun `a group's numbers are counted by the server, and the one typed number is sent by itself`() = runTest {
+    sessions.signInAs(SessionUser(9, "member1", "Sam", null, "chapter", 1))
+    server.enqueue(MockResponse().setBody(fixture("own-group-staff.json")))
+    val numbers = (repo.numbers() as ApiResult.Success).value!!
+    assertEquals("/chapter/chapter?id=1", server.next().path)
+    assertEquals(0, numbers.before); assertEquals(1, numbers.countedHere); assertEquals(1, numbers.total)
+    assertEquals("one letter is not put on show: nothing, never a zero", null, numbers.published); assertEquals(null, numbers.averageDaysToMail)
+
+    server.enqueue(MockResponse().setBody("""{"data":{"updatedRows":1},"success":true,"status":200}"""))
+    assertTrue(repo.setLettersSentBefore(40) is ApiResult.Success)
+    assertEquals("lettersSent and averageTimeDays are the server's; sending them changes nothing, so they are not sent", """{"id":1,"lettersSentBefore":40}""", server.next().body.readUtf8())
+    assertTrue(repo.setLettersSentBefore(-3) is ApiResult.Failure); assertEquals(2, server.requestCount)
+
+    // A server from before PR #112: the staff fields are absent, which means "does not count yet", not "zero".
+    server.enqueue(MockResponse().setBody("""{"data":{"id":1,"name":"Test Chapter","lettersSent":"about 500","averageTimeDays":12},"success":true,"status":200}"""))
+    assertEquals(null, (repo.numbers() as ApiResult.Success).value)
+  }
+
   @Test
   fun `the Held list shows held letters only, even when an older server ignores the filter`() {
     fun letter(id: Int, held: HeldReason?, status: LetterStatus = LetterStatus.QUEUED) = QueueItem(Letter(id, 1, 1, 3, false, status, "x", null, 1, null, false, null, null, emptyList(), emptyList(), heldReason = held), null)
@@ -243,7 +314,7 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setBody(members)); server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     assertTrue(e2e.handKeyTo(10) is ApiResult.Success)
     server.next()
-    assertEquals("""{"chapter":1,"user":10,"wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to(PUB-NOOR)"}""", server.next().body.readUtf8())
+    assertEquals("the version of the key that was sealed goes with it", """{"chapter":1,"user":10,"wrappedOrgPrivateKey":"sealedkey(private-of-PUB-GROUP)to(PUB-NOOR)","keyVersion":3}""", server.next().body.readUtf8())
 
     server.enqueue(MockResponse().setBody(members))
     assertTrue(e2e.handKeyTo(11) is ApiResult.Failure)

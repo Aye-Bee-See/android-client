@@ -66,6 +66,10 @@ fun GroupKeyBanner(onMembers: () -> Unit, viewModel: GroupKeyViewModel = hiltVie
       Button(onClick = viewModel::setUp, enabled = !ui.busy) { Text(stringResource(if (ui.busy) R.string.action_setting_up else R.string.action_set_up_group_key)) }
       ui.error?.let { ErrorText(it, style = MaterialTheme.typography.bodySmall) }
     }
+    is GroupKeyState.GroupNotActive -> Notice(
+      title = stringResource(R.string.group_not_active_title),
+      body = stringResource(R.string.group_not_active_text),
+    ) { OutlinedButton(onClick = viewModel::refresh) { Text(stringResource(R.string.action_check_again)) } }
     is GroupKeyState.NotHeld -> Notice(
       title = stringResource(R.string.group_key_not_held_title),
       body = stringResource(R.string.group_key_not_held_text),

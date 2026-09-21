@@ -119,6 +119,25 @@ class ActivityRepositoryTest {
   }
 
   @Test
+  fun `one entry about several letters says how many, and opens the inbox when they are not in one conversation`() = runTest {
+    // Recorded from the API (PR #111): a group marked two of one writer's letters in one request. `message` is null.
+    server.enqueue(feed(
+      """{"id":31,"event":"letter.status","chat":43,"message":null,"submission":null,"detail":{"status":"printed","count":2,"messages":[47,48]},"readAt":null,"createdAt":"2026-09-21T17:00:00.000Z"}""",
+      """{"id":30,"event":"letter.status","chat":null,"message":null,"submission":null,"detail":{"status":"mailed","count":5,"messages":[1,2,3,4,5]},"readAt":null,"createdAt":"2026-09-21T16:59:00.000Z"}""",
+      """{"id":29,"event":"letter.status","chat":null,"message":null,"submission":null,"detail":{"status":"returned","reason":"bad_address","count":21,"messages":[]},"readAt":null,"createdAt":"2026-09-21T16:58:00.000Z"}""",
+    ))
+    val fresh = repo.sync()
+    assertEquals(listOf(2, 5, 21), fresh.map { it.count }); assertEquals(listOf(null, null, null), fresh.map { it.messageId }); assertEquals(listOf(43, null, null), fresh.map { it.chatId })
+    assertEquals("2 of your letters have been printed.", fresh[0].sentence(TestStrings()))
+    assertEquals("5 of your letters are in the mail.", fresh[1].sentence(TestStrings()))
+    assertEquals("Напечатано 2 ваших письма.", fresh[0].sentence(TestStrings("ru")))
+    assertEquals("Russian counts 21 like 1", "21 ваше письмо вернулось по почте.", fresh[2].sentence(TestStrings("ru")))
+    assertEquals("5 de tus cartas ya están en el correo.", fresh[1].sentence(TestStrings("es")))
+    // One letter is exactly what it always was.
+    assertEquals("One of your letters has been printed.", Activity(5, Activity.Kind.PRINTED, 41, 50).sentence(TestStrings()))
+  }
+
+  @Test
   fun `the words are chosen on the phone, name nobody, and come in the user's language`() {
     val mailed = Activity(5, Activity.kindOf("letter.status", "mailed"), 41, 50)
     assertEquals("One of your letters is in the mail.", mailed.sentence(TestStrings()))

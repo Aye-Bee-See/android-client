@@ -40,6 +40,7 @@ fun AccountScreen(
   onSignIn: () -> Unit,
   onChangePassword: () -> Unit,
   onDeleteAccount: () -> Unit = {},
+  onGroupNumbers: () -> Unit = {},
   viewModel: AccountViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.uiState.collectAsStateWithLifecycle()
@@ -73,6 +74,8 @@ fun AccountScreen(
           style = MaterialTheme.typography.bodyMedium,
         )
         HorizontalDivider()
+        // For members of a group: the group's public numbers, and the one of them that a person types.
+        if (user.role == Role.CHAPTER && user.chapterId != null) TextButton(onClick = onGroupNumbers) { Text(stringResource(R.string.title_group_numbers)) }
         TextButton(onClick = onChangePassword) { Text(stringResource(R.string.action_change_password)) }
         OutlinedButton(
           onClick = { viewModel.signOut(everywhere = false) },

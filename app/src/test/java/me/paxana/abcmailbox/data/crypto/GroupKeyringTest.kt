@@ -59,10 +59,22 @@ class GroupKeyringTest {
 
   @Test
   fun `a group with no key, and a member not yet handed it, are told apart`() = runTest {
-    server.enqueue(bundle(null, null))
+    // "No key yet" is followed by one question to a group key endpoint, which an active group is answered.
+    val membersOfAnActiveGroup = MockResponse().setBody("""{"data":{"chapter":1,"publicKey":null,"keyVersion":null,"members":[]},"success":true,"status":200}""")
+    server.enqueue(bundle(null, null)); server.enqueue(membersOfAnActiveGroup)
     assertEquals(GroupKeyState.NotSetUp(1), keyring().load())
     server.enqueue(bundle(groupPublic, null))
     assertEquals(GroupKeyState.NotHeld(1), keyring().load())
+  }
+
+  @Test
+  fun `a pending or suspended group is not offered a key set-up that could only be refused`() = runTest {
+    // All such a group's member is told by the key bundle is "no key yet", exactly like a new active group.
+    // The group key endpoints tell them apart: 403, in the API's words below (recorded from its source).
+    server.enqueue(bundle(null, null))
+    server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"Your group is waiting for network approval; an admin has to activate it first.","status":403}"""))
+    assertEquals(GroupKeyState.GroupNotActive(1), keyring().load())
+    assertEquals("/auth/member-keys?chapter=1", server.next().let { server.next().path })
   }
 
   @Test

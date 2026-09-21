@@ -815,4 +815,72 @@
         <item quantity="many">%d cartas que le escribiste te están esperando.</item>
         <item quantity="other">%d cartas que le escribiste te están esperando.</item>
     </plurals>
+
+    <!-- API changes of 19 to 21 September: a group that may not act yet, a rotated key, and one feed entry for several letters (PR #111) -->
+    <string name="group_not_active_title">Tu grupo aún no está activo</string>
+    <string name="group_not_active_text">Tu grupo está esperando la aprobación de la red, o ha sido suspendido. Hasta que esté activo no puede tener clave, imprimir cartas ni gestionar a quienes escriben. Lo activa la administración; no hay nada que hacer en este teléfono.</string>
+    <string name="error_group_key_rotated">Tu grupo cambió su clave hace un momento. Ya se ha obtenido la nueva; inténtalo de nuevo.</string>
+    <plurals name="activity_printed_many">
+        <item quantity="one">Se ha impreso %d de tus cartas.</item>
+        <item quantity="many">Se han impreso %d de tus cartas.</item>
+        <item quantity="other">Se han impreso %d de tus cartas.</item>
+    </plurals>
+    <plurals name="activity_mailed_many">
+        <item quantity="one">%d de tus cartas ya está en el correo.</item>
+        <item quantity="many">%d de tus cartas ya están en el correo.</item>
+        <item quantity="other">%d de tus cartas ya están en el correo.</item>
+    </plurals>
+    <plurals name="activity_returned_many">
+        <item quantity="one">%d de tus cartas ha vuelto por correo.</item>
+        <item quantity="many">%d de tus cartas han vuelto por correo.</item>
+        <item quantity="other">%d de tus cartas han vuelto por correo.</item>
+    </plurals>
+
+    <!-- Letter nights: marking several letters at once (API PR #111). All or none -->
+    <string name="action_select_several">Seleccionar varias…</string>
+    <plurals name="selected_count">
+        <item quantity="one">%d seleccionada</item>
+        <item quantity="many">%d seleccionadas</item>
+        <item quantity="other">%d seleccionadas</item>
+    </plurals>
+    <plurals name="notice_many_printed">
+        <item quantity="one">%d carta marcada como impresa.</item>
+        <item quantity="many">%d cartas marcadas como impresas.</item>
+        <item quantity="other">%d cartas marcadas como impresas.</item>
+    </plurals>
+    <plurals name="notice_many_mailed">
+        <item quantity="one">%d carta marcada como enviada.</item>
+        <item quantity="many">%d cartas marcadas como enviadas.</item>
+        <item quantity="other">%d cartas marcadas como enviadas.</item>
+    </plurals>
+    <plurals name="mark_many_mailed_title">
+        <item quantity="one">¿Marcar %d carta como enviada?</item>
+        <item quantity="many">¿Marcar %d cartas como enviadas?</item>
+        <item quantity="other">¿Marcar %d cartas como enviadas?</item>
+    </plurals>
+    <string name="error_batch_nothing_changed">No se ha cambiado nada. %s</string>
+    <string name="error_batch_too_many">Se pueden marcar como máximo %d cartas a la vez.</string>
+    <string name="error_batch_not_supported">Este servidor aún no puede marcar varias cartas a la vez. Márcalas una a una.</string>
+
+    <!-- A group's numbers (API PR #112): counted by the server, shown only from twenty, and one field a person types -->
+    <string name="title_group_numbers">Las cifras de tu grupo</string>
+    <string name="group_numbers_intro">Lo que el directorio dice sobre cuánto correo gestiona %s. Lo cuenta el sitio; nadie lo escribe a mano.</string>
+    <string name="group_numbers_public_heading">Lo que ve el público</string>
+    <string name="group_numbers_not_shown">Todavía nada. Las cifras de un grupo se muestran cuando ha enviado 20 cartas, para no poner en evidencia a un grupo pequeño o nuevo. El vuestro lleva %d.</string>
+    <string name="label_letters_mailed">Cartas enviadas</string>
+    <string name="label_usual_time_to_mail">Tiempo habitual entre escrita y enviada</string>
+    <plurals name="days_count">
+        <item quantity="one">%d día</item>
+        <item quantity="many">%d días</item>
+        <item quantity="other">%d días</item>
+    </plurals>
+    <string name="group_numbers_counted_heading">Cómo se cuenta</string>
+    <string name="label_marked_mailed_here">Marcadas como enviadas en este sitio</string>
+    <string name="label_letters_sent_before">Cartas que enviasteis antes de usar este sitio</string>
+    <string name="help_letters_sent_before">Un número entero, vuestra mejor estimación honesta. Se suma a lo que cuenta el sitio.</string>
+    <string name="group_numbers_not_yet">Este servidor aún no cuenta las cartas de los grupos.</string>
+    <string name="error_not_negative">El número no puede ser negativo.</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_saving">Guardando…</string>
+    <string name="notice_saved">Guardado.</string>
 </resources>

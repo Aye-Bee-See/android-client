@@ -1,5 +1,19 @@
 package me.paxana.abcmailbox.ui.group
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.Box
 import me.paxana.abcmailbox.ui.common.ReloadOnNews
 import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.R
@@ -89,22 +103,73 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
     Text(stringResource(R.string.not_in_group), modifier = Modifier.padding(20.dp))
     return
   }
-  PagedList(
-    items = items,
-    emptyText = stringResource(when (val f = filter) {
-      QueueFilter.Held -> R.string.queue_empty_held
-      is QueueFilter.ByStatus -> when (f.status) { LetterStatus.QUEUED -> R.string.queue_empty_queued; LetterStatus.PRINTED -> R.string.queue_empty_printed; LetterStatus.RETURNED -> R.string.queue_empty_returned; else -> R.string.queue_empty_mailed }
-    }),
-    header = {
-      item("status") {
-        ChipRow(queueFilters.map { f -> f to stringResource(when (f) { is QueueFilter.ByStatus -> f.status.labelRes; QueueFilter.Held -> R.string.chip_held }) }, filter, { it?.let(viewModel::setFilter) }, allLabel = "", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), showAll = false)
+  val selection by viewModel.selection.collectAsStateWithLifecycle()
+  val snackbar = remember { SnackbarHostState() }
+  var confirmMailed by remember { mutableStateOf(false) }
+  LaunchedEffect(selection.notice) { selection.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
+  LaunchedEffect(selection.done) { if (selection.done > 0) items.refresh() }
+  val next = viewModel.nextStep
+
+  Box(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize()) {
+      PagedList(
+        items = items,
+        modifier = Modifier.weight(1f),
+        emptyText = stringResource(when (val f = filter) {
+          QueueFilter.Held -> R.string.queue_empty_held
+          is QueueFilter.ByStatus -> when (f.status) { LetterStatus.QUEUED -> R.string.queue_empty_queued; LetterStatus.PRINTED -> R.string.queue_empty_printed; LetterStatus.RETURNED -> R.string.queue_empty_returned; else -> R.string.queue_empty_mailed }
+        }),
+        header = {
+          item("status") {
+            ChipRow(queueFilters.map { f -> f to stringResource(when (f) { is QueueFilter.ByStatus -> f.status.labelRes; QueueFilter.Held -> R.string.chip_held }) }, filter, { it?.let(viewModel::setFilter) }, allLabel = "", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), showAll = false)
+          }
+          // A letter night: thirty letters printed, marked together. Offered where there is a next step to take together;
+          // a button, not a long-press, so that it can be found, and found by a screen reader.
+          if (next != null && !selection.selecting && items.itemCount > 1) item("select") {
+            TextButton(onClick = viewModel::startSelecting, modifier = Modifier.padding(horizontal = 8.dp).testTag("select-several")) { Text(stringResource(R.string.action_select_several)) }
+          }
+        },
+      ) { q ->
+        if (!selection.selecting) QueueRow(q, onClick = { onLetter(q.letter.id) })
+        else {
+          val ticked = q.letter.id in selection.selected.orEmpty()
+          val mayTick = !q.letter.isHeld && !selection.busy
+          // The whole row is the checkbox. A held letter is shown and cannot be ticked: it is printed on purpose, by itself.
+          Row(
+            Modifier.fillMaxWidth().toggleable(value = ticked, enabled = mayTick, role = Role.Checkbox, onValueChange = { viewModel.toggle(q) }).padding(start = 8.dp).testTag("pick-${q.letter.id}"),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Checkbox(checked = ticked, onCheckedChange = null, enabled = mayTick)
+            QueueRow(q, onClick = null, modifier = Modifier.weight(1f))
+          }
+        }
       }
-    },
-  ) { q -> QueueRow(q, onClick = { onLetter(q.letter.id) }) }
+      if (selection.selecting && next != null) Surface(tonalElevation = 3.dp, shadowElevation = 6.dp) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          TextButton(onClick = viewModel::stopSelecting, enabled = !selection.busy) { Text(stringResource(R.string.action_cancel)) }
+          Text(pluralStringResource(R.plurals.selected_count, selection.count, selection.count), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+          Button(
+            // "Mailed" cannot be taken back, for one letter or for thirty: the same question first.
+            onClick = { if (next == LetterStatus.MAILED) confirmMailed = true else viewModel.markSelected() },
+            enabled = selection.count > 0 && !selection.busy, modifier = Modifier.testTag("mark-selected"),
+          ) { Text(stringResource(if (next == LetterStatus.MAILED) R.string.action_mark_mailed else R.string.action_mark_printed)) }
+        }
+      }
+    }
+    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (selection.selecting) 64.dp else 0.dp)) { Snackbar(it) }
+  }
+
+  if (confirmMailed) AlertDialog(
+    onDismissRequest = { confirmMailed = false },
+    title = { Text(pluralStringResource(R.plurals.mark_many_mailed_title, selection.count, selection.count)) },
+    text = { Text(stringResource(R.string.mark_mailed_text)) },
+    confirmButton = { TextButton(onClick = { confirmMailed = false; viewModel.markSelected() }) { Text(stringResource(R.string.action_in_the_post)) } },
+    dismissButton = { TextButton(onClick = { confirmMailed = false }) { Text(stringResource(R.string.action_not_yet)) } },
+  )
 }
 
 @Composable
-private fun QueueRow(q: QueueItem, onClick: () -> Unit) {
+private fun QueueRow(q: QueueItem, onClick: (() -> Unit)?, modifier: Modifier = Modifier) {
   val pages = me.paxana.abcmailbox.domain.estimatePages(q.letter.body.length)
   RecordRow(
     title = q.prisoner?.name ?: stringResource(R.string.prisoner_numbered, q.letter.prisonerId ?: 0),
@@ -119,6 +184,8 @@ private fun QueueRow(q: QueueItem, onClick: () -> Unit) {
       ?: q.letter.returnReason?.takeIf { q.letter.status == LetterStatus.RETURNED }?.let { stringResource(R.string.queue_came_back, stringResource(it.choiceRes).lowercase()) }
       ?: q.letter.relayNote?.let { stringResource(R.string.note_prefixed, it) },
     onClick = onClick,
+    modifier = modifier,
+    horizontalPadding = if (onClick == null) 8.dp else 20.dp,
   )
 }
 

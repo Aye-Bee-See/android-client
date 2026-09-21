@@ -104,4 +104,7 @@ fun ChapterDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): Gr
   supportedPrisoners = supportedPrisoners.orEmpty().map { it.toDomain(catalog) },
   relayPrisons = relayPrisons.orEmpty().map { it.toDomain(catalog) },
   supportDescription = prisonerSupport?.description?.takeIf { it.isNotBlank() },
+  // Nothing, a blank and a zero are all "nothing to show".
+  lettersSent = runCatching { (lettersSent as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { it !is kotlinx.serialization.json.JsonNull }?.content }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() && it != "0" },
+  averageDaysToMail = averageTimeDays?.takeIf { it > 0 },
 )

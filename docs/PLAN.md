@@ -241,6 +241,27 @@ Found on the way: the "share with a partner group" button was offered for any le
 
 Kept where Android differs: advice under each return reason (iOS has one line for the three address-type reasons), and the "On hold" chip in place of "Queued" (iOS keeps the status chip and lets the notice speak). 217 JVM tests.
 
+**Phase 13: the API's changes of 19 to 21 September (its brief to the mobile agents), including PRs #111 and #112. Done 21 September 2026.**
+The brief is `~/Documents/AyeBeeSee/mobile-agents-brief-2026-09-21.md`. Its "check these first" list was audited against the code, item by item, before anything was built:
+
+| Brief | Android |
+| --- | --- |
+| 1 unknown statuses and events | already neutral (`LetterStatus.UNKNOWN`, `Activity.Kind.OTHER`, unknown return and hold reasons), with tests |
+| 2 a `letter.status` entry with `message: null` | parsed already; **fixed:** it still said "One of your letters…". `Activity.count` and plural sentences ("2 of your letters have been printed."); an entry across several conversations opens the Inbox |
+| 3 smaller `user_details` | nothing to do: only `id`, `username`, `role` are required, and no thread screen shows an email |
+| 4 null `lettersSent` / `averageTimeDays` | the app did not read them at all; now it does, and shows nothing for null, blank or zero (below) |
+| 5 delete needs the password; 6 one id is one value; 7 a mailing group cannot change a thread; 8 what `PUT /messaging/message` takes; 9 sign-in and claim; 12 `no-store` | already so (no list of ids is ever sent where one belongs; there is no HTTP response cache) |
+| 10 pending groups and keys | **fixed:** a pending group's key bundle says only "no key yet", so the page offered a set-up that could only be refused. The keyring now asks a group key endpoint first, and a 403 becomes `GroupKeyState.GroupNotActive` ("Your group is not active yet"), with nothing to press but "Check again" |
+| 11 `keyVersion` on `PUT /auth/member-key` | **fixed:** sent; a `409 KeyVersionError` reloads the key and says so |
+
+*Letter nights (#111).* The print queue is one request: rows arrive with `prisoner_details` (and the facility's address, routing, limits and rules inside), so the per-letter prisoner lookups are gone; against an older API a row has no details and the lookup still happens. Measured through a logging proxy: one address, no `/prisoner/prisoner` calls. "Select several…" (a button, not a long-press, so it can be found, and found by a screen reader) puts a checkbox on each row and a bar at the bottom; one `PUT /messaging/status/batch` moves them, all or none. A held letter is shown and cannot be ticked: printing it is a decision about that letter. When the server refuses, "Nothing was changed." is followed by its sentence naming the letter, and the ticks stay. "Mailed" asks first, for thirty as for one. More than the API's 200 is refused on the phone, not split into halves that could each fail alone. A 404's useful sentence (`error`) is now preferred over the general one (`info`), as for a 409.
+
+*A group's numbers (#112).* The public group page shows "Letters mailed" and "Usual time from written to mailed" when the server gives them, and nothing otherwise. Members get "Your group's numbers" on the Account page: what the public sees (or why it sees nothing yet: shown from twenty), what was counted here, and the one field a person types, `lettersSentBefore`, sent by itself.
+
+Already built before the brief arrived: deleting one's account (phase 11), returned and held letters from both sides (phase 12). One deliberate difference from the brief's wording: for `reseal_needed` it says "delete and re-send"; Android sends first and deletes after, so that a failed send cannot lose the letter (the old one is held, so it cannot be printed meanwhile). Not built: 3.5 (`addressInDoubt`, the `mail` report), because the Android app has no directory editing. Not started, as the brief asks: the password split, a new keypair at claim, refresh tokens, error codes.
+
+Verified on the emulator against a scratch API at `main` (ec10298, with #111 and #112 merged): three letters ticked and marked in one request with the held one un-tickable; the numbers page before and after typing 1240; the public page of a group with numbers and of one without. 229 JVM tests (12 new, on answers recorded from that server).
+
 **What is left before a public release** is not code: a domain and hosting (release API address, verified App Links for claim links, the Play listing), a release keystore that the project owner makes and backs up, a privacy policy, and a native-speaker review of the Spanish and Russian (`docs/TRANSLATING.md`).
 
 Total: roughly five to six working weeks for one developer, with e2e and group features being the two largest blocks.

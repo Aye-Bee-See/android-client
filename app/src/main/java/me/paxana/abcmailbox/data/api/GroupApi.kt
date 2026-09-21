@@ -24,9 +24,30 @@ interface GroupApi {
     @Query("status") status: String? = null,
     /** `true`: only held letters (API PR #106). An older API ignores it and answers with everything, so the answer is checked. */
     @Query("held") held: Boolean? = null,
+    /** Rows carry `prisoner_details` (API PR #111). Harmless on an API that does not know it. */
+    @Query("full") full: Boolean = true,
     @Query("page") page: Int = 1,
     @Query("page_size") pageSize: Int = 20,
   ): ApiEnvelope<List<MessageDto>>
+
+  /** The group's own record, with the staff-only numbers (`lettersSentBefore`, `lettersCounted`). */
+  @GET("chapter/chapter")
+  suspend fun ownGroup(@Query("id") id: Int): ApiEnvelope<ChapterDto>
+
+  /** The one number a group types: what it mailed before it used the site. Everything else is counted (API PR #112). */
+  @PUT("chapter/chapter")
+  suspend fun setLettersSentBefore(@Body body: LettersSentBeforeRequest): ApiEnvelope<kotlinx.serialization.json.JsonElement>
+
+  /** One letter as the group works on it: `full=true` brings the person and the facility with it (API PR #111). */
+  @GET("messaging/message")
+  suspend fun letter(@Query("id") id: Int, @Query("full") full: Boolean = true): ApiEnvelope<MessageDto>
+
+  /**
+   * A letter night: thirty letters printed, marked in one request. All or none: if one cannot move, nothing does, and
+   * the error names it ("Letter 42: a printed letter cannot move to printed."). Up to 200 ids. API PR #111.
+   */
+  @PUT("messaging/status/batch")
+  suspend fun setStatusBatch(@Body body: BatchStatusRequest): ApiEnvelope<BatchStatusDto>
 
   /** Forward only: queued, printed, mailed. Anything else is a 409 whose `error` says why. */
   @PUT("messaging/status")
@@ -85,6 +106,9 @@ interface GroupApi {
  * prints a held letter on purpose: without it the server answers 409 `LetterHeldError`.
  */
 @Serializable data class StatusRequest(val id: Int, val status: String, val reason: String? = null, val note: String? = null, val release: Boolean? = null)
+@Serializable data class BatchStatusRequest(val ids: List<Int>, val status: String, val reason: String? = null, val note: String? = null, val release: Boolean? = null)
+@Serializable data class BatchStatusDto(val status: String? = null, val count: Int = 0, val ids: List<Int> = emptyList())
+@Serializable data class LettersSentBeforeRequest(val id: Int, val lettersSentBefore: Int)
 @Serializable data class WriterRef(val writer: Int)
 @Serializable
 data class AddWriterRequest(
@@ -107,7 +131,8 @@ data class IssueTokenRequest(
 )
 
 @Serializable data class GroupKeyRequest(val chapter: Int, val publicKey: String, val wrappedOrgPrivateKey: String)
-@Serializable data class MemberKeyRequest(val chapter: Int, val user: Int, val wrappedOrgPrivateKey: String)
+/** `keyVersion`: the version of the group key that was sealed. If the group rotated meanwhile the server answers 409 `KeyVersionError`, and a stale key is not handed on. */
+@Serializable data class MemberKeyRequest(val chapter: Int, val user: Int, val wrappedOrgPrivateKey: String, val keyVersion: Int? = null)
 @Serializable data class MemberRef(val chapter: Int, val user: Int)
 @Serializable
 data class MissingEnvelopeDto(val message: Int, val readerType: String = "user", val readerId: Int, val publicKey: String? = null, val wrappedKey: String? = null, val keyVersion: Int? = null)

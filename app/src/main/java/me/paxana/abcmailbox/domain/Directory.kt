@@ -95,6 +95,9 @@ data class Group(
   val relayPrisons: List<Facility>,
   /** How this group supports a particular prisoner, when embedded on that prisoner. */
   val supportDescription: String?,
+  /** The group's public numbers, counted by the server. Null means "not shown": a small or new group, never "0". */
+  val lettersSent: String? = null,
+  val averageDaysToMail: Int? = null,
 ) {
   val location: String get() = listOfNotNull(subregion, country).joinToString(", ")
 }

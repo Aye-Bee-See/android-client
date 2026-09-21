@@ -44,6 +44,7 @@ import kotlinx.serialization.Serializable
 // Group member screens
 @Serializable data class LetterWorkRoute(val messageId: Int)
 @Serializable data object AddWriterRoute
+@Serializable data object GroupNumbersRoute
 @Serializable data class HandoffRoute(val writerId: Int, val writerName: String)
 /** End-to-end servers: who in the group holds its key. */
 @Serializable data object GroupKeyRoute

@@ -29,7 +29,8 @@ fun HttpException.toAppError(json: Json): AppError {
       ?: AppError.Validation(listOfNotNull(info ?: "The request was rejected."))
     401 -> AppError.Unauthorized(info)
     403 -> AppError.Forbidden(info ?: "You are not allowed to do that.")
-    404 -> AppError.NotFound(info)
+    // Like a 409, a 404 may carry the useful sentence in `error` ("Message 99999 not found") under a general `info`.
+    404 -> AppError.NotFound(envelope?.error ?: info)
     // Lifecycle refusals put the useful sentence in `error` ("A printed letter cannot move to queued"); `info` is generic.
     409 -> AppError.Conflict(envelope?.error ?: info, envelope?.name)
     410 -> AppError.Gone(info)

@@ -178,6 +178,12 @@ data class MessageDto(
   val heldReason: String? = null,
   val resendOf: Int? = null,
   @SerialName("resent_as") val resentAs: List<ResentDto>? = null,
+  /**
+   * With `full=true`, on lists and on the single read (API PR #111): who the letter is for, with the facility's name,
+   * address, routing, limits and mail rules. Everything an envelope and a print run need, so a queue of a hundred
+   * letters is one request and not a hundred and one. Absent from an older API.
+   */
+  @SerialName("prisoner_details") val prisonerDetails: PrisonerDto? = null,
   // End-to-end mode: `messageText` is null and these carry the letter; `envelopes` is filtered to the caller.
   val ciphertext: String? = null,
   val nonce: String? = null,

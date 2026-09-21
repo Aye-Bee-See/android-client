@@ -842,4 +842,66 @@
         <item quantity="one">A letter you wrote them is waiting for you.</item>
         <item quantity="other">%d letters you wrote them are waiting for you.</item>
     </plurals>
+
+    <!-- API changes of 19 to 21 September: a group that may not act yet, a rotated key, and one feed entry for several letters (PR #111) -->
+    <string name="group_not_active_title">Your group is not active yet</string>
+    <string name="group_not_active_text">Your group is waiting for the network’s approval, or has been suspended. Until it is active it cannot hold a key, print letters or manage writers. An admin activates it; nothing needs doing on this phone.</string>
+    <string name="error_group_key_rotated">Your group changed its key a moment ago. The new one has been fetched; try again.</string>
+    <!-- only ever used with 2 or more -->
+    <plurals name="activity_printed_many">
+        <item quantity="one">%d of your letters has been printed.</item>
+        <item quantity="other">%d of your letters have been printed.</item>
+    </plurals>
+    <plurals name="activity_mailed_many">
+        <item quantity="one">%d of your letters is in the mail.</item>
+        <item quantity="other">%d of your letters are in the mail.</item>
+    </plurals>
+    <plurals name="activity_returned_many">
+        <item quantity="one">%d of your letters came back in the mail.</item>
+        <item quantity="other">%d of your letters came back in the mail.</item>
+    </plurals>
+
+    <!-- Letter nights: marking several letters at once (API PR #111). All or none -->
+    <string name="action_select_several">Select several…</string>
+    <plurals name="selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="notice_many_printed">
+        <item quantity="one">%d letter marked as printed.</item>
+        <item quantity="other">%d letters marked as printed.</item>
+    </plurals>
+    <plurals name="notice_many_mailed">
+        <item quantity="one">%d letter marked as mailed.</item>
+        <item quantity="other">%d letters marked as mailed.</item>
+    </plurals>
+    <plurals name="mark_many_mailed_title">
+        <item quantity="one">Mark %d letter as mailed?</item>
+        <item quantity="other">Mark %d letters as mailed?</item>
+    </plurals>
+    <!-- %s is the server's sentence, which names the letter that stopped the rest -->
+    <string name="error_batch_nothing_changed">Nothing was changed. %s</string>
+    <string name="error_batch_too_many" tools:ignore="PluralsCandidate">At most %d letters can be marked at once.</string>
+    <string name="error_batch_not_supported">This server cannot mark several letters at once yet. Mark them one at a time.</string>
+
+    <!-- A group's numbers (API PR #112): counted by the server, shown only from twenty, and one field a person types -->
+    <string name="title_group_numbers">Your group’s numbers</string>
+    <string name="group_numbers_intro">What the directory says about how much mail %s handles. The site counts it; nobody types it in.</string>
+    <string name="group_numbers_public_heading">What the public sees</string>
+    <string name="group_numbers_not_shown">Nothing yet. A group’s numbers are shown once it has mailed 20 letters, so that a small or new group is not put on show. Yours stands at %d.</string>
+    <string name="label_letters_mailed">Letters mailed</string>
+    <string name="label_usual_time_to_mail">Usual time from written to mailed</string>
+    <plurals name="days_count">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <string name="group_numbers_counted_heading">How it is counted</string>
+    <string name="label_marked_mailed_here">Marked as mailed on this site</string>
+    <string name="label_letters_sent_before">Letters you mailed before you used this site</string>
+    <string name="help_letters_sent_before">A whole number, your best honest estimate. It is added to what the site counts.</string>
+    <string name="group_numbers_not_yet">This server does not count a group’s letters yet.</string>
+    <string name="error_not_negative">The number cannot be negative.</string>
+    <string name="action_save">Save</string>
+    <string name="action_saving">Saving…</string>
+    <string name="notice_saved">Saved.</string>
 </resources>

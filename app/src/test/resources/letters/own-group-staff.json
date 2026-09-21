@@ -1,0 +1,39 @@
+{
+ "data": {
+  "id": 1,
+  "name": "Test Chapter",
+  "location": {
+   "street": "123 Chapter Street"
+  },
+  "subregion": "Portland, OR",
+  "country": "United States",
+  "about": "A test chapter used by the seed data.",
+  "website": null,
+  "email": null,
+  "socialLinks": null,
+  "services": [
+   "letter_collection",
+   "letter_writing_nights",
+   "domestic_mailing"
+  ],
+  "announcement": "Letter-writing night every second Thursday at the Red & Black.",
+  "publicKey": null,
+  "keyVersion": 0,
+  "keyRotatedAt": null,
+  "networkRole": "both",
+  "accountStatus": "active",
+  "vouchedBy": null,
+  "prisoners": null,
+  "lettersSent": null,
+  "averageTimeDays": null,
+  "lettersCounted": 1,
+  "lettersSentBefore": 0,
+  "recordStatus": "published",
+  "createdAt": "2026-09-21T16:39:59.332Z",
+  "updatedAt": "2026-09-21T16:40:14.994Z"
+ },
+ "info": "Success getting chapter",
+ "success": true,
+ "status": 200,
+ "name": "chapter one"
+}
