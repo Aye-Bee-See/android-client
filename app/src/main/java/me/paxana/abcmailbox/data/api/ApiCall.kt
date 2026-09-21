@@ -33,10 +33,18 @@ fun HttpException.toAppError(json: Json): AppError {
     404 -> AppError.NotFound(envelope?.error ?: info)
     // Lifecycle refusals put the useful sentence in `error` ("A printed letter cannot move to queued"); `info` is generic.
     409 -> AppError.Conflict(envelope?.error ?: info, envelope?.name)
-    410 -> AppError.Gone(info)
+    410 -> AppError.Gone(info, goneCondition(envelope?.condition, envelope?.error))
     // An Idempotency-Key reused for a different request (API PR #97). Retrying unchanged would get the same answer, so it is a refusal, not a server fault.
     422 -> AppError.Validation(listOfNotNull(envelope?.error ?: info ?: "The request was rejected."))
     429 -> AppError.RateLimited(info, response()?.headers()?.get("Retry-After")?.toLongOrNull())
     else -> AppError.Server(code(), info)
   }
 }
+
+/**
+ * Why something is gone. The API keeps a code for it (`expired`, `used`) but does not put it in the answer yet; what
+ * arrives is the sentence it builds from the code, "Claim token is expired." So the code is read back out of that
+ * sentence, and a `condition` field wins the day it is sent. Anything unrecognised is null: a plain "gone".
+ */
+internal fun goneCondition(condition: String?, error: String?): String? =
+  condition?.takeIf { it.isNotBlank() } ?: error?.let { Regex("""^(?:Claim token|Invitation) is (expired|used)\.$""").find(it.trim())?.groupValues?.get(1) }

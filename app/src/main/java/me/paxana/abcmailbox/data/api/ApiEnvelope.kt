@@ -23,6 +23,8 @@ data class ApiEnvelope<T>(
   @SerialName("page_size") val pageSize: Int? = null,
   /** Only on the notification feed: how many entries the account has not read. */
   val unread: Int? = null,
+  /** On some refusals: a code for why (a claim token that is `expired` or `used`). Asked of the API; not sent yet, see [goneCondition]. */
+  val condition: String? = null,
 )
 
 /** A list response with its paging fields, as repositories hand it to Paging. */

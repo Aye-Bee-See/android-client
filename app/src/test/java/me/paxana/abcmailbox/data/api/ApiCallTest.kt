@@ -42,6 +42,18 @@ class ApiCallTest {
   }
 
   @Test
+  fun `a claim token that is gone says whether it expired or was used, and anything else is just gone`() = runTest {
+    // Recorded from the API on 21 Sep 2026 (PR #113). It keeps a code for the reason but does not send it yet, so the
+    // code is read out of the sentence it builds from it; a `condition` field, the day it arrives, wins.
+    val expired = apiCall(json) { throw http(410, """{"success":false,"name":"ClaimTokenError","info":"This claim token has expired. Ask your group for a new one.","status":410,"error":"Claim token is expired."}""") }
+    assertEquals(AppError.Gone("This claim token has expired. Ask your group for a new one.", "expired"), (expired as ApiResult.Failure).error)
+    assertEquals("used", goneCondition(null, "Claim token is used."))
+    assertEquals("expired", goneCondition(null, "Invitation is expired."))
+    assertEquals("a field beats a sentence", "used", goneCondition("used", "Claim token is expired."))
+    assertEquals(null, goneCondition(null, "This letter was deleted.")); assertEquals(null, goneCondition("  ", null)); assertEquals(null, goneCondition(null, "Claim token is unknown."))
+  }
+
+  @Test
   fun `409 and 410 map to Conflict and Gone`() = runTest {
     val c = apiCall(json) { throw http(409, """{"info":"Letters only move forward."}""") }
     val g = apiCall(json) { throw http(410, """{"info":"This claim token has expired."}""") }

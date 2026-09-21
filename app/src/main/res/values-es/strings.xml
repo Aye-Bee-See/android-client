@@ -411,13 +411,12 @@
     <string name="handoff_intro">Un código de activación de un solo uso permite a %1$s elegir su propio nombre de usuario y contraseña y tomar el control de su correspondencia.</string>
     <string name="handoff_point_1">Una vez activada, deja de aparecer entre los remitentes de tu grupo y ya no podréis escribir en su nombre.</string>
     <string name="handoff_point_2">Tu grupo conserva las cartas que reenvió, para sus registros y reimpresiones. Pierde sus demás conversaciones.</string>
-    <string name="handoff_point_3">El código funciona una vez y dura 72 horas. Al crear uno nuevo se anula el anterior.</string>
+    <string name="handoff_point_3">El código funciona una sola vez. Al crear uno nuevo se anula el anterior.</string>
     <string name="bullet">• %1$s</string>
     <string name="token_revoked">El código se ha revocado. Ya no se puede usar.</string>
     <string name="action_working">Un momento…</string>
     <string name="action_generate_token">Generar código de activación</string>
     <string name="action_revoke_current">Revocar el código actual</string>
-    <string name="token_expires_once">Caduca el %1$s. Se muestra una sola vez: al salir de esta pantalla no se podrá volver a ver, solo sustituir.</string>
     <string name="action_copy">Copiar</string>
     <string name="token_give_in_person">Dáselo a %1$s en persona, o por un canal en el que ambos confiéis, como Signal. No lo envíes por correo electrónico ni lo publiques en ningún sitio. Se introduce en la aplicación, en Iniciar sesión, «Tengo un código de activación».</string>
     <string name="action_regenerate">Generar otro (anula este)</string>
@@ -478,7 +477,7 @@
     <string name="claim_setup_title">Configura tu cuenta</string>
     <string name="claim_created_for_you">Esta cuenta (%1$s) se creó para ti. Elige un nombre de usuario y una contraseña para tomar el control de tu correspondencia.</string>
     <string name="claim_created_for_you_by">Esta cuenta (%1$s) la creó para ti %2$s. Elige un nombre de usuario y una contraseña para tomar el control de tu correspondencia.</string>
-    <string name="claim_token_expires">El código caduca el %1$s.</string>
+    <string name="claim_token_expires">Este código sirve hasta el %1$s.</string>
     <string name="claim_warning_e2e">Tu contraseña protege tu clave de cifrado. Nadie, ni este servicio ni tu grupo, puede leer tus cartas sin ella. Después de este paso recibirás un código de recuperación: es la única forma de volver a entrar si olvidas la contraseña.</string>
     <string name="claim_warning_server">No existe «envíame un enlace para restablecerla». Guarda tu contraseña en un lugar seguro; si la pierdes, tendrá que ayudarte un administrador de la red.</string>
     <string name="help_username_length">De 3 a 16 caracteres</string>
@@ -490,7 +489,7 @@
     <string name="action_claiming">Activando… tarda unos segundos</string>
     <string name="action_different_token">Usar otro código</string>
     <string name="error_token_invalid">Ese código no es válido. Compáralo con el que te dio tu grupo.</string>
-    <string name="error_token_gone">Este código ya se ha usado o ha caducado. Los códigos duran 72 horas y funcionan una vez. Pide uno nuevo al grupo que creó tu cuenta.</string>
+    <string name="error_token_gone">Este código ya no se puede usar. Pide uno nuevo al grupo que creó tu cuenta; crearlo les lleva un momento.</string>
 
     <!-- Recovering an account -->
     <string name="error_recovery_code_format">Un código de recuperación tiene 24 letras y cifras, y nunca I, L, O ni U.</string>
@@ -510,7 +509,7 @@
     <string name="recover_section_own">Si la cuenta es tuya</string>
     <string name="recover_own_explained">Ponte en contacto con un administrador de la red a través del grupo con el que escribes. Podrá confirmar quién eres y ponerte una contraseña nueva.</string>
     <string name="recover_section_unclaimed">Si un grupo de apoyo creó tu cuenta y todavía no la has activado</string>
-    <string name="recover_unclaimed_explained">Pide al grupo un código de activación nuevo. Los códigos duran 72 horas y funcionan una vez; pueden crear otro cuando quieran.</string>
+    <string name="recover_unclaimed_explained">Pide al grupo un código de activación nuevo. Un código funciona una sola vez, hasta la fecha que te den con él; pueden crear otro cuando quieran.</string>
     <string name="recover_lockout_hint">Demasiados intentos fallidos bloquean un nombre de usuario durante 15 minutos. A veces basta con esperar.</string>
 
     <!-- The recovery code, shown once -->
@@ -883,4 +882,11 @@
     <string name="action_save">Guardar</string>
     <string name="action_saving">Guardando…</string>
     <string name="notice_saved">Guardado.</string>
+
+    <!-- Claim tokens carry the server's date, never a number of days (API PR #113: the lifetime is the operator's setting) -->
+    <string name="token_good_until">Sirve hasta el %s</string>
+    <string name="token_say_the_date">Di esa fecha al entregarlo. Pasada la fecha el código deja de funcionar, y crear uno nuevo es un toque, aquí. Se muestra una sola vez: al salir de esta pantalla ya no se puede volver a ver, solo sustituir.</string>
+    <string name="token_shown_once">Se muestra una sola vez: al salir de esta pantalla ya no se puede volver a ver, solo sustituir.</string>
+    <string name="error_token_expired">Este código ha caducado. Pide uno nuevo al grupo que creó tu cuenta: crearlo les lleva un momento, y te dirán hasta cuándo sirve.</string>
+    <string name="error_token_used">Este código ya se ha usado. Si fuiste tú, inicia sesión con el nombre de usuario y la contraseña que elegiste entonces. Si no, avisa al grupo que creó tu cuenta.</string>
 </resources>

@@ -99,7 +99,8 @@ class ClaimViewModel(
 
 internal fun AppError.toClaimMessage(strings: Strings): String = when (this) {
   is AppError.NotFound -> strings.get(R.string.error_token_invalid)
-  is AppError.Gone -> strings.get(R.string.error_token_gone)
+  // No lifetime is ever stated here: it is the server operator's setting (CLAIM_TOKEN_DAYS), and the date comes with each token.
+  is AppError.Gone -> strings.get(when (condition) { "expired" -> R.string.error_token_expired; "used" -> R.string.error_token_used; else -> R.string.error_token_gone })
   is AppError.Network -> strings.get(R.string.error_network)
   else -> userMessage ?: strings.get(R.string.error_generic)
 }

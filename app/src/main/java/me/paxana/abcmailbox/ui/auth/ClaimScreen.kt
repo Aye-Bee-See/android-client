@@ -83,11 +83,9 @@ fun ClaimScreen(
       }
 
       Text(stringResource(R.string.claim_setup_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.asHeading())
-      Text(
-        (info.groupName?.let { stringResource(R.string.claim_created_for_you_by, info.writerName, it) } ?: stringResource(R.string.claim_created_for_you, info.writerName)) +
-          (info.expiresAt?.let { " " + stringResource(R.string.claim_token_expires, it.longDate()) } ?: ""),
-        style = MaterialTheme.typography.bodyLarge,
-      )
+      Text(info.groupName?.let { stringResource(R.string.claim_created_for_you_by, info.writerName, it) } ?: stringResource(R.string.claim_created_for_you, info.writerName), style = MaterialTheme.typography.bodyLarge)
+      // The same date the volunteer was shown, on its own line so that it is seen: there is no hurry, and there is a limit.
+      info.expiresAt?.let { Text(stringResource(R.string.claim_token_expires, it.longDate()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("claim-good-until")) }
       AlertBanner(
         if (mode == EncryptionMode.E2E || info.endToEnd) {
           stringResource(R.string.claim_warning_e2e)

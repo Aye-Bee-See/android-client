@@ -26,7 +26,11 @@ sealed class AppError : Exception() {
   }
 
   /** A used or expired claim token (410). */
-  data class Gone(val info: String?) : AppError()
+  /**
+   * `condition` says why, where the server says so: a claim token that is `expired` sends the person to their group
+   * for a new one; one that is `used` means somebody has the account already, which is a different conversation.
+   */
+  data class Gone(val info: String?, val condition: String? = null) : AppError()
 
   /** 429: too many sign-in, claim, or recovery attempts. `retryAfterSeconds` comes from the `Retry-After` header. */
   data class RateLimited(val info: String?, val retryAfterSeconds: Long?) : AppError()

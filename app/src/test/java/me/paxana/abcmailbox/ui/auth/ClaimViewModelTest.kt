@@ -66,12 +66,21 @@ class ClaimViewModelTest {
   }
 
   @Test
-  fun `a used or expired token shows the ask-for-a-new-one state`() = runTest {
-    val vm = ClaimViewModel(FakeSessionRepository(claimInfoError = AppError.Gone("This claim token has expired.")), ClaimRoute(), TestStrings())
-    vm.onTokenChange(token); vm.check(); dispatcher.scheduler.advanceUntilIdle()
-    assertTrue(vm.ui.value.tokenDead)
-    assertTrue(vm.ui.value.error!!.contains("Ask the group"))
-    assertNull(vm.ui.value.info)
+  fun `an expired token sends the person to their group, a used one asks who used it, and neither states a lifetime`() = runTest {
+    fun messageFor(error: AppError, language: String = "en"): String {
+      val vm = ClaimViewModel(FakeSessionRepository(claimInfoError = error), ClaimRoute(), TestStrings(language))
+      vm.onTokenChange(token); vm.check(); dispatcher.scheduler.advanceUntilIdle()
+      assertTrue(vm.ui.value.tokenDead); assertNull(vm.ui.value.info)
+      return vm.ui.value.error!!
+    }
+    val expired = messageFor(AppError.Gone("This claim token has expired. Ask your group for a new one.", "expired"))
+    assertTrue(expired.startsWith("This token has expired. Ask the group that set up your account for a new one"))
+    val used = messageFor(AppError.Gone("Claim token is used.", "used"))
+    assertTrue(used.startsWith("This token has already been used. If that was you, sign in")); assertTrue("somebody else having the account is worth telling the group", used.contains("tell the group"))
+    val gone = messageFor(AppError.Gone("This account can no longer be claimed."))
+    assertTrue(gone.contains("Ask the group"))
+    // How long a token lasts is the server operator's setting (CLAIM_TOKEN_DAYS); the app never says a number.
+    for (text in listOf(expired, used, gone, messageFor(AppError.Gone(null, "expired"), "es"), messageFor(AppError.Gone(null, "expired"), "ru"))) assertFalse(text, text.contains(Regex("\\d")))
   }
 
   @Test

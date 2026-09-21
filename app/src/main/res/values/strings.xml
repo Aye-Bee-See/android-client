@@ -444,13 +444,12 @@
     <string name="handoff_intro">A one-time claim token lets %1$s set their own username and password and take independent control of their correspondence.</string>
     <string name="handoff_point_1">Once claimed, they no longer appear among your group\'s writers, and you can no longer write as them.</string>
     <string name="handoff_point_2">Your group keeps the letters it relayed, for records and reprints. It loses their other conversations.</string>
-    <string name="handoff_point_3">The token works once and lasts 72 hours. Making a new one cancels the old one.</string>
+    <string name="handoff_point_3">The token works once. Making a new one cancels the old one.</string>
     <string name="bullet">• %1$s</string>
     <string name="token_revoked">The token was revoked. It can no longer be used.</string>
     <string name="action_working">Working…</string>
     <string name="action_generate_token">Generate claim token</string>
     <string name="action_revoke_current">Revoke the current token</string>
-    <string name="token_expires_once">Expires %1$s. Shown once: when you leave this screen it cannot be shown again, only replaced.</string>
     <string name="action_copy">Copy</string>
     <string name="token_give_in_person">Give this to %1$s in person, or over a channel you both trust such as Signal. Do not email it or post it anywhere. They enter it in the app under Sign in, \"I have a claim token\".</string>
     <string name="action_regenerate">Regenerate (cancels this one)</string>
@@ -512,7 +511,7 @@
     <string name="claim_created_for_you">This account (%1$s) was created for you. Choose a username and password to take independent control of your correspondence.</string>
     <!-- %2$s is a support group's name. -->
     <string name="claim_created_for_you_by">This account (%1$s) was created for you by %2$s. Choose a username and password to take independent control of your correspondence.</string>
-    <string name="claim_token_expires">The token expires on %1$s.</string>
+    <string name="claim_token_expires">This token is good until %1$s.</string>
     <string name="claim_warning_e2e">Your password protects your encryption key. No one, not this site and not your group, can read your letters without it. After this step you will get a recovery code: it is the only way back in if you forget the password.</string>
     <string name="claim_warning_server">There is no \"email me a reset link\". Keep your password somewhere safe; if you lose it, a network admin has to help you.</string>
     <string name="help_username_length">3 to 16 characters</string>
@@ -524,7 +523,7 @@
     <string name="action_claiming">Claiming… this takes a few seconds</string>
     <string name="action_different_token">Use a different token</string>
     <string name="error_token_invalid">That token is not valid. Check it against what your group gave you.</string>
-    <string name="error_token_gone">This token has already been used or has expired. Tokens last 72 hours and work once. Ask the group that set up your account for a new one.</string>
+    <string name="error_token_gone">This token can no longer be used. Ask the group that set up your account for a new one; making one takes them a moment.</string>
 
     <!-- Recovering an account -->
     <string name="error_recovery_code_format">A recovery code has 24 letters and digits, and never I, L, O, or U.</string>
@@ -544,7 +543,7 @@
     <string name="recover_section_own">If the account is your own</string>
     <string name="recover_own_explained">Contact a network admin through the group you write with. They can confirm who you are and set a new password for you.</string>
     <string name="recover_section_unclaimed">If a support group set up your account and you have not claimed it yet</string>
-    <string name="recover_unclaimed_explained">Ask the group for a new claim token. Tokens last 72 hours and work once; they can make another at any time.</string>
+    <string name="recover_unclaimed_explained">Ask the group for a new claim token. A token works once, until the date they give you with it; they can make another at any time.</string>
     <string name="recover_lockout_hint">Too many wrong sign-in attempts lock a username for 15 minutes. Waiting is sometimes all it takes.</string>
 
     <!-- The recovery code, shown once -->
@@ -904,4 +903,12 @@
     <string name="action_save">Save</string>
     <string name="action_saving">Saving…</string>
     <string name="notice_saved">Saved.</string>
+
+    <!-- Claim tokens carry the server's date, never a number of days (API PR #113: the lifetime is the operator's setting) -->
+    <!-- a date -->
+    <string name="token_good_until">Good until %s</string>
+    <string name="token_say_the_date">Say that date when you hand it over. After it the token stops working, and a new one is one tap, here. It is shown once: when you leave this screen it cannot be shown again, only replaced.</string>
+    <string name="token_shown_once">Shown once: when you leave this screen it cannot be shown again, only replaced.</string>
+    <string name="error_token_expired">This token has expired. Ask the group that set up your account for a new one: making one takes them a moment, and they will tell you how long it is good for.</string>
+    <string name="error_token_used">This token has already been used. If that was you, sign in with the username and password you chose then. If it was not, tell the group that set up your account.</string>
 </resources>

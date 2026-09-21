@@ -72,6 +72,18 @@ class TranslationsTest {
   }
 
   @Test
+  fun `no language says how long a claim token lasts, because only the server knows`() {
+    // It was "72 hours" in three sentences and three languages, and then the API made it two weeks and a setting
+    // (PR #113). The date comes with each token (`expiresAt`); a number of hours or days here can only be wrong.
+    val lifetime = Regex("""\d+\s*(hours?|days?|weeks?|horas?|días?|semanas?|час\p{L}*|дн\p{L}*|день|недел\p{L}*)""", RegexOption.IGNORE_CASE)
+    for (folder in listOf("values") + languages.map { "values-$it" }) {
+      val about = read(folder).strings.filterKeys { it.contains("token") || it.contains("claim") || it.startsWith("handoff") || it == "recover_unclaimed_explained" }
+      assertTrue("$folder has strings about tokens", about.size > 10)
+      about.forEach { (name, text) -> assertTrue("$folder/$name states a lifetime: $text", lifetime.find(text) == null) }
+    }
+  }
+
+  @Test
   fun `Russian plurals have all four forms, and the others at least two`() {
     read("values-ru").plurals.forEach { (name, forms) -> assertEquals("ru/$name", setOf("one", "few", "many", "other"), forms.keys) }
     for (folder in listOf("values", "values-es")) read(folder).plurals.forEach { (name, forms) -> assertTrue("$folder/$name", forms.keys.containsAll(setOf("one", "other"))) }

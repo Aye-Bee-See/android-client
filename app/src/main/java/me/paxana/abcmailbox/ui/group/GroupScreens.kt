@@ -267,7 +267,10 @@ fun HandoffScreen(onBack: () -> Unit, viewModel: HandoffViewModel = hiltViewMode
         if (!ui.revoked) OutlinedButton(onClick = viewModel::revoke, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_revoke_current)) }
       } else {
         SecretCodeText(token.token)
-        token.expiresAt?.let { Text(stringResource(R.string.token_expires_once, it.longDate()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        // The date the server gave, on a line of its own: volunteers are asked to say it aloud when they hand the token
+        // over. Never a number of days: how long a token lasts is the server operator's setting.
+        token.expiresAt?.let { Text(stringResource(R.string.token_good_until, it.longDate()), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("token-good-until")) }
+        Text(stringResource(if (token.expiresAt != null) R.string.token_say_the_date else R.string.token_shown_once), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(token.token))) }) { Text(stringResource(R.string.action_copy)) }
         AlertBanner(stringResource(R.string.token_give_in_person, ui.writerName))
         OutlinedButton(onClick = viewModel::generate, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_regenerate)) }
