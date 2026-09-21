@@ -78,7 +78,11 @@ interface GroupApi {
   suspend fun addEnvelope(@Body body: AddEnvelopeRequest): ApiEnvelope<JsonElement>
 }
 
-@Serializable data class StatusRequest(val id: Int, val status: String)
+/**
+ * `reason` (required) and `note` go with `returned` only; on any other move they are a 400. `release` is what
+ * prints a held letter on purpose: without it the server answers 409 `LetterHeldError`.
+ */
+@Serializable data class StatusRequest(val id: Int, val status: String, val reason: String? = null, val note: String? = null, val release: Boolean? = null)
 @Serializable data class WriterRef(val writer: Int)
 @Serializable
 data class AddWriterRequest(

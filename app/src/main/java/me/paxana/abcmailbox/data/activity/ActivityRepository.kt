@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.NotificationsApi
@@ -80,7 +81,10 @@ class DefaultActivityRepository @Inject constructor(
     val entries = envelope.data.orEmpty()
     _unread.value = envelope.unread ?: entries.size
     val fresh = entries.filter { it.readAt == null }.map { e ->
-      Activity(e.id, Activity.kindOf(e.event, runCatching { e.detail?.get("status")?.jsonPrimitive?.contentOrNull }.getOrNull()), e.chat, e.message)
+      Activity(
+        e.id, Activity.kindOf(e.event, runCatching { e.detail?.get("status")?.jsonPrimitive?.contentOrNull }.getOrNull()), e.chat, e.message,
+        held = runCatching { e.detail?.get("held")?.jsonPrimitive?.intOrNull }.getOrNull() ?: 0,
+      )
     }
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }
     if (announce && fresh.isNotEmpty()) {

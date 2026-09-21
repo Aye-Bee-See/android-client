@@ -49,11 +49,15 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** How a letter came back: the reason the group chose, and what the envelope said (200 characters, never encrypted, shown to the writer). */
+data class ReturnedAs(val reason: me.paxana.abcmailbox.domain.ReturnReason, val note: String? = null) { companion object { const val NOTE_MAX = 200 } }
+
 interface GroupRepository {
   /** Letters the group relays, in one status. Each comes with the prisoner, for addressing. */
   fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>>
   suspend fun queueItem(messageId: Int): ApiResult<QueueItem>
-  suspend fun setStatus(messageId: Int, status: LetterStatus): ApiResult<Letter>
+  /** [returned] is required for, and only for, `RETURNED`. [release] prints a held letter knowingly. */
+  suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs? = null, release: Boolean = false): ApiResult<Letter>
   suspend fun writers(): ApiResult<List<ManagedWriter>>
   suspend fun addWriter(name: String, email: String?, note: String?): ApiResult<ManagedWriter>
   suspend fun issueToken(writerId: Int): ApiResult<IssuedToken>
@@ -126,9 +130,10 @@ class DefaultGroupRepository @Inject constructor(
     is ApiResult.Success -> ApiResult.Success(QueueItem(r.value, r.value.prisonerId?.let { prisoner(it) }))
   }
 
-  override suspend fun setStatus(messageId: Int, status: LetterStatus): ApiResult<Letter> {
+  override suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs?, release: Boolean): ApiResult<Letter> {
     codec.ready()
-    return apiCall(json) { api.setStatus(StatusRequest(messageId, status.key)) }.map { codec.incoming(checkNotNull(it.data)) }
+    val request = StatusRequest(messageId, status.key, reason = returned?.reason?.key, note = returned?.note?.trim()?.take(ReturnedAs.NOTE_MAX)?.ifBlank { null }, release = true.takeIf { release })
+    return apiCall(json) { api.setStatus(request) }.map { codec.incoming(checkNotNull(it.data)) }
   }
 
   override suspend fun writers(): ApiResult<List<ManagedWriter>> =

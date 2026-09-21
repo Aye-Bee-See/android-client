@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.group
 
+import me.paxana.abcmailbox.data.repo.ReturnedAs
+import me.paxana.abcmailbox.domain.HeldReason
+import me.paxana.abcmailbox.domain.ReturnReason
 import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.coroutines.flow.MutableStateFlow
 import me.paxana.abcmailbox.crypto.Sodium
@@ -48,9 +51,14 @@ class GroupViewModelsTest {
     private fun letter() = Letter(41, 41, 1, 4, false, status, "Dear Jane", null, 1, "Test Chapter", false, null, null, emptyList(), emptyList())
     override fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>> = emptyFlow()
     override suspend fun queueItem(messageId: Int) = ApiResult.Success(QueueItem(letter(), null))
-    override suspend fun setStatus(messageId: Int, status: LetterStatus): ApiResult<Letter> {
+    /** What came with each move: how it came back, and whether a hold was knowingly released. */
+    val returnedAs = mutableListOf<me.paxana.abcmailbox.data.repo.ReturnedAs?>(); val releases = mutableListOf<Boolean>()
+    /** Set to make the letter held, as the server would after someone is freed. */
+    var held: me.paxana.abcmailbox.domain.HeldReason? = null
+    override suspend fun setStatus(messageId: Int, status: LetterStatus, returned: me.paxana.abcmailbox.data.repo.ReturnedAs?, release: Boolean): ApiResult<Letter> {
       refuse?.let { return ApiResult.Failure(it) }
-      moves += status; this.status = status; return ApiResult.Success(letter())
+      if (held != null && status == LetterStatus.PRINTED && !release) return ApiResult.Failure(AppError.Conflict("This letter is held.", "LetterHeldError"))
+      moves += status; returnedAs += returned; releases += release; this.status = status; held = null; return ApiResult.Success(letter())
     }
     override suspend fun writers() = ApiResult.Success(emptyList<ManagedWriter>())
     override suspend fun addWriter(name: String, email: String?, note: String?) = ApiResult.Success(ManagedWriter(47, name.trim(), email, note, null))
@@ -121,6 +129,43 @@ class GroupViewModelsTest {
     assertEquals(listOf(LetterStatus.PRINTED, LetterStatus.MAILED), group.moves)
     assertEquals(LetterStatus.MAILED, (vm.ui.value.item as Loadable.Loaded).value.letter.status)
     assertEquals("Marked as mailed.", vm.ui.value.notice)
+  }
+
+  @Test
+  fun `a letter that came back is recorded with its reason and the envelope's words, from mailed only`() = runTest {
+    val group = FakeGroup(status = LetterStatus.PRINTED)
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings())
+    dispatcher.scheduler.advanceUntilIdle()
+    vm.markReturned(ReturnReason.REFUSED, "too early"); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("a printed letter has not been anywhere to come back from", group.moves.isEmpty())
+
+    group.status = LetterStatus.MAILED; vm.load(); dispatcher.scheduler.advanceUntilIdle()
+    vm.markReturned(ReturnReason.TRANSFERRED, "Stamped NOT HERE"); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(LetterStatus.RETURNED), group.moves)
+    assertEquals(ReturnedAs(ReturnReason.TRANSFERRED, "Stamped NOT HERE"), group.returnedAs.single())
+    assertEquals("an address-type return nudges the member towards the directory", "Recorded. The writer has been told. If you know where they are now, the directory needs correcting.", vm.ui.value.notice)
+    assertEquals(LetterStatus.RETURNED, (vm.ui.value.item as Loadable.Loaded).value.letter.status)
+
+    val other = FakeGroup(status = LetterStatus.MAILED)
+    val vm2 = LetterWorkViewModel(other, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    vm2.markReturned(ReturnReason.RULE_VIOLATION, ""); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Recorded. The writer has been told.", vm2.ui.value.notice)
+  }
+
+  @Test
+  fun `a letter held since the screen was opened is not printed by oversight, only on purpose`() = runTest {
+    val group = FakeGroup()
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings())
+    dispatcher.scheduler.advanceUntilIdle()
+    group.held = HeldReason.PRISONER_FREE // the directory learned it a minute ago; this screen has not
+    vm.advance(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("the server's refusal becomes the question the screen would have asked", vm.ui.value.askRelease)
+    assertTrue(group.moves.isEmpty()); assertEquals("not a red line to be dismissed", null, vm.ui.value.notice)
+
+    vm.releaseDeclined(); assertFalse(vm.ui.value.askRelease); assertTrue(group.moves.isEmpty())
+
+    vm.advance(release = true); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(LetterStatus.PRINTED), group.moves); assertEquals(listOf(true), group.releases)
   }
 
   @Test

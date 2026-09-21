@@ -1,5 +1,10 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.domain.Resent
+import me.paxana.abcmailbox.domain.LetterStatus
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.async
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -44,6 +49,14 @@ data class NewLetter(
   val groupRelaysFacility: Boolean = false,
   /** Made once per letter, kept through every retry, including the outbox's days later. See [LettersApi.send]. */
   val idempotencyKey: String? = null,
+  /** The returned letter this one replaces (API PR #105). The server checks it is this writer's, returned, and to the same prisoner. */
+  val resendOf: Int? = null,
+  /**
+   * A held letter of the writer's own that this one stands in for (API PR #106, `reseal_needed`: in end-to-end
+   * mode a letter sealed to the wrong group cannot be re-sealed by the server, so the phone sends it again).
+   * Deleted once the new one is safely sent, and only then: the other order could lose the letter.
+   */
+  val replacesHeld: Int? = null,
 )
 
 data class LetterEdit(val messageId: Int, val body: String, val relayNote: String?, val relayChapter: Int?)
@@ -86,7 +99,28 @@ class DefaultLettersRepository @Inject constructor(
 
   override suspend fun thread(chatId: Int): ApiResult<Thread> {
     codec.ready()
-    return apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).decoded() }
+    return apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).decoded().withReturnsFilledIn() }
+  }
+
+  /**
+   * A letter inside a conversation arrives without its history, and the history is where a return's note is
+   * ("Stamped NOT HERE"), nor with the list of what replaced it. What replaced it can be read off the
+   * conversation itself: any letter whose `resendOf` is this one. The note needs the letter read in full, which
+   * is done for returned letters only: they are rare, and the note is the most useful sentence on the screen.
+   * Best effort: a read that fails leaves the letter as it was, with its reason and without its note.
+   */
+  private suspend fun Thread.withReturnsFilledIn(): Thread {
+    if (letters.none { it.status == LetterStatus.RETURNED }) return this
+    val full = coroutineScope {
+      letters.filter { it.status == LetterStatus.RETURNED }.map { l -> async { l.id to (apiCall(json) { api.message(l.id) } as? ApiResult.Success)?.value?.data?.toDomain() } }.awaitAll().toMap()
+    }
+    return copy(letters = letters.map { l ->
+      if (l.status != LetterStatus.RETURNED) return@map l
+      l.copy(
+        history = full[l.id]?.history?.takeIf { it.isNotEmpty() } ?: l.history,
+        resentAs = letters.filter { it.resendOfId == l.id }.map { Resent(it.id, it.status, it.createdAt) },
+      )
+    })
   }
 
   override suspend fun threadForPrisoner(prisonerId: Int): ApiResult<Thread?> {
@@ -111,7 +145,11 @@ class DefaultLettersRepository @Inject constructor(
         is ApiResult.Success -> encoded.value.first
       }
       when (val r = apiCall(json) { api.send(request, letter.idempotencyKey) }) {
-        is ApiResult.Success -> return ApiResult.Success(codec.incoming(checkNotNull(r.value.data)))
+        is ApiResult.Success -> {
+          // Best effort: if this fails the old letter is still held, so it cannot be printed by oversight, and the writer can delete it by hand.
+          letter.replacesHeld?.let { old -> apiCall(json) { api.delete(IdBody(old)) } }
+          return ApiResult.Success(codec.incoming(checkNotNull(r.value.data)))
+        }
         // Only a rotated group key is worth an immediate second try. "Still processing" means our own earlier attempt is in flight.
         is ApiResult.Failure -> if (r.error !is AppError.Conflict || r.error.isStillProcessing || attempt == 1) return r else codec.refreshKeys()
       }

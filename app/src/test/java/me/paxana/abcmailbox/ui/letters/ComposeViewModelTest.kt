@@ -113,6 +113,40 @@ class ComposeViewModelTest {
   }
 
   @Test
+  fun `sending a returned letter again starts from its words, names it, and leaves the ordinary draft alone`() = runTest {
+    val letters = FakeLetters(); val drafts = FakeDrafts(mutableMapOf((1 to 3) to Draft("a different, unfinished letter", null, null, 0)))
+    val vm = vm(Routing.DIRECT, listOf(group(1)), letters, drafts, route = ComposeRoute(prisonerId = 3, resendOf = 41))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("the returned letter's text, not the draft's", "probe", vm.ui.value.body)
+    assertTrue(vm.ui.value.sendingAgain); assertFalse(vm.ui.value.draftRestored)
+    vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(41, letters.sent.single().resendOf); assertEquals(null, letters.sent.single().replacesHeld)
+    assertEquals("who mails it is decided afresh, from where they are now", 1, letters.sent.single().relayChapter)
+    assertEquals("the unfinished letter is still there", "a different, unfinished letter", drafts.store[1 to 3]?.body)
+  }
+
+  @Test
+  fun `a held letter that must be sealed again is sent as a new one that replaces it`() = runTest {
+    val letters = FakeLetters()
+    val vm = vm(Routing.DIRECT, listOf(group(1)), letters, route = ComposeRoute(prisonerId = 3, replacesHeld = 52))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("probe", vm.ui.value.body)
+    vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(52, letters.sent.single().replacesHeld); assertEquals(null, letters.sent.single().resendOf)
+  }
+
+  @Test
+  fun `choosing who mails a held letter does not quietly keep the group that no longer serves them`() = runTest {
+    // The letter says group 7, from before the move. The new facility is relay-only and offers 1 and 2.
+    val letters = FakeLetters(relayGroupOfStub = 7)
+    val vm = vm(Routing.RELAY_ONLY, listOf(group(1), group(2)), letters, edit = 52)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(null, vm.ui.value.selectedRelay); assertFalse("nothing to save until a group is chosen", vm.ui.value.canSend)
+    vm.onSelectRelay(2); vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("the choice is what lifts the hold", 2, letters.edits.single().relayChapter)
+  }
+
+  @Test
   fun `relay-only with no group is blocked outright`() = runTest {
     val vm = vm(Routing.RELAY_ONLY, emptyList())
     dispatcher.scheduler.advanceUntilIdle()
@@ -260,10 +294,10 @@ class ComposeViewModelTest {
     assertEquals(listOf(7L), outbox.forgotten)
   }
 
-  class FakeLetters(private val fail: AppError? = null) : LettersRepository {
+  class FakeLetters(private val fail: AppError? = null, /** The relay group the stub letter says it has. */ private val relayGroupOfStub: Int? = null) : LettersRepository {
     val sent = mutableListOf<NewLetter>(); val triedKeys = mutableListOf<String?>()
     val edits = mutableListOf<LetterEdit>()
-    private fun stub(id: Int) = Letter(id, 41, 3, 1, false, LetterStatus.QUEUED, "probe", null, null, null, false, null, null, emptyList(), emptyList())
+    private fun stub(id: Int) = Letter(id, 41, 3, 1, false, LetterStatus.QUEUED, "probe", null, relayGroupOfStub, null, false, null, null, emptyList(), emptyList())
     override fun threads(): Flow<PagingData<Thread>> = emptyFlow()
     override suspend fun thread(chatId: Int) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun threadForPrisoner(prisonerId: Int) = ApiResult.Success(null)

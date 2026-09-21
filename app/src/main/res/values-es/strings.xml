@@ -639,8 +639,8 @@
     <string name="push_failed">No se pudo cambiar: %1$s</string>
 
     <!-- Notification channels: people can silence each kind separately in Android's settings -->
-    <string name="channel_replies">Respuestas</string>
-    <string name="channel_replies_description">Se ha registrado la respuesta de una persona presa en una de tus conversaciones. Se muestra como aviso emergente.</string>
+    <string name="channel_replies">Respuestas y cartas que te necesitan</string>
+    <string name="channel_replies_description">Se ha registrado una respuesta, una carta ha vuelto, o una carta espera a que decidas algo. Se muestra como aviso emergente.</string>
     <string name="channel_progress">Progreso de las cartas</string>
     <string name="channel_progress_description">Tu carta se ha impreso o enviado, o se ha decidido sobre un cambio que propusiste. Discreto.</string>
     <string name="channel_queue">Cartas por imprimir</string>
@@ -726,4 +726,67 @@
     <string name="action_delete_everything">Eliminar todo</string>
     <string name="error_delete_wrong_password">Esa no es la contraseña de esta cuenta. No se ha eliminado nada.</string>
     <string name="error_delete_network">No se puede contactar con el servidor. No se ha eliminado nada.</string>
+
+    <!-- Returned mail (API PR #105): a status, six reasons worded twice (a sentence for the writer, a short choice for the group), and send-again -->
+    <string name="status_returned">Devuelta</string>
+    <string name="status_returned_meaning">El correo la devolvió. No llegó a su destino.</string>
+    <string name="status_returned_on">Volvió el %s</string>
+    <string name="status_returned_undated">Volvió por correo</string>
+    <string name="return_refused">La oficina de correo de la prisión no quiso entregarla, y no dijo por qué regla.</string>
+    <string name="return_refused_advice">Revisa las normas de correo del centro antes de enviarla de nuevo; el grupo que la envió quizá sepa más.</string>
+    <string name="return_rule_violation">Incumplía una de las normas de correo del centro.</string>
+    <string name="return_rule_violation_advice">Revisa las normas que se muestran al escribir, cambia lo que las incumplía y envíala de nuevo.</string>
+    <string name="return_transferred">Ahora está en otro centro.</string>
+    <string name="return_transferred_advice">Si la envías de nuevo, irá a donde el directorio dice que está ahora. Si el directorio aún muestra el lugar anterior, puede volver otra vez: mira antes su perfil.</string>
+    <string name="return_released">Ya no está en ese centro.</string>
+    <string name="return_released_advice">Puede que haya salido en libertad. Mira su perfil antes de volver a enviar nada a una prisión.</string>
+    <string name="return_bad_address">No se pudo entregar con esa dirección.</string>
+    <string name="return_bad_address_advice">La dirección del directorio puede estar mal. Tu grupo puede corregirla; enviada de nuevo después, la carta irá a la nueva.</string>
+    <string name="return_unknown">Volvió, y nada en el sobre dice por qué.</string>
+    <string name="return_unknown_advice">Puedes enviarla de nuevo tal como está. Si vuelve dos veces, pregunta al grupo que la envió.</string>
+    <string name="return_envelope_said">El sobre decía: «%s»</string>
+    <string name="return_sent_again_on">Enviada de nuevo el %1$s (%2$s)</string>
+    <string name="return_sent_again">Enviada de nuevo (%s)</string>
+    <string name="action_send_again">Enviarla de nuevo</string>
+    <string name="compose_sending_again">Partes de la carta que no llegó. Cambia lo que quieras; quién la envía se decide de nuevo según dónde está ahora.</string>
+    <string name="return_choice_refused">Rechazada por el correo de la prisión, sin citar norma</string>
+    <string name="return_choice_rule_violation">Incumplía una norma de correo</string>
+    <string name="return_choice_transferred">Traslado: ahora está en otro centro</string>
+    <string name="return_choice_released">En libertad: ya no está preso</string>
+    <string name="return_choice_bad_address">No se pudo entregar con esa dirección</string>
+    <string name="return_choice_unknown">Nada dice por qué</string>
+    <string name="action_it_came_back">Ha vuelto…</string>
+    <string name="return_dialog_title">Esta carta ha vuelto</string>
+    <string name="return_dialog_text">Se avisa a quien la escribió, que podrá enviarla de nuevo. ¿Qué dice el sobre?</string>
+    <string name="label_envelope_said">Lo que dice el sobre (opcional)</string>
+    <string name="help_envelope_said">%1$d de %2$d. Lo verá quien escribió y nunca se cifra: solo el sello o la etiqueta, nada sobre la carta.</string>
+    <string name="action_record_return">Registrarlo</string>
+    <string name="notice_returned">Registrado. Se ha avisado a quien la escribió.</string>
+    <string name="notice_returned_address">Registrado. Se ha avisado a quien la escribió. Si sabes dónde está ahora, hay que corregir el directorio.</string>
+    <string name="queue_empty_returned">No ha vuelto nada.</string>
+
+    <!-- Held letters (API PR #106): still queued, going nowhere until somebody decides -->
+    <string name="status_held">En espera</string>
+    <string name="held_choose_relay">Le han trasladado, y su nuevo centro solo acepta correo a través de un grupo. Esta carta espera a que elijas qué grupo la envía.</string>
+    <string name="held_reseal_needed">Le han trasladado, y esta carta está cifrada para un grupo que no envía correo a su nuevo centro. Nadie más puede abrirla, así que hay que enviarla de nuevo desde tu teléfono.</string>
+    <string name="held_prisoner_free">El directorio dice que ha salido en libertad. Una carta enviada a una prisión que alguien ya dejó quizá no le llegue nunca, así que esta espera. Puedes eliminarla; el grupo aún puede decidir enviarla.</string>
+    <string name="held_other">Esta carta está en espera y por ahora no se imprimirá.</string>
+    <string name="action_choose_who_mails">Elegir quién la envía</string>
+    <string name="held_queue_choose_relay">En espera: quien escribió debe elegir quién la envía</string>
+    <string name="held_queue_reseal_needed">En espera: hubo traslado, quien escribió debe enviarla de nuevo</string>
+    <string name="held_queue_prisoner_free">En espera: ha salido en libertad</string>
+    <string name="held_queue_other">En espera</string>
+    <string name="held_group_choose_relay">Esta persona fue trasladada, y se ha pedido a quien escribió que elija qué grupo envía la carta. No os toca imprimirla salvo que os elija.</string>
+    <string name="held_group_reseal_needed">Esta persona fue trasladada a un centro al que vuestro grupo no envía correo. Se ha pedido a quien escribió que envíe la carta de nuevo, para el grupo adecuado. Enviar esta copia la mandaría al lugar equivocado.</string>
+    <string name="held_group_prisoner_free">El directorio dice que esta persona ha salido en libertad. Una carta enviada a una prisión que ya dejó quizá no le llegue nunca. Imprímela solo si sabes que llegará.</string>
+    <string name="release_title">¿Imprimir una carta que está en espera?</string>
+    <string name="action_print_anyway">Imprimirla igualmente</string>
+    <string name="action_leave_it_held">Dejarla en espera</string>
+
+    <!-- Feed sentences for returned, moved and freed. Like the others they name nobody: they are read on lock screens -->
+    <string name="activity_returned">Una de tus cartas ha vuelto por correo.</string>
+    <string name="activity_moved">Han trasladado a otro centro a alguien a quien escribes.</string>
+    <string name="activity_moved_held">Han trasladado a alguien a quien escribes, y una carta tuya te está esperando.</string>
+    <string name="activity_freed">Alguien a quien escribes ha salido en libertad.</string>
+    <string name="activity_freed_held">Alguien a quien escribes ha salido en libertad. Una carta tuya para esa persona está en espera.</string>
 </resources>

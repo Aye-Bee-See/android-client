@@ -92,6 +92,8 @@ fun ComposeScreen(
           ui.facility?.let { f -> Text(f.name + f.shortLocation.takeIf { it.isNotBlank() }?.let { ", $it" }.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
 
+        if (ui.sendingAgain) Text(stringResource(R.string.compose_sending_again), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+
         if (!ui.recordingReply) ui.facility?.let { f ->
           SectionTitle(stringResource(R.string.compose_rules_for, f.name))
           MailRulesList(f.rules, emptyText = stringResource(R.string.compose_rules_none))

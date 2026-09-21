@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.domain.ReturnReason
 import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
 import androidx.paging.PagingData
@@ -87,6 +88,32 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"LetterStatusError","info":"Error updating letter status.","status":409,"error":"A printed letter cannot move to queued."}"""))
     val refused = repo.setStatus(41, LetterStatus.QUEUED) as ApiResult.Failure
     assertEquals("A printed letter cannot move to queued.", refused.error.userMessage)
+  }
+
+  @Test
+  fun `a return carries its reason and the envelope's words, and printing a held letter says it means to`() = runTest {
+    val returned = """{"data":{"id":5,"chat":1,"sender":"user","prisoner":1,"user":3,"status":"returned","returnReason":"bad_address","relayChapter":1,"messageText":"Hi"},"success":true,"status":200}"""
+    server.enqueue(MockResponse().setBody(returned))
+    val ok = repo.setStatus(5, LetterStatus.RETURNED, returned = ReturnedAs(ReturnReason.BAD_ADDRESS, "  RTS no such unit  ")) as ApiResult.Success
+    assertEquals(ReturnReason.BAD_ADDRESS, ok.value.returnReason)
+    assertEquals("""{"id":5,"status":"returned","reason":"bad_address","note":"RTS no such unit"}""", server.next().body.readUtf8())
+
+    server.enqueue(MockResponse().setBody(returned))
+    repo.setStatus(5, LetterStatus.RETURNED, returned = ReturnedAs(ReturnReason.UNKNOWN, "   "))
+    assertEquals("a blank note is no note", """{"id":5,"status":"returned","reason":"unknown"}""", server.next().body.readUtf8())
+
+    server.enqueue(MockResponse().setBody(returned))
+    repo.setStatus(5, LetterStatus.RETURNED, returned = ReturnedAs(ReturnReason.REFUSED, "x".repeat(250)))
+    assertEquals("the API's 200 characters, kept to here", 200, Regex("x+").find(server.next().body.readUtf8())!!.value.length)
+
+    // Recorded from the API: what printing a held letter answers without `release`.
+    server.enqueue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"LetterHeldError","info":"Error updating letter status.","status":409,"error":"This letter is held (prisoner_free). Send release: true to go ahead with it anyway."}"""))
+    val refused = repo.setStatus(4, LetterStatus.PRINTED) as ApiResult.Failure
+    assertEquals("LetterHeldError", (refused.error as AppError.Conflict).name)
+    assertEquals("""{"id":4,"status":"printed"}""", server.next().body.readUtf8())
+    server.enqueue(MockResponse().setBody("""{"data":{"id":4,"chat":2,"sender":"user","prisoner":2,"user":3,"status":"printed","relayChapter":1,"messageText":"Hi"},"success":true,"status":200}"""))
+    repo.setStatus(4, LetterStatus.PRINTED, release = true)
+    assertEquals("""{"id":4,"status":"printed","release":true}""", server.next().body.readUtf8())
   }
 
   @Test

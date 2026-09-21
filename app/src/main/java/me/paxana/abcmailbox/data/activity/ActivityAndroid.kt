@@ -101,7 +101,8 @@ class AndroidActivityNotifier @Inject constructor(@ApplicationContext private va
     prepare()
     // A batch goes out on the channel of its most important entry.
     val channel = when {
-      fresh.any { it.kind == Activity.Kind.REPLY } -> REPLIES
+      // A reply, or a letter that waits for its writer: both go nowhere until the person looks.
+      fresh.any { it.kind == Activity.Kind.REPLY || it.needsThem } -> REPLIES
       fresh.any { it.kind == Activity.Kind.QUEUED_FOR_GROUP } -> QUEUE
       else -> PROGRESS
     }

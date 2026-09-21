@@ -660,8 +660,8 @@
     <string name="push_failed">Не удалось изменить: %1$s</string>
 
     <!-- Notification channels: people can silence each kind separately in Android's settings -->
-    <string name="channel_replies">Ответы</string>
-    <string name="channel_replies_description">В одной из ваших переписок записан ответ заключённого. Показывается всплывающим уведомлением.</string>
+    <string name="channel_replies">Ответы и письма, требующие вашего решения</string>
+    <string name="channel_replies_description">Записан ответ заключённого, письмо вернулось или письмо ждёт вашего решения. Показывается всплывающим уведомлением.</string>
     <string name="channel_progress">Движение писем</string>
     <string name="channel_progress_description">Ваше письмо напечатано или отправлено, либо по предложенному вами изменению принято решение. Без звука.</string>
     <string name="channel_queue">Письма к печати</string>
@@ -754,4 +754,67 @@
     <string name="action_delete_everything">Удалить всё</string>
     <string name="error_delete_wrong_password">Это не пароль от этого аккаунта. Ничего не удалено.</string>
     <string name="error_delete_network">Не удаётся связаться с сервером. Ничего не удалено.</string>
+
+    <!-- Returned mail (API PR #105): a status, six reasons worded twice (a sentence for the writer, a short choice for the group), and send-again -->
+    <string name="status_returned">Вернулось</string>
+    <string name="status_returned_meaning">Почта вернула письмо. Оно не дошло.</string>
+    <string name="status_returned_on">Вернулось %s</string>
+    <string name="status_returned_undated">Вернулось по почте</string>
+    <string name="return_refused">Почтовая служба тюрьмы отказалась передать письмо и не назвала правило.</string>
+    <string name="return_refused_advice">Перед повторной отправкой посмотрите почтовые правила учреждения; группа, отправлявшая письмо, может знать больше.</string>
+    <string name="return_rule_violation">Письмо нарушило одно из почтовых правил учреждения.</string>
+    <string name="return_rule_violation_advice">Проверьте правила, которые показываются при написании письма, исправьте нарушение и отправьте снова.</string>
+    <string name="return_transferred">Этого человека перевели в другое место.</string>
+    <string name="return_transferred_advice">При повторной отправке письмо пойдёт туда, где человек находится по данным справочника. Если там всё ещё старое место, письмо может вернуться снова: сначала проверьте профиль.</string>
+    <string name="return_released">Этого человека там больше не держат.</string>
+    <string name="return_released_advice">Возможно, человека освободили. Проверьте профиль, прежде чем снова отправлять что-либо в тюрьму.</string>
+    <string name="return_bad_address">Письмо не удалось доставить по этому адресу.</string>
+    <string name="return_bad_address_advice">Адрес в справочнике может быть неверным. Группа может его исправить; после этого повторно отправленное письмо пойдёт по новому адресу.</string>
+    <string name="return_unknown">Письмо вернулось, и на нём не сказано почему.</string>
+    <string name="return_unknown_advice">Можно отправить его снова без изменений. Если вернётся дважды, спросите группу, которая его отправляла.</string>
+    <string name="return_envelope_said">На конверте было написано: «%s»</string>
+    <string name="return_sent_again_on">Отправлено снова %1$s (%2$s)</string>
+    <string name="return_sent_again">Отправлено снова (%s)</string>
+    <string name="action_send_again">Отправить снова</string>
+    <string name="compose_sending_again">Это текст письма, которое не дошло. Меняйте что угодно; кто его отправит, определяется заново по нынешнему месту нахождения адресата.</string>
+    <string name="return_choice_refused">Отклонено почтовой службой, правило не названо</string>
+    <string name="return_choice_rule_violation">Нарушено почтовое правило</string>
+    <string name="return_choice_transferred">Перевод: человек теперь в другом месте</string>
+    <string name="return_choice_released">Освобождён: больше не под стражей</string>
+    <string name="return_choice_bad_address">Не доставлено по указанному адресу</string>
+    <string name="return_choice_unknown">Причина не указана</string>
+    <string name="action_it_came_back">Письмо вернулось…</string>
+    <string name="return_dialog_title">Это письмо вернулось</string>
+    <string name="return_dialog_text">Автору сообщат, и он сможет отправить письмо снова. Что написано на конверте?</string>
+    <string name="label_envelope_said">Что написано на конверте (необязательно)</string>
+    <string name="help_envelope_said">%1$d из %2$d. Это увидит автор, и это не шифруется: только штамп или наклейка, ничего о самом письме.</string>
+    <string name="action_record_return">Записать</string>
+    <string name="notice_returned">Записано. Автору сообщили.</string>
+    <string name="notice_returned_address">Записано. Автору сообщили. Если вы знаете, где человек сейчас, справочник нужно исправить.</string>
+    <string name="queue_empty_returned">Ничего не вернулось.</string>
+
+    <!-- Held letters (API PR #106): still queued, going nowhere until somebody decides -->
+    <string name="status_held">Задержано</string>
+    <string name="held_choose_relay">Человека перевели, а новое учреждение принимает почту только через группу. Письмо ждёт, пока вы выберете, какая группа его отправит.</string>
+    <string name="held_reseal_needed">Человека перевели, а это письмо зашифровано для группы, которая не отправляет почту в новое учреждение. Никто другой открыть его не может, поэтому его нужно отправить заново с вашего телефона.</string>
+    <string name="held_prisoner_free">По данным справочника, человека освободили. Письмо, отправленное в тюрьму, которую человек покинул, может никогда до него не дойти, поэтому оно ждёт. Вы можете удалить его; группа всё ещё может решить его отправить.</string>
+    <string name="held_other">Это письмо задержано и пока не будет напечатано.</string>
+    <string name="action_choose_who_mails">Выбрать, кто отправит</string>
+    <string name="held_queue_choose_relay">Задержано: автор должен выбрать, кто отправит</string>
+    <string name="held_queue_reseal_needed">Задержано: адресата перевели, автор должен отправить заново</string>
+    <string name="held_queue_prisoner_free">Задержано: адресат освобождён</string>
+    <string name="held_queue_other">Задержано</string>
+    <string name="held_group_choose_relay">Этого человека перевели, и автора попросили выбрать, какая группа отправит письмо. Печатать его вам не нужно, если только не выберут вас.</string>
+    <string name="held_group_reseal_needed">Этого человека перевели в учреждение, куда ваша группа почту не отправляет. Автора попросили отправить письмо заново, для нужной группы. Отправка этой копии направит её не туда.</string>
+    <string name="held_group_prisoner_free">По данным справочника, этого человека освободили. Письмо, отправленное в тюрьму, которую он покинул, может не дойти. Печатайте, только если знаете, что дойдёт.</string>
+    <string name="release_title">Напечатать задержанное письмо?</string>
+    <string name="action_print_anyway">Всё равно напечатать</string>
+    <string name="action_leave_it_held">Оставить задержанным</string>
+
+    <!-- Feed sentences for returned, moved and freed. Like the others they name nobody: they are read on lock screens -->
+    <string name="activity_returned">Одно из ваших писем вернулось по почте.</string>
+    <string name="activity_moved">Человека, которому вы пишете, перевели в другое учреждение.</string>
+    <string name="activity_moved_held">Человека, которому вы пишете, перевели, и ваше письмо ждёт вашего решения.</string>
+    <string name="activity_freed">Человека, которому вы пишете, освободили.</string>
+    <string name="activity_freed_held">Человека, которому вы пишете, освободили. Ваше письмо ему задержано.</string>
 </resources>

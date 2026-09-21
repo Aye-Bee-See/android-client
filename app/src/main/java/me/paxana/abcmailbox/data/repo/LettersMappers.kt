@@ -8,6 +8,9 @@ import me.paxana.abcmailbox.domain.Attachment
 import me.paxana.abcmailbox.domain.LastMessage
 import me.paxana.abcmailbox.domain.Letter
 import me.paxana.abcmailbox.domain.LetterStatus
+import me.paxana.abcmailbox.domain.Resent
+import me.paxana.abcmailbox.domain.HeldReason
+import me.paxana.abcmailbox.domain.ReturnReason
 import me.paxana.abcmailbox.domain.StatusChange
 import me.paxana.abcmailbox.domain.Thread
 
@@ -18,6 +21,8 @@ fun StatusHistoryDto.toDomain() = StatusChange(
   to = LetterStatus.fromKey(toStatus),
   at = createdAt.toInstantOrNull(),
   byUserId = changedBy,
+  reason = ReturnReason.fromKey(reason),
+  note = note,
 )
 
 fun MessageDto.toDomain(): Letter = Letter(
@@ -37,6 +42,10 @@ fun MessageDto.toDomain(): Letter = Letter(
   statusChangedAt = statusChangedAt.toInstantOrNull(),
   history = statusHistory.orEmpty().map { it.toDomain() },
   attachments = attachments.orEmpty().map { it.toDomain() },
+  returnReason = ReturnReason.fromKey(returnReason),
+  heldReason = HeldReason.fromKey(heldReason),
+  resendOfId = resendOf,
+  resentAs = resentAs.orEmpty().map { Resent(it.id, LetterStatus.fromKey(it.status), it.createdAt.toInstantOrNull()) },
 )
 
 /** `letter` and `preview` let the caller decrypt in end-to-end mode; the defaults are the server-mode pass-through. */

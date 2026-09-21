@@ -214,6 +214,14 @@ class OutboxRepositoryTest {
   }
 
   @Test
+  fun `a letter sent again without signal still remembers what it replaces when it finally goes`() = runTest {
+    outbox.queue("Jane Smith", null, letter.copy(resendOf = 41, replacesHeld = null), emptyList())
+    outbox.queue("Jane Smith", null, letter.copy(body = "another", replacesHeld = 52), emptyList())
+    outbox.flush()
+    assertEquals(listOf(41, null), letters.sent.map { it.resendOf }); assertEquals(listOf(null, 52), letters.sent.map { it.replacesHeld })
+  }
+
+  @Test
   fun `reopening a queued letter hands back its text and its files, readable again`() = runTest {
     val id = outbox.queue("Jane Smith", "Rosa L.", letter.copy(asWriterId = 43), listOf(staged("scan.pdf")))
     val (payload, files) = outbox.open(id)!!

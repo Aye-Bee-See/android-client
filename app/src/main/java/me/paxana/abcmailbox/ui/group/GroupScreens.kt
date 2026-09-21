@@ -56,6 +56,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.paxana.abcmailbox.crypto.SecretCodes
 import me.paxana.abcmailbox.domain.LetterStatus
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.RadioButton
+import me.paxana.abcmailbox.data.repo.ReturnedAs
+import me.paxana.abcmailbox.domain.ReturnReason
+import me.paxana.abcmailbox.domain.HeldReason
 import me.paxana.abcmailbox.domain.ManagedWriter
 import me.paxana.abcmailbox.domain.QueueItem
 import me.paxana.abcmailbox.ui.common.AlertBanner
@@ -76,6 +83,8 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
   val context = LocalContext.current
   val strings = rememberStrings() // not context.getString: this follows a language change while the screen is open
   var confirmMailed by remember { mutableStateOf(false) }
+  var confirmRelease by remember { mutableStateOf(false) }
+  var recordReturn by remember { mutableStateOf(false) }
   var choosePartner by remember { mutableStateOf(false) }
 
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
@@ -95,7 +104,9 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
         is Loadable.Failed -> ErrorBox(s.error, onRetry = viewModel::load)
         is Loadable.Loaded -> LetterWorkBody(
           item = s.value, busy = ui.busy,
-          onAdvance = { if (s.value.letter.status == LetterStatus.PRINTED) confirmMailed = true else viewModel.advance() },
+          // Three different presses behind one button: a held letter asks first, "mailed" asks first, an ordinary print does not.
+          onAdvance = { when { s.value.letter.isHeld -> confirmRelease = true; s.value.letter.status == LetterStatus.PRINTED -> confirmMailed = true; else -> viewModel.advance() } },
+          onCameBack = { recordReturn = true },
           onPrint = { PrintLetter.print(context, strings.get(R.string.print_job_name, s.value.prisoner?.name ?: strings.get(R.string.print_job_prisoner)), s.value.letter.body) },
           onOpen = viewModel::open,
           onThread = { s.value.letter.threadId?.let(onThread) },
@@ -120,6 +131,16 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
     dismissButton = { TextButton(onClick = { choosePartner = false }) { Text(stringResource(R.string.action_cancel)) } },
   )
 
+  if (confirmRelease || ui.askRelease) AlertDialog(
+    onDismissRequest = { confirmRelease = false; viewModel.releaseDeclined() },
+    title = { Text(stringResource(R.string.release_title)) },
+    text = { Text(stringResource(((ui.item as? Loadable.Loaded)?.value?.letter?.heldReason ?: HeldReason.OTHER).groupTextRes)) },
+    confirmButton = { TextButton(onClick = { confirmRelease = false; viewModel.advance(release = true) }, modifier = Modifier.testTag("release-confirm")) { Text(stringResource(R.string.action_print_anyway)) } },
+    dismissButton = { TextButton(onClick = { confirmRelease = false; viewModel.releaseDeclined() }) { Text(stringResource(R.string.action_leave_it_held)) } },
+  )
+
+  if (recordReturn) ReturnDialog(onDismiss = { recordReturn = false }, onRecord = { reason, note -> recordReturn = false; viewModel.markReturned(reason, note) })
+
   if (confirmMailed) AlertDialog(
     onDismissRequest = { confirmMailed = false },
     title = { Text(stringResource(R.string.mark_mailed_title)) },
@@ -132,15 +153,18 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
 @Composable
 private fun LetterWorkBody(
   item: QueueItem, busy: Boolean, onAdvance: () -> Unit, onPrint: () -> Unit, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onThread: () -> Unit,
-  canShare: Boolean = false, onShare: () -> Unit = {},
+  canShare: Boolean = false, onShare: () -> Unit = {}, onCameBack: () -> Unit = {},
 ) {
   val letter = item.letter
   val p = item.prisoner
   Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      StatusChip(letter.status)
+      if (letter.isHeld) me.paxana.abcmailbox.ui.common.Tag(stringResource(R.string.status_held)) else StatusChip(letter.status)
       letter.createdAt?.let { Text(stringResource(R.string.written_on, it.longDate()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
+
+    // Before the envelope, because it changes whether there should be an envelope at all.
+    letter.heldReason?.takeIf { letter.isHeld }?.let { AlertBanner(stringResource(it.groupTextRes)) }
 
     // The envelope: name, number, facility, address. Selectable so it can be copied to a label app.
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp)) {
@@ -175,11 +199,20 @@ private fun LetterWorkBody(
     when (letter.status) {
       LetterStatus.QUEUED -> Button(onClick = onAdvance, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("advance")) { Text(stringResource(R.string.action_mark_printed)) }
       LetterStatus.PRINTED -> Button(onClick = onAdvance, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("advance")) { Text(stringResource(R.string.action_mark_mailed)) }
-      LetterStatus.MAILED -> Text(letter.statusChangedAt?.let { stringResource(R.string.mailed_done_on, it.longDate()) } ?: stringResource(R.string.mailed_done), color = MaterialTheme.colorScheme.onSurfaceVariant)
+      LetterStatus.MAILED -> {
+        Text(letter.statusChangedAt?.let { stringResource(R.string.mailed_done_on, it.longDate()) } ?: stringResource(R.string.mailed_done), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Weeks later, with the envelope back on the table. Outlined, not filled: it is the exception, not the next step.
+        OutlinedButton(onClick = onCameBack, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("came-back")) { Text(stringResource(R.string.action_it_came_back)) }
+      }
+      LetterStatus.RETURNED -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(letter.returnedAt?.let { stringResource(R.string.status_returned_on, it.longDate()) } ?: stringResource(R.string.status_returned_undated), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource((letter.returnReason ?: ReturnReason.UNKNOWN).choiceRes), style = MaterialTheme.typography.titleSmall)
+        letter.returnNote?.let { Text(stringResource(R.string.return_envelope_said, it), style = MaterialTheme.typography.bodyMedium) }
+      }
       else -> Unit
     }
     // End-to-end only, and only where the facility has another relay group: the server permits no other readers.
-    if (canShare && letter.status != LetterStatus.MAILED) OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.share_title)) }
+    if (canShare && (letter.status == LetterStatus.QUEUED || letter.status == LetterStatus.PRINTED)) OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.share_title)) }
     TextButton(onClick = onThread) { Text(stringResource(R.string.action_open_conversation)) }
   }
 }
@@ -241,4 +274,40 @@ fun HandoffScreen(onBack: () -> Unit, viewModel: HandoffViewModel = hiltViewMode
       ui.error?.let { ErrorText(it) }
     }
   }
+}
+
+/**
+ * Recording that a letter came back. The reasons are the API's six codes, worded for someone holding the
+ * envelope. The note is the only free text, and the warning beside it is the point: it is stored unencrypted
+ * in every mode and shown to the writer, so it says what the envelope said and nothing about the letter.
+ */
+@Composable
+private fun ReturnDialog(onDismiss: () -> Unit, onRecord: (ReturnReason, String) -> Unit) {
+  var reason by remember { mutableStateOf<ReturnReason?>(null) }
+  var note by remember { mutableStateOf("") }
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(stringResource(R.string.return_dialog_title)) },
+    text = {
+      Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(stringResource(R.string.return_dialog_text), style = MaterialTheme.typography.bodyMedium)
+        ReturnReason.choices.forEach { r ->
+          Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected = reason == r, role = Role.RadioButton, onClick = { reason = r }).testTag("reason-${r.key}"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            RadioButton(selected = reason == r, onClick = null)
+            Text(stringResource(r.choiceRes), style = MaterialTheme.typography.bodyLarge)
+          }
+        }
+        OutlinedTextField(
+          note, { note = it.take(ReturnedAs.NOTE_MAX) }, label = { Text(stringResource(R.string.label_envelope_said)) },
+          supportingText = { Text(stringResource(R.string.help_envelope_said, note.length, ReturnedAs.NOTE_MAX)) },
+          minLines = 2, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).testTag("return-note"),
+        )
+      }
+    },
+    confirmButton = { TextButton(onClick = { reason?.let { onRecord(it, note) } }, enabled = reason != null, modifier = Modifier.testTag("return-record")) { Text(stringResource(R.string.action_record_return)) } },
+    dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+  )
 }

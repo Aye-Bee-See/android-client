@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.domain.LetterStatus
+import me.paxana.abcmailbox.domain.ReturnReason
+import me.paxana.abcmailbox.domain.HeldReason
 import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
 import android.net.Uri
@@ -62,6 +65,62 @@ class LettersRepositoryTest {
     server.enqueue(MockResponse().setResponseCode(201).setBody(fixture("message-full.json")))
     repo.send(NewLetter(3, "Hi", "two pages", 2))
     assertEquals("""{"messageText":"Hi","prisoner":3,"sender":"user","relayChapter":2,"relayNote":"two pages"}""", server.next().body.readUtf8())
+  }
+
+  // Returned mail and held letters (API PRs #105, #106). The fixtures were recorded from the API on 20 Sep 2026.
+
+  @Test
+  fun `a conversation tells a returned letter's whole story, though the server sends it in pieces`() = runTest {
+    // Inside a conversation a letter has its reason but no history (so no note), and not what replaced it.
+    server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+      override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest) = when {
+        request.path!!.startsWith("/chat/chat") -> MockResponse().setBody(fixture("chat-returned-and-held.json"))
+        request.path!!.startsWith("/messaging/message?id=1&") -> MockResponse().setBody(fixture("message-returned-full.json"))
+        else -> MockResponse().setResponseCode(500) // the other returned letters: their notes are a nicety, and their failure must cost nothing
+      }
+    }
+    val thread = (repo.thread(1) as ApiResult.Success).value
+    val first = thread.letters.first { it.id == 1 }
+    assertEquals(LetterStatus.RETURNED, first.status); assertEquals(ReturnReason.TRANSFERRED, first.returnReason)
+    assertEquals("the note is on the history row, fetched for returned letters only", "Stamped NOT HERE", first.returnNote)
+    assertEquals("what replaced it is read off the conversation: letter 6 says resendOf 1", listOf(6), first.resentAs.map { it.id })
+    assertTrue("sent again already, so not offered twice", !first.canSendAgain)
+
+    val second = thread.letters.first { it.id == 2 }
+    assertEquals(ReturnReason.RULE_VIOLATION, second.returnReason); assertEquals(null, second.returnNote); assertTrue(second.canSendAgain)
+
+    val held = thread.letters.first { it.id == 3 }
+    assertTrue(held.isHeld); assertEquals(HeldReason.CHOOSE_RELAY, held.heldReason); assertTrue("still the writer's to edit: that is how the choice is made", held.canEdit)
+    assertEquals(1, thread.letters.first { it.id == 6 }.resendOfId)
+    val asked = generateSequence { server.takeRequest(100, java.util.concurrent.TimeUnit.MILLISECONDS) }.map { it.path!! }.toList()
+    assertEquals("one full read per returned letter, none for the rest", 3, asked.count { it.startsWith("/messaging/message") })
+  }
+
+  @Test
+  fun `a reason or a hold this version has never heard of is still a return, still a hold`() {
+    assertEquals(ReturnReason.UNKNOWN, ReturnReason.fromKey("lost_in_flood")); assertEquals(null, ReturnReason.fromKey(null))
+    assertEquals(HeldReason.OTHER, HeldReason.fromKey("awaiting_censor")); assertEquals(null, HeldReason.fromKey(null)); assertEquals(null, HeldReason.fromKey(""))
+  }
+
+  @Test
+  fun `sending again names the letter that came back`() = runTest {
+    server.enqueue(MockResponse().setResponseCode(201).setBody(fixture("message-full.json")))
+    repo.send(NewLetter(prisonerId = 1, body = "Dear Sam", relayNote = null, relayChapter = null, resendOf = 41))
+    assertEquals("""{"messageText":"Dear Sam","prisoner":1,"sender":"user","resendOf":41}""", server.next().body.readUtf8())
+  }
+
+  @Test
+  fun `a held letter that had to be sent again is removed only after its replacement is safely there`() = runTest {
+    server.enqueue(MockResponse().setResponseCode(201).setBody(fixture("message-full.json")))
+    server.enqueue(MockResponse().setBody("""{"data":1,"success":true,"status":200}"""))
+    assertTrue(repo.send(NewLetter(prisonerId = 1, body = "Dear Sam", relayNote = null, relayChapter = null, replacesHeld = 3)) is ApiResult.Success)
+    assertEquals("POST", server.next().method)
+    val removal = server.next(); assertEquals("DELETE", removal.method); assertEquals("""{"id":3}""", removal.body.readUtf8())
+
+    // The other way round: the send fails, and the held letter is left exactly where it was.
+    server.enqueue(MockResponse().setResponseCode(400).setBody("""{"success":false,"errors":["No relay group serves this facility."]}"""))
+    assertTrue(repo.send(NewLetter(prisonerId = 1, body = "Dear Sam", relayNote = null, relayChapter = null, replacesHeld = 3)) is ApiResult.Failure)
+    server.next(); assertEquals("nothing was deleted", 3, server.requestCount)
   }
 
   @Test

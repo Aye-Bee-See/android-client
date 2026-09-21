@@ -67,6 +67,8 @@ data class ComposeUiState(
   val progress: String? = null,
   val error: String? = null,
   val draftRestored: Boolean = false,
+  /** This letter takes the place of one that came back, or of one that was held: said at the top, so the person knows why the text is already there. */
+  val sendingAgain: Boolean = false,
   val sentChatId: Int? = null,
   /** The server could not be reached, so the letter went to the outbox instead. The screen closes and says so. */
   val queuedOffline: Boolean = false,
@@ -122,7 +124,9 @@ class ComposeViewModel(
   private val isStaff: Boolean = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.isStaff == true
   private val staffGroupId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.takeIf { it.isStaff }?.chapterId
   // Drafts belong to a writer's own letters; a group's letters for others are not drafted on this phone.
-  private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && route.outboxId == null && !isStaff
+  /** The letter whose text this one starts from: one that came back, or a held one that has to be sealed again. */
+  private val sendingAgainFrom: Int? = route.resendOf ?: route.replacesHeld
+  private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && route.outboxId == null && sendingAgainFrom == null && !isStaff
 
   private val _ui = MutableStateFlow(
     ComposeUiState(
@@ -165,8 +169,15 @@ class ComposeViewModel(
     var restored = false
     route.editMessageId?.let { id ->
       (letters.letter(id) as? ApiResult.Success)?.value?.let { l ->
-        body = l.body; note = l.relayNote.orEmpty(); selected = l.relayGroupId ?: selected
+        body = l.body; note = l.relayNote.orEmpty()
+        // The group the letter had, unless it no longer serves where the person is (they were moved and the letter
+        // is held for a choice): then nothing is chosen, and the picker below insists.
+        val stillServes = (relay as? RelayChoice.Choose)?.options?.any { it.id == l.relayGroupId } ?: true
+        selected = l.relayGroupId?.takeIf { stillServes } ?: selected
       }
+    } ?: sendingAgainFrom?.let { id ->
+      // The words only. Who mails it is decided afresh, from where the directory says the person is today.
+      (letters.letter(id) as? ApiResult.Success)?.value?.takeIf { !it.locked }?.let { l -> body = l.body; note = l.relayNote.orEmpty() }
     } ?: route.outboxId?.let { id ->
       outbox.open(id)?.let { (queued, staged) ->
         body = queued.body; note = queued.relayNote.orEmpty(); selected = queued.relayChapter ?: selected
@@ -180,7 +191,7 @@ class ComposeViewModel(
     _ui.update {
       it.copy(
         prisoner = prisoner, facility = facility, relay = relay, selectedRelay = selected,
-        body = body, note = note, showNote = note.isNotBlank(), loading = false, draftRestored = restored,
+        body = body, note = note, showNote = note.isNotBlank(), loading = false, draftRestored = restored, sendingAgain = sendingAgainFrom != null,
         error = if (prisoner == null) strings.get(R.string.error_load_prisoner) else null,
       )
     }
@@ -259,6 +270,7 @@ class ComposeViewModel(
         // End-to-end: the server lets a group hold an envelope where it relays for the facility (or manages the writer).
         groupRelaysFacility = staffGroupId != null && s.facility?.relayGroups?.any { it.id == staffGroupId } == true,
         idempotencyKey = sendKey ?: java.util.UUID.randomUUID().toString().also { sendKey = it },
+        resendOf = route.resendOf, replacesHeld = route.replacesHeld,
       )
       when (val r = letters.send(letter)) {
         is ApiResult.Failure ->

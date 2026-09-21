@@ -34,6 +34,10 @@ import kotlinx.serialization.Serializable
   val replyForUserId: Int? = null,
   /** Reopening a letter from the outbox: compose starts from it, and sending (or queueing) again replaces it. */
   val outboxId: Long? = null,
+  /** Sending again a letter that came back: compose starts from its text, and the new letter names it (`resendOf`). */
+  val resendOf: Int? = null,
+  /** Sending again a held letter that must be sealed for another group: compose starts from its text, and the old one is removed once the new one is sent. */
+  val replacesHeld: Int? = null,
 )
 @Serializable data class PickPrisonerRoute(val writerId: Int? = null, val writerName: String? = null)
 

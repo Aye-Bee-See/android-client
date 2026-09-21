@@ -35,7 +35,7 @@ Found on the second run (19 September 2026): a reply was recorded from the iOS a
 
 | Channel | id | Importance | Carries |
 |---|---|---|---|
-| Replies | `activity-replies` | high (banner) | a prisoner's reply was recorded |
+| Replies and letters that need you | `activity-replies` | high (banner) | a prisoner's reply was recorded; a letter came back; someone was moved or freed *and* a letter of yours is waiting (phase 12) |
 | Letter progress | `activity-progress` | default | printed, mailed, a directory change decided |
 | Group queue | `activity-queue` | default | a letter is waiting for the group |
 
@@ -49,3 +49,5 @@ A batch goes out on the channel of its most important entry. A channel's importa
 - If the news is about the conversation on screen, that is all: it appears, and the feed is marked read. Otherwise a bar at the bottom says the same sentence the notification would, with "View".
 
 Checked on the emulator against the FCM-enabled instance: app open on another tab, the bar within a second, badge 1 to 2, no system notification; conversation open, the reply appeared and scrolled into view with no bar; app in the background, a heads-up banner on `activity-replies`, and tapping it opened that conversation. Pinned by `ActivityRepositoryTest` ("with the app on screen the news goes to the screen…").
+
+**Testing without Firebase.** "Simulate a push in 8 s" enqueues the feed check from the background, without the temporary network pass a real FCM message brings, so Android may park the job ("Constraints not met", `onBlockedStatusChanged true` in logcat). That is the simulation, not the feature. Run it by hand: `adb shell cmd jobscheduler run -f -n androidx.work.systemjobscheduler me.paxana.abcmailbox <job id>` (ids from `adb shell dumpsys jobscheduler | grep abcmailbox`; WorkManager files its jobs under that namespace).

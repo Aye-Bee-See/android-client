@@ -76,7 +76,7 @@ fun GroupInbox(
   }
 }
 
-private val queueStatuses = listOf(LetterStatus.QUEUED, LetterStatus.PRINTED, LetterStatus.MAILED)
+private val queueStatuses = listOf(LetterStatus.QUEUED, LetterStatus.PRINTED, LetterStatus.MAILED, LetterStatus.RETURNED)
 
 @Composable
 private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltViewModel()) {
@@ -90,7 +90,7 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
   }
   PagedList(
     items = items,
-    emptyText = when (status) { LetterStatus.QUEUED -> stringResource(R.string.queue_empty_queued); LetterStatus.PRINTED -> stringResource(R.string.queue_empty_printed); else -> stringResource(R.string.queue_empty_mailed) },
+    emptyText = when (status) { LetterStatus.QUEUED -> stringResource(R.string.queue_empty_queued); LetterStatus.PRINTED -> stringResource(R.string.queue_empty_printed); LetterStatus.RETURNED -> stringResource(R.string.queue_empty_returned); else -> stringResource(R.string.queue_empty_mailed) },
     header = {
       item("status") {
         ChipRow(queueStatuses.map { it to stringResource(it.labelRes) }, status, { it?.let(viewModel::setStatus) }, allLabel = "", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), showAll = false)
@@ -110,7 +110,8 @@ private fun QueueRow(q: QueueItem, onClick: () -> Unit) {
       pluralStringResource(R.plurals.compose_pages, pages, pages),
       q.letter.attachments.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.outbox_files, it, it) },
     ).joinToString(" · "),
-    notice = q.letter.relayNote?.let { stringResource(R.string.note_prefixed, it) },
+    // A held letter says so before anything else: it is in the list, and it is not to be printed like the others.
+    notice = q.letter.heldReason?.takeIf { q.letter.isHeld }?.let { stringResource(it.queueNoticeRes) } ?: q.letter.relayNote?.let { stringResource(R.string.note_prefixed, it) },
     onClick = onClick,
   )
 }

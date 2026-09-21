@@ -2,6 +2,18 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-20: a held letter is shown as "On hold", and sending again is the compose screen
+
+**Context.** API PR #106 holds a queued letter when nothing can be decided for its writer (the person was moved to a facility with several relay groups, or was freed, or, end-to-end, the letter is sealed for a group that no longer serves them). On the server a hold is deliberately not a status: the letter stays `queued`, so the lifecycle and every status filter are untouched. PR #105 lets a returned letter be sent again as a new letter that names it.
+
+**Decision.** On the phone a hold *replaces* the status chip. "Queued" tells a writer that a group will print the letter; for a held one that is false, and the difference is the whole point of telling them. The same in the group's queue and on the group's letter page, where printing asks first.
+
+All three writer actions go through the compose screen that already exists: choosing a relay group is the edit path (its picker reads the person's current facility), and both kinds of "send it again" open compose from the old letter's words. No second editor, no copy made on the server (in end-to-end mode it could not read the letter to copy it). For a held letter that must be re-sealed, the new one is sent first and the old one deleted after: the other order could lose a letter, and a leftover held letter cannot be printed by oversight.
+
+The six return reasons are worded twice from the same code: a sentence with advice for the writer, a short choice for the member holding the envelope. A code this version does not know is shown as a return without a why, and an unknown hold as a plain hold: neither may look like a letter on its way.
+
+**Consequences.** iOS should copy the wording (`values/strings.xml`, "Returned mail" and "Held letters") so the two apps explain a return the same way. If the groups ask for more reasons, each needs three strings in three languages here.
+
 ## 2026-09-20: "delete my account" is guarded the way the iOS app guards it, and never by making people wait
 
 **Context.** API PR #104 lets people delete their account with everything in it, irreversibly, and asks clients for "a confirmation that says in words what will be deleted and that it cannot be undone". The people who use this app may be at risk for writing to political prisoners. So the guard has two jobs that pull against each other: it must stop an accident and stop somebody else holding the phone, and it must not stand in the way of an owner who needs to leave now. The iOS app had already built its screen (`ABCMailbox/Account/DeleteAccountView.swift`); two apps for the same people should not disagree about how hard the most destructive thing in them is.

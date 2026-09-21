@@ -1,0 +1,83 @@
+{
+ "data": {
+  "id": 1,
+  "chat": 1,
+  "sender": "user",
+  "prisoner": 1,
+  "status": "returned",
+  "relayChapter": 1,
+  "statusChangedAt": "2026-09-20T17:09:23.417Z",
+  "keep": false,
+  "statusChangedBy": 2,
+  "returnReason": "transferred",
+  "heldReason": null,
+  "resendOf": null,
+  "user": 3,
+  "createdAt": "2026-09-20T17:09:23.391Z",
+  "updatedAt": "2026-09-20T17:09:23.417Z",
+  "status_history": [
+   {
+    "id": 1,
+    "message": 1,
+    "fromStatus": null,
+    "toStatus": "queued",
+    "changedBy": 3,
+    "reason": null,
+    "note": null,
+    "createdAt": "2026-09-20T17:09:23.396Z",
+    "updatedAt": "2026-09-20T17:09:23.396Z"
+   },
+   {
+    "id": 2,
+    "message": 1,
+    "fromStatus": "queued",
+    "toStatus": "printed",
+    "changedBy": 2,
+    "reason": null,
+    "note": null,
+    "createdAt": "2026-09-20T17:09:23.403Z",
+    "updatedAt": "2026-09-20T17:09:23.403Z"
+   },
+   {
+    "id": 3,
+    "message": 1,
+    "fromStatus": "printed",
+    "toStatus": "mailed",
+    "changedBy": 2,
+    "reason": null,
+    "note": null,
+    "createdAt": "2026-09-20T17:09:23.410Z",
+    "updatedAt": "2026-09-20T17:09:23.410Z"
+   },
+   {
+    "id": 4,
+    "message": 1,
+    "fromStatus": "mailed",
+    "toStatus": "returned",
+    "changedBy": 2,
+    "reason": "transferred",
+    "note": "Stamped NOT HERE",
+    "createdAt": "2026-09-20T17:09:23.418Z",
+    "updatedAt": "2026-09-20T17:09:23.418Z"
+   }
+  ],
+  "attachments": [],
+  "resent_as": [
+   {
+    "id": 6,
+    "status": "queued",
+    "createdAt": "2026-09-20T17:22:10.983Z"
+   }
+  ],
+  "relay_group": {
+   "id": 1,
+   "name": "Group A"
+  },
+  "messageText": "Dear Sam, the garden is coming in. Tomatoes by August, I hope.",
+  "relayNote": null
+ },
+ "info": "Success getting message by ID",
+ "success": true,
+ "status": 200,
+ "name": "message one"
+}

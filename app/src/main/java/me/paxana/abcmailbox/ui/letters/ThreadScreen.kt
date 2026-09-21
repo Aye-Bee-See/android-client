@@ -52,6 +52,10 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.paxana.abcmailbox.domain.Letter
 import me.paxana.abcmailbox.domain.LetterStatus
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material3.OutlinedButton
+import me.paxana.abcmailbox.domain.ReturnReason
+import me.paxana.abcmailbox.domain.HeldReason
 import me.paxana.abcmailbox.domain.Thread
 import me.paxana.abcmailbox.ui.common.DetailScaffold
 import me.paxana.abcmailbox.ui.common.ErrorBox
@@ -69,6 +73,8 @@ fun ThreadScreen(
   onEdit: (prisonerId: Int, messageId: Int) -> Unit,
   onGroupWrite: (prisonerId: Int, writerId: Int, writerName: String) -> Unit = { _, _, _ -> },
   onRecordReply: (prisonerId: Int, writerUserId: Int) -> Unit = { _, _ -> },
+  /** A returned letter, or a held one that must be sealed again: compose opens with its text. `writerId` is set when a group does it for a writer it manages. */
+  onSendAgain: (prisonerId: Int, letterId: Int, replacesHeld: Boolean, writerId: Int?, writerName: String?) -> Unit = { _, _, _, _, _ -> },
   viewModel: ThreadViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -105,6 +111,11 @@ fun ThreadScreen(
           mayChange = me.paxana.abcmailbox.domain.mayChangeLetters(ui.isStaff, ui.staffGroupId, t.value.writer),
           onEdit = { onEdit(t.value.prisonerId, it) },
           onDelete = { confirmDelete = it },
+          onSendAgain = { letterId, replacesHeld ->
+            // A group sends again as the writer whose letter it was, unless that is its own anonymous writer.
+            val w = t.value.writer?.takeIf { ui.isStaff && it.anonymousForGroupId == null }
+            onSendAgain(t.value.prisonerId, letterId, replacesHeld, w?.id, w?.name)
+          },
         )
       }
       thread?.let { t ->
@@ -153,6 +164,7 @@ private fun ThreadBody(
   onEdit: (Int) -> Unit,
   onDelete: (Int) -> Unit,
   showWriter: Boolean = false,
+  onSendAgain: (letterId: Int, replacesHeld: Boolean) -> Unit = { _, _ -> },
 ) {
   // A reply that arrives while the conversation is open lands at the bottom, possibly off screen. Go to it, as a
   // messaging app would, but only when the conversation grew while it was showing: the first load, a deletion
@@ -190,14 +202,14 @@ private fun ThreadBody(
       item("empty") { Text(stringResource(R.string.thread_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
     }
     items(thread.letters, key = { it.id }) { letter ->
-      LetterCard(letter, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) })
+      LetterCard(letter, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) }, onSendAgain = { onSendAgain(letter.id, letter.heldReason == HeldReason.RESEAL_NEEDED) })
       HorizontalDivider()
     }
   }
 }
 
 @Composable
-private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onSendAgain: () -> Unit = {}) {
   Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(
@@ -208,7 +220,8 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
       )
       letter.createdAt?.let { Text(it.longDate(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
       Box(Modifier.weight(1f))
-      StatusChip(letter.status)
+      // A held letter is still "queued" to the server. To its writer that word would be a lie: nothing is coming for it.
+      if (letter.isHeld) Tag(stringResource(R.string.status_held)) else StatusChip(letter.status)
     }
     if (letter.locked) {
       Text(stringResource(R.string.letter_locked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -232,9 +245,12 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
       LetterStatus.PRINTED -> (letter.relayGroupName ?: stringResource(R.string.the_relay_group)).let { who -> letter.statusChangedAt?.let { stringResource(R.string.status_printed_by_on, who, it.longDate()) } ?: stringResource(R.string.status_printed_by, who) }
       LetterStatus.MAILED -> (letter.relayGroupName ?: stringResource(R.string.the_relay_group)).let { who -> letter.statusChangedAt?.let { stringResource(R.string.status_mailed_by_on, who, it.longDate()) } ?: stringResource(R.string.status_mailed_by, who) }
       LetterStatus.RECEIVED -> stringResource(R.string.status_recorded_by_group)
+      LetterStatus.RETURNED -> letter.returnedAt?.let { stringResource(R.string.status_returned_on, it.longDate()) } ?: stringResource(R.string.status_returned_undated)
       LetterStatus.UNKNOWN -> ""
     }
-    if (statusLine.isNotBlank()) Text(statusLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (statusLine.isNotBlank() && !letter.isHeld) Text(statusLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (letter.status == LetterStatus.RETURNED) ReturnedNotice(letter, mayAct = mayChange && !busy, onSendAgain = onSendAgain)
+    letter.heldReason?.takeIf { letter.isHeld }?.let { HeldNotice(it, mayAct = mayChange && !busy, onChoose = onEdit, onSendAgain = onSendAgain) }
     if (letter.canEdit && !letter.locked && mayChange) {
       Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         TextButton(onClick = onEdit, enabled = !busy) { Text(stringResource(R.string.action_edit)) }
@@ -242,6 +258,55 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
       }
     }
   }
+}
+
+/**
+ * A letter that came back. Three things, in the order a person asks them: why, what the envelope said, and
+ * what they can do now. The words for "why" are chosen here from the server's code, in the reader's language.
+ */
+@Composable
+private fun ReturnedNotice(letter: Letter, mayAct: Boolean, onSendAgain: () -> Unit) {
+  NoticeBox {
+    val reason = letter.returnReason ?: ReturnReason.UNKNOWN
+    Text(stringResource(reason.labelRes), style = MaterialTheme.typography.titleSmall)
+    // Quoted, and labelled as the envelope's words: the group wrote down what was stamped on it, not an opinion.
+    letter.returnNote?.let { Text(stringResource(R.string.return_envelope_said, it), style = MaterialTheme.typography.bodyMedium) }
+    Text(stringResource(reason.adviceRes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    letter.resentAs.forEach { again ->
+      Text(
+        again.at?.let { stringResource(R.string.return_sent_again_on, it.longDate(), stringResource(again.status.labelRes)) } ?: stringResource(R.string.return_sent_again, stringResource(again.status.labelRes)),
+        style = MaterialTheme.typography.bodyMedium,
+      )
+    }
+    if (letter.canSendAgain && mayAct) OutlinedButton(onClick = onSendAgain, modifier = Modifier.testTag("send-again")) { Text(stringResource(R.string.action_send_again)) }
+  }
+}
+
+/** A queued letter that is going nowhere until somebody decides. Each reason names who, and offers the way out that is the writer's to take. */
+@Composable
+private fun HeldNotice(reason: HeldReason, mayAct: Boolean, onChoose: () -> Unit, onSendAgain: () -> Unit) {
+  NoticeBox {
+    Text(stringResource(when (reason) {
+      HeldReason.CHOOSE_RELAY -> R.string.held_choose_relay
+      HeldReason.RESEAL_NEEDED -> R.string.held_reseal_needed
+      HeldReason.PRISONER_FREE -> R.string.held_prisoner_free
+      HeldReason.OTHER -> R.string.held_other
+    }), style = MaterialTheme.typography.bodyMedium)
+    if (mayAct) when (reason) {
+      HeldReason.CHOOSE_RELAY -> OutlinedButton(onClick = onChoose, modifier = Modifier.testTag("held-choose")) { Text(stringResource(R.string.action_choose_who_mails)) }
+      HeldReason.RESEAL_NEEDED -> OutlinedButton(onClick = onSendAgain, modifier = Modifier.testTag("held-resend")) { Text(stringResource(R.string.action_send_again)) }
+      // Freed: nothing to press here. Deleting it is the ordinary Delete below; printing it anyway is the group's decision.
+      HeldReason.PRISONER_FREE, HeldReason.OTHER -> Unit
+    }
+  }
+}
+
+@Composable
+private fun NoticeBox(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+  Column(
+    Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.secondaryContainer).padding(12.dp),
+    verticalArrangement = Arrangement.spacedBy(6.dp), content = content,
+  )
 }
 
 @Composable

@@ -102,6 +102,8 @@ data class SendMessageRequest(
   /** Omitted (not null) when unset, so the server resolves the relay group itself. */
   val relayChapter: Int? = null,
   val relayNote: String? = null,
+  /** One of this writer's returned letters to the same prisoner, which this letter replaces. It is routed afresh. */
+  val resendOf: Int? = null,
   val ciphertext: String? = null,
   val nonce: String? = null,
   val relayNoteCiphertext: String? = null,
@@ -171,6 +173,11 @@ data class MessageDto(
   @SerialName("status_history") val statusHistory: List<StatusHistoryDto>? = null,
   val attachments: List<AttachmentDto>? = null,
   @SerialName("relay_group") val relayGroup: RelayGroupDto? = null,
+  // Returned mail and held letters (API PRs #105, #106). All read-only except `resendOf`, which is set on create.
+  val returnReason: String? = null,
+  val heldReason: String? = null,
+  val resendOf: Int? = null,
+  @SerialName("resent_as") val resentAs: List<ResentDto>? = null,
   // End-to-end mode: `messageText` is null and these carry the letter; `envelopes` is filtered to the caller.
   val ciphertext: String? = null,
   val nonce: String? = null,
@@ -180,6 +187,7 @@ data class MessageDto(
 )
 
 @Serializable data class RelayGroupDto(val id: Int, val name: String)
+@Serializable data class ResentDto(val id: Int, val status: String? = null, val createdAt: String? = null)
 
 @Serializable
 data class StatusHistoryDto(
@@ -188,6 +196,9 @@ data class StatusHistoryDto(
   val toStatus: String,
   val changedBy: Int? = null,
   val createdAt: String? = null,
+  /** With a move to `returned` only: why it came back, and what the envelope said. */
+  val reason: String? = null,
+  val note: String? = null,
 )
 
 @Serializable

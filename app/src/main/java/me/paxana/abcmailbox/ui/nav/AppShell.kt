@@ -356,6 +356,9 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onEdit = { prisonerId, messageId -> navController.navigate(ComposeRoute(prisonerId, messageId)) },
           onGroupWrite = { prisonerId, writerId, writerName -> navController.navigate(ComposeRoute(prisonerId, writerId = writerId, writerName = writerName)) },
           onRecordReply = { prisonerId, writerUserId -> navController.navigate(ComposeRoute(prisonerId, replyForUserId = writerUserId)) },
+          onSendAgain = { prisonerId, letterId, replacesHeld, writerId, writerName ->
+            navController.navigate(ComposeRoute(prisonerId, writerId = writerId, writerName = writerName, resendOf = letterId.takeIf { !replacesHeld }, replacesHeld = letterId.takeIf { replacesHeld }))
+          },
         )
       }
       composable<ComposeRoute> {

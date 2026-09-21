@@ -93,6 +93,31 @@ class ActivityRepositoryTest {
   }
 
   @Test
+  fun `a return, a move and a release are told apart, and a letter that waits for its writer is said to`() = runTest {
+    // Recorded from the API on 20 Sep 2026 (PRs #105 and #106).
+    server.enqueue(feed(
+      entry(15, "prisoner.status", """{"prisoner":2,"status":"free","held":1}""", chat = 2),
+      entry(14, "prisoner.moved", """{"prisoner":1,"prison":2,"held":2}""", chat = 1),
+      entry(13, "prisoner.moved", """{"prisoner":1,"prison":2,"held":0}""", chat = 1),
+      entry(8, "letter.status", """{"status":"returned","reason":"rule_violation"}"""),
+    ))
+    val fresh = repo.sync()
+    assertEquals(listOf(Activity.Kind.FREED, Activity.Kind.MOVED, Activity.Kind.MOVED, Activity.Kind.RETURNED), fresh.map { it.kind })
+    assertEquals(listOf(1, 2, 0, 0), fresh.map { it.held })
+    assertEquals(listOf(true, true, false, true), fresh.map { it.needsThem })
+    assertEquals("each opens the conversation it is about", listOf(2, 1, 1, 41), fresh.map { it.chatId })
+    val s = TestStrings()
+    assertEquals("Someone you write to has been released. A letter of yours to them is on hold.", fresh[0].sentence(s))
+    assertEquals("Someone you write to was moved, and a letter of yours is waiting for you.", fresh[1].sentence(s))
+    assertEquals("Someone you write to was moved to another facility.", fresh[2].sentence(s))
+    assertEquals("One of your letters came back in the post.", fresh[3].sentence(s))
+    assertEquals("Una de tus cartas ha vuelto por correo.", fresh[3].sentence(TestStrings("es")))
+    assertEquals("Человека, которому вы пишете, освободили. Ваше письмо ему задержано.", fresh[0].sentence(TestStrings("ru")))
+    // A status the API may one day announce for a prisoner is not called a release.
+    assertEquals(Activity.Kind.OTHER, Activity.kindOf("prisoner.status", "transferred_abroad"))
+  }
+
+  @Test
   fun `the words are chosen on the phone, name nobody, and come in the user's language`() {
     val mailed = Activity(5, Activity.kindOf("letter.status", "mailed"), 41, 50)
     assertEquals("One of your letters is in the post.", mailed.sentence(TestStrings()))
