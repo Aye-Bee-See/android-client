@@ -22,6 +22,8 @@ interface GroupApi {
   suspend fun relayed(
     @Query("relayChapter") relayChapter: Int,
     @Query("status") status: String? = null,
+    /** `true`: only held letters (API PR #106). An older API ignores it and answers with everything, so the answer is checked. */
+    @Query("held") held: Boolean? = null,
     @Query("page") page: Int = 1,
     @Query("page_size") pageSize: Int = 20,
   ): ApiEnvelope<List<MessageDto>>

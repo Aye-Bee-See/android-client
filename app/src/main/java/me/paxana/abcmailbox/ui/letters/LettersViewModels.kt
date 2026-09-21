@@ -42,7 +42,11 @@ data class ThreadUiState(
   val notice: String? = null,
   /** A downloaded attachment ready to open, consumed by the screen. */
   val openFile: Pair<File, String>? = null,
+  /** A `choose_relay` hold being answered: the letter, and the groups that mail to where the person is held now. */
+  val relayQuestion: RelayQuestion? = null,
 )
+
+data class RelayQuestion(val messageId: Int, val facilityName: String, val options: List<me.paxana.abcmailbox.domain.Group>)
 
 @HiltViewModel
 class ThreadViewModel(
@@ -50,11 +54,12 @@ class ThreadViewModel(
   sessions: SessionRepository,
   private val route: ThreadRoute,
   private val strings: Strings,
+  private val directory: me.paxana.abcmailbox.data.repo.DirectoryRepository,
 ) : ViewModel() {
 
   @Inject
-  constructor(repo: LettersRepository, sessions: SessionRepository, strings: Strings, savedStateHandle: SavedStateHandle) :
-    this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>(), strings)
+  constructor(repo: LettersRepository, sessions: SessionRepository, strings: Strings, directory: me.paxana.abcmailbox.data.repo.DirectoryRepository, savedStateHandle: SavedStateHandle) :
+    this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>(), strings, directory)
 
   // Who is looking decides what the screen offers: a group member records replies and writes for its writers.
   private val viewer = (sessions.state.value as? SessionState.SignedIn)?.session?.user
@@ -76,6 +81,46 @@ class ThreadViewModel(
           is ApiResult.Failure -> Loadable.Failed(r.error)
         })
       }
+    }
+  }
+
+  /**
+   * A `choose_relay` hold: the person was moved to a facility where the writer has to say who mails the letter.
+   * Asks the directory where they are *now*, not what this screen loaded before the move. (As the iOS app does.)
+   */
+  fun askWhoMails(messageId: Int, prisonerId: Int) {
+    _ui.update { it.copy(busyMessageId = messageId) }
+    viewModelScope.launch {
+      val prisoner = directory.prisoner(prisonerId)
+      val facility = ((prisoner as? ApiResult.Success)?.value?.facilityId)?.let { directory.facility(it) }
+      _ui.update { st ->
+        when {
+          prisoner is ApiResult.Failure -> st.copy(busyMessageId = null, notice = prisoner.error.userMessage ?: strings.get(R.string.error_lookup_relay))
+          facility == null -> st.copy(busyMessageId = null, notice = strings.get(R.string.relay_place_unknown))
+          facility is ApiResult.Failure -> st.copy(busyMessageId = null, notice = facility.error.userMessage ?: strings.get(R.string.error_lookup_relay))
+          else -> {
+            val f = (facility as ApiResult.Success).value
+            val options = f.relayGroups.filter { it.accountStatus == null || it.accountStatus == "active" }
+            if (options.isEmpty()) st.copy(busyMessageId = null, notice = strings.get(R.string.relay_none_listed, f.name))
+            else st.copy(busyMessageId = null, relayQuestion = RelayQuestion(messageId, f.name, options))
+          }
+        }
+      }
+    }
+  }
+
+  fun relayQuestionDismissed() = _ui.update { it.copy(relayQuestion = null) }
+
+  fun chooseRelay(group: me.paxana.abcmailbox.domain.Group) {
+    val question = _ui.value.relayQuestion ?: return
+    _ui.update { it.copy(relayQuestion = null, busyMessageId = question.messageId) }
+    viewModelScope.launch {
+      val notice = when (val r = repo.chooseRelay(question.messageId, group.id)) {
+        is ApiResult.Success -> strings.get(R.string.relay_chosen, group.name)
+        is ApiResult.Failure -> r.error.userMessage ?: strings.get(R.string.error_choose_relay)
+      }
+      _ui.update { it.copy(busyMessageId = null, notice = notice) }
+      load()
     }
   }
 

@@ -52,9 +52,21 @@ import javax.inject.Singleton
 /** How a letter came back: the reason the group chose, and what the envelope said (200 characters, never encrypted, shown to the writer). */
 data class ReturnedAs(val reason: me.paxana.abcmailbox.domain.ReturnReason, val note: String? = null) { companion object { const val NOTE_MAX = 200 } }
 
+/**
+ * An API from before PR #106 ignores `held=true` and lists every queued letter, which would show a group its whole
+ * queue under "Held". So the page is checked on the phone (the iOS app found this on its simulator). If the server
+ * did not filter, its total and its further pages mean nothing either: what is held on this page is all there is.
+ */
+internal fun Page<QueueItem>.onlyHeld(): Page<QueueItem> {
+  val held = items.filter { it.letter.isHeld }
+  return if (held.size == items.size) this else Page(held, held.size, page, pageSize)
+}
+
 interface GroupRepository {
   /** Letters the group relays, in one status. Each comes with the prisoner, for addressing. */
   fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>>
+  /** The queued letters that are held: the person was moved or freed after they were written. */
+  fun held(groupId: Int): Flow<PagingData<QueueItem>> = kotlinx.coroutines.flow.emptyFlow()
   suspend fun queueItem(messageId: Int): ApiResult<QueueItem>
   /** [returned] is required for, and only for, `RETURNED`. [release] prints a held letter knowingly. */
   suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs? = null, release: Boolean = false): ApiResult<Letter>
@@ -115,11 +127,24 @@ class DefaultGroupRepository @Inject constructor(
   override fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>> = Pager(PagingConfig(pageSize = 20, initialLoadSize = 20)) {
     PagePagingSource { page, size ->
       codec.ready()
-      when (val r = apiCall(json) { api.relayed(groupId, status.key, page, size) }) {
+      when (val r = apiCall(json) { api.relayed(groupId, status.key, page = page, pageSize = size) }) {
         is ApiResult.Failure -> r
         is ApiResult.Success -> {
           val p = r.value.toPage()
           ApiResult.Success(Page(p.items.map { dto -> QueueItem(codec.incoming(dto), prisoner(dto.prisoner)) }, p.total, p.page, p.pageSize))
+        }
+      }
+    }
+  }.flow
+
+  override fun held(groupId: Int): Flow<PagingData<QueueItem>> = Pager(PagingConfig(pageSize = 20, initialLoadSize = 20)) {
+    PagePagingSource { page, size ->
+      codec.ready()
+      when (val r = apiCall(json) { api.relayed(groupId, LetterStatus.QUEUED.key, held = true, page = page, pageSize = size) }) {
+        is ApiResult.Failure -> r
+        is ApiResult.Success -> {
+          val p = r.value.toPage()
+          ApiResult.Success(Page(p.items.map { dto -> QueueItem(codec.incoming(dto), prisoner(dto.prisoner)) }, p.total, p.page, p.pageSize).onlyHeld())
         }
       }
     }

@@ -18,14 +18,16 @@ data class Activity(
   /** Something the person has to do, not only know. These share the replies' channel: a letter that waits for its writer goes nowhere until they look. */
   val needsThem: Boolean get() = kind == Kind.RETURNED || ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0)
 
-  fun sentence(strings: Strings): String = strings.get(
+  fun sentence(strings: Strings): String = base(strings) + if ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0) " " + strings.plural(R.plurals.activity_waiting, held) else ""
+
+  private fun base(strings: Strings): String = strings.get(
     when (kind) {
       Kind.REPLY -> R.string.activity_reply
       Kind.PRINTED -> R.string.activity_printed
       Kind.MAILED -> R.string.activity_mailed
       Kind.RETURNED -> R.string.activity_returned
-      Kind.MOVED -> if (held > 0) R.string.activity_moved_held else R.string.activity_moved
-      Kind.FREED -> if (held > 0) R.string.activity_freed_held else R.string.activity_freed
+      Kind.MOVED -> R.string.activity_moved
+      Kind.FREED -> R.string.activity_freed
       Kind.QUEUED_FOR_GROUP -> R.string.activity_queued
       Kind.CHANGE_APPROVED -> R.string.activity_change_approved
       Kind.CHANGE_REJECTED -> R.string.activity_change_rejected

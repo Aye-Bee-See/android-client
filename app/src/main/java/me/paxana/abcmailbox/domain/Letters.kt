@@ -65,7 +65,7 @@ enum class HeldReason(val key: String, /** One line for the group's queue. */ @S
   /** They were freed. The group may print it on purpose, the writer may delete it, or the directory is corrected. */
   PRISONER_FREE("prisoner_free", R.string.held_queue_prisoner_free, R.string.held_group_prisoner_free),
   /** A hold this version has never heard of. Still a hold: the letter must not look as if it were on its way. */
-  OTHER("", R.string.held_queue_other, R.string.held_other);
+  OTHER("", R.string.held_queue_other, R.string.held_group_other);
 
   companion object { fun fromKey(key: String?): HeldReason? = if (key.isNullOrEmpty()) null else entries.firstOrNull { it.key == key } ?: OTHER }
 }

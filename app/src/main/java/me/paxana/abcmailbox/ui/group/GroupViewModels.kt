@@ -40,21 +40,27 @@ import me.paxana.abcmailbox.ui.nav.LetterWorkRoute
 import java.io.File
 import javax.inject.Inject
 
-/** The print queue: letters this group relays, one status at a time. */
+/** What the print queue can show: one status at a time, or the queued letters that are held (API PR #106). */
+sealed interface QueueFilter {
+  data class ByStatus(val status: LetterStatus) : QueueFilter
+  data object Held : QueueFilter
+}
+
+/** The print queue: letters this group relays, one filter at a time. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class QueueViewModel @Inject constructor(private val group: GroupRepository, sessions: SessionRepository) : ViewModel() {
   private val groupId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.chapterId
-  private val _status = MutableStateFlow(LetterStatus.QUEUED)
-  val status: StateFlow<LetterStatus> = _status.asStateFlow()
+  private val _filter = MutableStateFlow<QueueFilter>(QueueFilter.ByStatus(LetterStatus.QUEUED))
+  val filter: StateFlow<QueueFilter> = _filter.asStateFlow()
   /** False when the account has no group yet; the API would answer 403 and explain, but there is nothing to ask for. */
   val hasGroup: Boolean = groupId != null
 
-  val items: Flow<PagingData<QueueItem>> = _status
-    .flatMapLatest { s -> groupId?.let { group.queue(it, s) } ?: emptyFlow() }
+  val items: Flow<PagingData<QueueItem>> = _filter
+    .flatMapLatest { f -> groupId?.let { id -> when (f) { is QueueFilter.ByStatus -> group.queue(id, f.status); QueueFilter.Held -> group.held(id) } } ?: emptyFlow() }
     .cachedIn(viewModelScope)
 
-  fun setStatus(s: LetterStatus) { _status.value = s }
+  fun setFilter(f: QueueFilter) { _filter.value = f }
 }
 
 @HiltViewModel
@@ -80,8 +86,6 @@ data class LetterWorkUiState(
   val openFile: Pair<File, String>? = null,
   /** End-to-end only: other relay groups of the facility this letter could be shared with. */
   val partners: List<Group> = emptyList(),
-  /** The server said the letter is held (it became so while this screen was open): ask, as the screen would have had it known. */
-  val askRelease: Boolean = false,
 )
 
 /** One letter as the relay group sees it: who it goes to, what it says, and where it is in the queue. */
@@ -131,24 +135,22 @@ class LetterWorkViewModel(
       LetterStatus.PRINTED -> LetterStatus.MAILED
       else -> return
     }
-    _ui.update { it.copy(busy = true, askRelease = false) }
+    _ui.update { it.copy(busy = true) }
     viewModelScope.launch {
       when (val r = group.setStatus(route.messageId, next, release = release)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, item = Loadable.Loaded(current.copy(letter = r.value.copy(attachments = current.letter.attachments))), notice = strings.get(if (next == LetterStatus.PRINTED) R.string.notice_marked_printed else R.string.notice_marked_mailed)) }
         is ApiResult.Failure -> {
-          // Held since this screen loaded (the person was freed or moved a minute ago). Not an error to show in a
-          // bar and forget: the same question the screen asks of a letter it knew was held, and a fresh look at it.
+          // Held since this screen loaded: the person was moved or freed in the meantime. Not a question to pop at
+          // someone mid-press: say so, and show the letter again, now with its reason and "Print it anyway…".
           val held = (r.error as? AppError.Conflict)?.name == "LetterHeldError"
-          _ui.update { it.copy(busy = false, askRelease = held, notice = if (held) null else r.error.userMessage ?: strings.get(R.string.error_update_letter)) }
+          _ui.update { it.copy(busy = false, notice = if (held) strings.get(R.string.notice_held_since) else r.error.userMessage ?: strings.get(R.string.error_update_letter)) }
           if (held) load()
         }
       }
     }
   }
 
-  fun releaseDeclined() = _ui.update { it.copy(askRelease = false) }
-
-  /** The post brought it back. From `mailed` only; the writer is told, with the reason's code and never the note's text on a lock screen. */
+  /** The mail brought it back. From `mailed` only; the writer is told, with the reason's code and never the note's text on a lock screen. */
   fun markReturned(reason: ReturnReason, note: String) {
     val current = (_ui.value.item as? Loadable.Loaded)?.value ?: return
     if (current.letter.status != LetterStatus.MAILED) return

@@ -70,6 +70,8 @@ interface LettersRepository {
   suspend fun letter(messageId: Int): ApiResult<Letter>
   suspend fun send(letter: NewLetter): ApiResult<Letter>
   suspend fun edit(edit: LetterEdit): ApiResult<Unit>
+  /** Answers a `choose_relay` hold: only who mails the letter changes, which is what lifts it (API PR #106). The words are not touched, so nothing is re-encrypted. */
+  suspend fun chooseRelay(messageId: Int, groupId: Int): ApiResult<Unit> = ApiResult.Failure(AppError.Unexpected(UnsupportedOperationException()))
   suspend fun delete(messageId: Int): ApiResult<Unit>
   suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String? = null): ApiResult<Attachment>
   suspend fun deleteAttachment(attachmentId: Int): ApiResult<Unit>
@@ -156,6 +158,9 @@ class DefaultLettersRepository @Inject constructor(
     }
     error("unreachable")
   }
+
+  override suspend fun chooseRelay(messageId: Int, groupId: Int): ApiResult<Unit> =
+    apiCall(json) { api.update(UpdateMessageRequest(id = messageId, relayChapter = groupId)) }.map { }
 
   override suspend fun edit(edit: LetterEdit): ApiResult<Unit> {
     codec.ready()

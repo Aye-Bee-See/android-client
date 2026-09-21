@@ -1,5 +1,9 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.data.api.Page
+import me.paxana.abcmailbox.domain.QueueItem
+import me.paxana.abcmailbox.domain.Letter
+import me.paxana.abcmailbox.domain.HeldReason
 import me.paxana.abcmailbox.domain.ReturnReason
 import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
@@ -88,6 +92,19 @@ class GroupRepositoryTest {
     server.enqueue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"LetterStatusError","info":"Error updating letter status.","status":409,"error":"A printed letter cannot move to queued."}"""))
     val refused = repo.setStatus(41, LetterStatus.QUEUED) as ApiResult.Failure
     assertEquals("A printed letter cannot move to queued.", refused.error.userMessage)
+  }
+
+  @Test
+  fun `the Held list shows held letters only, even when an older server ignores the filter`() {
+    fun letter(id: Int, held: HeldReason?, status: LetterStatus = LetterStatus.QUEUED) = QueueItem(Letter(id, 1, 1, 3, false, status, "x", null, 1, null, false, null, null, emptyList(), emptyList(), heldReason = held), null)
+    // A server with PR #106 filtered: the page is believed, total and all.
+    val filtered = Page(listOf(letter(3, HeldReason.CHOOSE_RELAY), letter(4, HeldReason.PRISONER_FREE)), total = 37, page = 1, pageSize = 20)
+    assertEquals(filtered, filtered.onlyHeld())
+    // An older one answered with the whole queue: what is held on this page is all that is shown, and there is no page two.
+    val everything = Page(listOf(letter(1, null), letter(4, HeldReason.PRISONER_FREE), letter(5, null)), total = 60, page = 1, pageSize = 20)
+    assertEquals(listOf(4), everything.onlyHeld().items.map { it.letter.id }); assertEquals(1, everything.onlyHeld().total)
+    // A hold left on a letter that has since been printed (released) is not a hold.
+    assertTrue(Page(listOf(letter(6, HeldReason.PRISONER_FREE, LetterStatus.PRINTED)), 1, 1, 20).onlyHeld().items.isEmpty())
   }
 
   @Test

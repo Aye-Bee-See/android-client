@@ -103,6 +103,15 @@ class LettersRepositoryTest {
   }
 
   @Test
+  fun `choosing who mails a held letter changes that and nothing else`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"data":{"updatedRows":1},"success":true,"status":200}"""))
+    assertTrue(repo.chooseRelay(messageId = 3, groupId = 2) is ApiResult.Success)
+    val req = server.next()
+    assertEquals("PUT", req.method); assertEquals("/messaging/message", req.path)
+    assertEquals("no text is sent, so nothing is re-encrypted and nothing can be changed by accident", """{"id":3,"relayChapter":2}""", req.body.readUtf8())
+  }
+
+  @Test
   fun `sending again names the letter that came back`() = runTest {
     server.enqueue(MockResponse().setResponseCode(201).setBody(fixture("message-full.json")))
     repo.send(NewLetter(prisonerId = 1, body = "Dear Sam", relayNote = null, relayChapter = null, resendOf = 41))

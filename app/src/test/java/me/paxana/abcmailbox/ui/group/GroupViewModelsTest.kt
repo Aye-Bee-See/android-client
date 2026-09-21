@@ -50,7 +50,8 @@ class GroupViewModelsTest {
     val moves = mutableListOf<LetterStatus>(); var issued = 0; var revoked = 0
     private fun letter() = Letter(41, 41, 1, 4, false, status, "Dear Jane", null, 1, "Test Chapter", false, null, null, emptyList(), emptyList())
     override fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>> = emptyFlow()
-    override suspend fun queueItem(messageId: Int) = ApiResult.Success(QueueItem(letter(), null))
+    var looks = 0
+    override suspend fun queueItem(messageId: Int): ApiResult<QueueItem> { looks++; return ApiResult.Success(QueueItem(letter(), null)) }
     /** What came with each move: how it came back, and whether a hold was knowingly released. */
     val returnedAs = mutableListOf<me.paxana.abcmailbox.data.repo.ReturnedAs?>(); val releases = mutableListOf<Boolean>()
     /** Set to make the letter held, as the server would after someone is freed. */
@@ -143,13 +144,13 @@ class GroupViewModelsTest {
     vm.markReturned(ReturnReason.TRANSFERRED, "Stamped NOT HERE"); dispatcher.scheduler.advanceUntilIdle()
     assertEquals(listOf(LetterStatus.RETURNED), group.moves)
     assertEquals(ReturnedAs(ReturnReason.TRANSFERRED, "Stamped NOT HERE"), group.returnedAs.single())
-    assertEquals("an address-type return nudges the member towards the directory", "Recorded. The writer has been told. If you know where they are now, the directory needs correcting.", vm.ui.value.notice)
+    assertEquals("an address-type return nudges the member towards the directory", "Recorded as returned. The writer has been told. If your group knows where they are now, the directory needs correcting.", vm.ui.value.notice)
     assertEquals(LetterStatus.RETURNED, (vm.ui.value.item as Loadable.Loaded).value.letter.status)
 
     val other = FakeGroup(status = LetterStatus.MAILED)
     val vm2 = LetterWorkViewModel(other, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings()); dispatcher.scheduler.advanceUntilIdle()
     vm2.markReturned(ReturnReason.RULE_VIOLATION, ""); dispatcher.scheduler.advanceUntilIdle()
-    assertEquals("Recorded. The writer has been told.", vm2.ui.value.notice)
+    assertEquals("Recorded as returned. The writer has been told.", vm2.ui.value.notice)
   }
 
   @Test
@@ -159,10 +160,9 @@ class GroupViewModelsTest {
     dispatcher.scheduler.advanceUntilIdle()
     group.held = HeldReason.PRISONER_FREE // the directory learned it a minute ago; this screen has not
     vm.advance(); dispatcher.scheduler.advanceUntilIdle()
-    assertTrue("the server's refusal becomes the question the screen would have asked", vm.ui.value.askRelease)
-    assertTrue(group.moves.isEmpty()); assertEquals("not a red line to be dismissed", null, vm.ui.value.notice)
-
-    vm.releaseDeclined(); assertFalse(vm.ui.value.askRelease); assertTrue(group.moves.isEmpty())
+    assertTrue(group.moves.isEmpty())
+    assertEquals("said, and the letter shown again with its reason; nobody is asked a question mid-press", "This letter has been held since you opened it. Read why before printing it.", vm.ui.value.notice)
+    assertEquals("the screen looked again", 2, group.looks)
 
     vm.advance(release = true); dispatcher.scheduler.advanceUntilIdle()
     assertEquals(listOf(LetterStatus.PRINTED), group.moves); assertEquals(listOf(true), group.releases)

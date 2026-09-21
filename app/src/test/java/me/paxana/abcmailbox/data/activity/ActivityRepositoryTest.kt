@@ -107,12 +107,13 @@ class ActivityRepositoryTest {
     assertEquals(listOf(true, true, false, true), fresh.map { it.needsThem })
     assertEquals("each opens the conversation it is about", listOf(2, 1, 1, 41), fresh.map { it.chatId })
     val s = TestStrings()
-    assertEquals("Someone you write to has been released. A letter of yours to them is on hold.", fresh[0].sentence(s))
-    assertEquals("Someone you write to was moved, and a letter of yours is waiting for you.", fresh[1].sentence(s))
+    assertEquals("Someone you write to has been released. A letter you wrote them is waiting for you.", fresh[0].sentence(s))
+    assertEquals("how many, as the iOS app says it", "Someone you write to was moved to another facility. 2 letters you wrote them are waiting for you.", fresh[1].sentence(s))
     assertEquals("Someone you write to was moved to another facility.", fresh[2].sentence(s))
-    assertEquals("One of your letters came back in the post.", fresh[3].sentence(s))
+    assertEquals("One of your letters came back in the mail.", fresh[3].sentence(s))
     assertEquals("Una de tus cartas ha vuelto por correo.", fresh[3].sentence(TestStrings("es")))
-    assertEquals("Человека, которому вы пишете, освободили. Ваше письмо ему задержано.", fresh[0].sentence(TestStrings("ru")))
+    assertEquals("Человека, которому вы пишете, освободили. 1 письмо, которое вы ему написали, ждёт вас.", fresh[0].sentence(TestStrings("ru")))
+    assertEquals("Russian counts differently at two", "Человека, которому вы пишете, перевели в другое учреждение. 2 письма, которые вы ему написали, ждут вас.", fresh[1].sentence(TestStrings("ru")))
     // A status the API may one day announce for a prisoner is not called a release.
     assertEquals(Activity.Kind.OTHER, Activity.kindOf("prisoner.status", "transferred_abroad"))
   }
@@ -120,7 +121,7 @@ class ActivityRepositoryTest {
   @Test
   fun `the words are chosen on the phone, name nobody, and come in the user's language`() {
     val mailed = Activity(5, Activity.kindOf("letter.status", "mailed"), 41, 50)
-    assertEquals("One of your letters is in the post.", mailed.sentence(TestStrings()))
+    assertEquals("One of your letters is in the mail.", mailed.sentence(TestStrings()))
     assertEquals("Una de tus cartas ya está en el correo.", mailed.sentence(TestStrings("es")))
     assertEquals("Одно из ваших писем отправлено почтой.", mailed.sentence(TestStrings("ru")))
     assertEquals("A letter is waiting for your group to print it.", Activity(6, Activity.kindOf("letter.queued", null), 41, 50).sentence(TestStrings()))

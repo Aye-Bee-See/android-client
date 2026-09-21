@@ -76,11 +76,12 @@ fun GroupInbox(
   }
 }
 
-private val queueStatuses = listOf(LetterStatus.QUEUED, LetterStatus.PRINTED, LetterStatus.MAILED, LetterStatus.RETURNED)
+/** In the order the work happens, with the held letters next to the queued ones they were taken out of. (The same five as the iOS app.) */
+private val queueFilters = listOf(QueueFilter.ByStatus(LetterStatus.QUEUED), QueueFilter.Held, QueueFilter.ByStatus(LetterStatus.PRINTED), QueueFilter.ByStatus(LetterStatus.MAILED), QueueFilter.ByStatus(LetterStatus.RETURNED))
 
 @Composable
 private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltViewModel()) {
-  val status by viewModel.status.collectAsStateWithLifecycle()
+  val filter by viewModel.filter.collectAsStateWithLifecycle()
   val items = viewModel.items.collectAsLazyPagingItems()
   LifecycleResumeEffect(Unit) { items.refresh(); onPauseOrDispose { } }
   ReloadOnNews { items.refresh() } // a letter joined the queue
@@ -90,10 +91,13 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
   }
   PagedList(
     items = items,
-    emptyText = when (status) { LetterStatus.QUEUED -> stringResource(R.string.queue_empty_queued); LetterStatus.PRINTED -> stringResource(R.string.queue_empty_printed); LetterStatus.RETURNED -> stringResource(R.string.queue_empty_returned); else -> stringResource(R.string.queue_empty_mailed) },
+    emptyText = stringResource(when (val f = filter) {
+      QueueFilter.Held -> R.string.queue_empty_held
+      is QueueFilter.ByStatus -> when (f.status) { LetterStatus.QUEUED -> R.string.queue_empty_queued; LetterStatus.PRINTED -> R.string.queue_empty_printed; LetterStatus.RETURNED -> R.string.queue_empty_returned; else -> R.string.queue_empty_mailed }
+    }),
     header = {
       item("status") {
-        ChipRow(queueStatuses.map { it to stringResource(it.labelRes) }, status, { it?.let(viewModel::setStatus) }, allLabel = "", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), showAll = false)
+        ChipRow(queueFilters.map { f -> f to stringResource(when (f) { is QueueFilter.ByStatus -> f.status.labelRes; QueueFilter.Held -> R.string.chip_held }) }, filter, { it?.let(viewModel::setFilter) }, allLabel = "", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), showAll = false)
       }
     },
   ) { q -> QueueRow(q, onClick = { onLetter(q.letter.id) }) }
@@ -111,7 +115,9 @@ private fun QueueRow(q: QueueItem, onClick: () -> Unit) {
       q.letter.attachments.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.outbox_files, it, it) },
     ).joinToString(" · "),
     // A held letter says so before anything else: it is in the list, and it is not to be printed like the others.
-    notice = q.letter.heldReason?.takeIf { q.letter.isHeld }?.let { stringResource(it.queueNoticeRes) } ?: q.letter.relayNote?.let { stringResource(R.string.note_prefixed, it) },
+    notice = q.letter.heldReason?.takeIf { q.letter.isHeld }?.let { stringResource(it.queueNoticeRes) }
+      ?: q.letter.returnReason?.takeIf { q.letter.status == LetterStatus.RETURNED }?.let { stringResource(R.string.queue_came_back, stringResource(it.choiceRes).lowercase()) }
+      ?: q.letter.relayNote?.let { stringResource(R.string.note_prefixed, it) },
     onClick = onClick,
   )
 }

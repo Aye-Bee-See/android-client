@@ -67,9 +67,9 @@
     <string name="status_queued">Queued</string>
     <string name="status_queued_meaning">Waiting for the relay group to print it</string>
     <string name="status_printed">Printed</string>
-    <string name="status_printed_meaning">Printed by the relay group, not yet posted</string>
+    <string name="status_printed_meaning">Printed by the relay group, not yet mailed</string>
     <string name="status_mailed">Mailed</string>
-    <string name="status_mailed_meaning">In the post</string>
+    <string name="status_mailed_meaning">In the mail</string>
     <string name="status_received">Received</string>
     <string name="status_received_meaning">A reply from the prisoner, recorded by a group</string>
     <string name="status_unknown">Unknown</string>
@@ -264,8 +264,8 @@
     <string name="thread_counts" tools:ignore="PluralsCandidate">%1$s · %2$d sent · %3$d received</string>
     <string name="retention_forever">Mailed letters are kept until you delete them.</string>
     <plurals name="retention_days">
-        <item quantity="one">Mailed letters and replies are removed after %d day unless you keep them; older ones may already be gone.</item>
-        <item quantity="other">Mailed letters and replies are removed after %d days unless you keep them; older ones may already be gone.</item>
+        <item quantity="one">Mailed and returned letters, and replies, are removed after %d day unless you keep them; older ones may already be gone.</item>
+        <item quantity="other">Mailed and returned letters, and replies, are removed after %d days unless you keep them; older ones may already be gone.</item>
     </plurals>
     <string name="thread_empty">No letters in this conversation yet.</string>
     <string name="letter_received">← Received</string>
@@ -381,7 +381,7 @@
     <string name="tab_writers">Writers</string>
     <string name="not_in_group">This account is not in a group yet. A network admin has to set your group before you can see its letters.</string>
     <string name="queue_empty_queued">Nothing is waiting to be printed.</string>
-    <string name="queue_empty_printed">Nothing is printed and waiting for the post.</string>
+    <string name="queue_empty_printed">Nothing is printed and waiting to be mailed.</string>
     <string name="queue_empty_mailed">No mailed letters to show.</string>
     <string name="written_on">Written %1$s</string>
     <string name="note_prefixed">Note: %1$s</string>
@@ -403,8 +403,8 @@
     <string name="share_text">They will be able to read and print this letter. It stays in your queue: your group still marks it printed and mailed, so agree between you who posts it.</string>
     <string name="action_cancel">Cancel</string>
     <string name="mark_mailed_title">Mark as mailed?</string>
-    <string name="mark_mailed_text">Do this once the letter is actually in the post. The writer will see it as mailed, and it cannot be moved back.</string>
-    <string name="action_in_the_post">It is in the post</string>
+    <string name="mark_mailed_text">Do this once the letter is actually in the mail. The writer will see it as mailed, and it cannot be moved back.</string>
+    <string name="action_in_the_post">It is in the mail</string>
     <string name="action_not_yet">Not yet</string>
     <string name="label_address_envelope">ADDRESS THE ENVELOPE TO</string>
     <!-- The name line of an envelope: legal name and inmate number. It is copied onto paper for a prison mailroom,
@@ -643,7 +643,7 @@
     <!-- Activity notifications. They appear on lock screens, so they name nobody and quote nothing. -->
     <string name="activity_reply">A reply to one of your letters has arrived.</string>
     <string name="activity_printed">One of your letters has been printed.</string>
-    <string name="activity_mailed">One of your letters is in the post.</string>
+    <string name="activity_mailed">One of your letters is in the mail.</string>
     <string name="activity_queued">A letter is waiting for your group to print it.</string>
     <string name="activity_change_approved">A change you proposed to the directory was approved.</string>
     <string name="activity_change_rejected">A change you proposed to the directory was not accepted.</string>
@@ -732,7 +732,7 @@
     <string name="delete_goes_name">The account itself. Your username is free for anyone to take, at once.</string>
     <string name="delete_goes_keys">Your encryption key. Your recovery code becomes useless: there will be nothing left for it to open.</string>
     <string name="delete_cannot_heading">What this does not do</string>
-    <string name="delete_cannot_paper">It does not recall a letter that is already printed or in the post. The prisoner will still receive it. If they write back, there will be no account for a group to record their reply on.</string>
+    <string name="delete_cannot_paper">It does not recall a letter that is already printed or in the mail. The prisoner will still receive it. If they write back, there will be no account for a group to record their reply on.</string>
     <string name="delete_cannot_group">What you did for your group stays, without your name on it: letters you marked printed or mailed, invitations, changes you proposed to the directory. The letters of writers your group looks after are the group’s, and stay.</string>
     <string name="delete_not_yet_heading">Not yet</string>
     <string name="delete_last_holder_notice">You are the only member who holds your group’s key. If this account went now, nobody could ever read the group’s letters again, so the server will refuse. Hand the key to another member first.</string>
@@ -753,65 +753,93 @@
 
     <!-- Returned mail (API PR #105): a status, six reasons worded twice (a sentence for the writer, a short choice for the group), and send-again -->
     <string name="status_returned">Returned</string>
-    <string name="status_returned_meaning">The post brought it back. It did not reach them.</string>
+    <string name="status_returned_meaning">It came back in the mail. It did not reach them.</string>
     <string name="status_returned_on">Came back on %s</string>
-    <string name="status_returned_undated">Came back in the post</string>
-    <string name="return_refused">The mail room would not pass it on, and did not say which rule.</string>
+    <string name="status_returned_undated">Came back in the mail</string>
+    <string name="return_refused">It came back: the mail room refused it and named no rule.</string>
     <string name="return_refused_advice">Look at the facility’s mail rules before sending it again; the group that mailed it may know more.</string>
-    <string name="return_rule_violation">It broke one of the facility’s mail rules.</string>
+    <string name="return_rule_violation">It came back: the mail room says it broke one of the facility’s mail rules.</string>
     <string name="return_rule_violation_advice">Check the rules shown when you write, change what broke them, and send it again.</string>
-    <string name="return_transferred">They are held somewhere else now.</string>
+    <string name="return_transferred">It came back: the mail room says they are held somewhere else now.</string>
     <string name="return_transferred_advice">Sent again, it goes to wherever the directory now says they are. If the directory still shows the old place, it may come back again: check their profile first.</string>
-    <string name="return_released">They are no longer held there.</string>
+    <string name="return_released">It came back: the mail room says they are no longer held there.</string>
     <string name="return_released_advice">They may have been freed. Check their profile before sending anything to a prison again.</string>
-    <string name="return_bad_address">It could not be delivered as addressed.</string>
+    <string name="return_bad_address">It came back: it could not be delivered as addressed.</string>
     <string name="return_bad_address_advice">The address in the directory may be wrong. Your group can correct it; sent again after that, the letter goes to the new one.</string>
-    <string name="return_unknown">It came back, and nothing on it says why.</string>
+    <string name="return_unknown">It came back: nothing on the envelope says why.</string>
     <string name="return_unknown_advice">You can send it again as it is. If it comes back twice, ask the group that mailed it.</string>
-    <string name="return_envelope_said">The envelope said: “%s”</string>
-    <string name="return_sent_again_on">Sent again on %1$s (%2$s)</string>
-    <string name="return_sent_again">Sent again (%s)</string>
+    <string name="return_sent_again_on">Sent again on %1$s. That letter is %2$s.</string>
+    <string name="return_sent_again">Sent again. That letter is %s.</string>
     <string name="action_send_again">Send it again</string>
     <string name="compose_sending_again">This starts from the letter that did not get through. Change anything you like; who mails it is worked out afresh from where they are now.</string>
-    <string name="return_choice_refused">Refused by the mail room, no rule named</string>
-    <string name="return_choice_rule_violation">Broke one of the mail rules</string>
-    <string name="return_choice_transferred">Moved: held somewhere else now</string>
-    <string name="return_choice_released">Released: no longer held</string>
+    <string name="return_choice_refused">Refused, no rule named</string>
+    <string name="return_choice_rule_violation">Broke a mail rule</string>
+    <string name="return_choice_transferred">Moved to another facility</string>
+    <string name="return_choice_released">No longer held there</string>
     <string name="return_choice_bad_address">Undeliverable as addressed</string>
     <string name="return_choice_unknown">Nothing says why</string>
     <string name="action_it_came_back">It came back…</string>
     <string name="return_dialog_title">This letter came back</string>
-    <string name="return_dialog_text">The writer is told, and can send it again. What does the envelope say?</string>
-    <string name="label_envelope_said">What the envelope says (optional)</string>
+    <string name="return_dialog_text">The writer is told that the letter came back, and why. It cannot be undone.</string>
+    <string name="label_envelope_said">What the envelope said (optional)</string>
     <!-- characters used, characters allowed -->
-    <string name="help_envelope_said">%1$d of %2$d. Shown to the writer and never encrypted: the stamp or label only, nothing about the letter.</string>
-    <string name="action_record_return">Record it</string>
-    <string name="notice_returned">Recorded. The writer has been told.</string>
-    <string name="notice_returned_address">Recorded. The writer has been told. If you know where they are now, the directory needs correcting.</string>
-    <string name="queue_empty_returned">Nothing has come back.</string>
+    <string name="help_envelope_said">%1$d of %2$d. The writer reads this note, and it is not encrypted, even when letters are. Write what the envelope said, and nothing about what the letter said.</string>
+    <string name="action_record_return">Record the return</string>
+    <string name="notice_returned">Recorded as returned. The writer has been told.</string>
+    <string name="notice_returned_address">Recorded as returned. The writer has been told. If your group knows where they are now, the directory needs correcting.</string>
+    <string name="queue_empty_returned">No letter has come back.</string>
 
     <!-- Held letters (API PR #106): still queued, going nowhere until somebody decides -->
     <string name="status_held">On hold</string>
-    <string name="held_choose_relay">They were moved, and their new facility only takes mail through a group. This letter waits until you choose which group mails it.</string>
-    <string name="held_reseal_needed">They were moved, and this letter is sealed for a group that does not mail to their new facility. Nobody else can open it, so it has to be sent again from your phone.</string>
-    <string name="held_prisoner_free">The directory says they have been released. A letter posted to a prison someone has left may never reach them, so this one waits. You can delete it; the group can still choose to post it.</string>
-    <string name="held_other">This letter is on hold and will not be printed for now.</string>
+    <string name="held_choose_relay">They were moved. This letter is waiting for you to choose who mails it now.</string>
+    <string name="held_reseal_needed">They were moved, and this letter is sealed to a group that does not mail to the new facility. Nobody else can open it to pass it on, so it has to be sent again from this phone.</string>
+    <string name="held_prisoner_free">They have been released, so this letter is waiting: mailed to a prison they have left, it may never reach them. The group prints it only on purpose. You can delete it, or leave it if you know it will be forwarded.</string>
+    <string name="held_other">This letter is being held and will not be printed for now.</string>
     <string name="action_choose_who_mails">Choose who mails it</string>
-    <string name="held_queue_choose_relay">On hold: the writer has to choose who mails it</string>
-    <string name="held_queue_reseal_needed">On hold: they were moved, the writer has to send it again</string>
-    <string name="held_queue_prisoner_free">On hold: they have been released</string>
-    <string name="held_queue_other">On hold</string>
-    <string name="held_group_choose_relay">This person was moved, and the writer has been asked to choose which group mails the letter. It is not yours to print unless they choose you.</string>
-    <string name="held_group_reseal_needed">This person was moved to a facility your group does not mail to. The writer has been asked to send the letter again, for the right group. Posting this copy would send it to the wrong place.</string>
-    <string name="held_group_prisoner_free">The directory says this person has been released. A letter posted to a prison they have left may never reach them. Print it only if you know it will.</string>
-    <string name="release_title">Print a letter that is on hold?</string>
+    <string name="held_queue_choose_relay">Held: moved; the writer has to choose who mails it</string>
+    <string name="held_queue_reseal_needed">Held: moved; the writer has to send it again</string>
+    <string name="held_queue_prisoner_free">Held: they have been released</string>
+    <string name="held_queue_other">Held</string>
+    <string name="held_group_choose_relay">Held: they were moved, and the writer has not yet chosen who mails this letter.</string>
+    <string name="held_group_reseal_needed">Held: they were moved to a facility your group does not mail to. The writer has been asked to send it again, to the group that does.</string>
+    <string name="held_group_prisoner_free">Held: they have been released since this was written. Mailed to a prison they have left, it may never reach them. Print it only if your group knows it will.</string>
+    <string name="release_title">Print it anyway?</string>
     <string name="action_print_anyway">Print it anyway</string>
-    <string name="action_leave_it_held">Leave it on hold</string>
+    <string name="action_leave_it_held">Leave it waiting</string>
 
     <!-- Feed sentences for returned, moved and freed. Like the others they name nobody: they are read on lock screens -->
-    <string name="activity_returned">One of your letters came back in the post.</string>
+    <string name="activity_returned">One of your letters came back in the mail.</string>
     <string name="activity_moved">Someone you write to was moved to another facility.</string>
-    <string name="activity_moved_held">Someone you write to was moved, and a letter of yours is waiting for you.</string>
     <string name="activity_freed">Someone you write to has been released.</string>
-    <string name="activity_freed_held">Someone you write to has been released. A letter of yours to them is on hold.</string>
+
+    <!-- Returned and held letters, brought into line with the iOS app's wording -->
+    <!-- %s is the relay group's name -->
+    <string name="return_note_from">From %s, about the envelope</string>
+    <string name="return_group_note">Your group’s note: %s</string>
+    <!-- date, then the reason as the group chose it -->
+    <string name="returned_group_line_on">Came back on %1$s: %2$s. The writer has been told and can send it again.</string>
+    <string name="returned_group_line">Came back: %s. The writer has been told and can send it again.</string>
+    <string name="queue_came_back">Came back: %s</string>
+    <string name="held_choose_relay_writer">They were moved. This letter is waiting for the writer to choose who mails it now.</string>
+    <string name="held_reseal_needed_writer">They were moved, and this letter is sealed to a group that does not mail to the new facility. Nobody else can open it to pass it on, so it has to be sent again from the writer’s device.</string>
+    <string name="held_prisoner_free_writer">They have been released, so this letter is waiting: mailed to a prison they have left, it may never reach them. The group prints it only on purpose.</string>
+    <string name="held_group_other">Held: something changed for this person after the letter was written. Check their page before printing it.</string>
+    <string name="relay_question_title">Who should mail it?</string>
+    <!-- %s is the facility's name -->
+    <string name="relay_question_text">%s only takes letters through a group. The one you choose prints this letter and mails it.</string>
+    <string name="relay_none_listed">No group is listed yet that mails to %s. The letter waits until one is; you can also delete it.</string>
+    <string name="relay_place_unknown">The directory does not say where they are held now.</string>
+    <string name="relay_chosen">%s will print and mail it.</string>
+    <string name="error_choose_relay">Could not set who mails the letter.</string>
+    <string name="error_lookup_relay">Could not look up who mails to them now.</string>
+    <string name="action_print_anyway_more">Print it anyway…</string>
+    <string name="release_text">This lifts the hold. Do it only if your group knows the letter will reach them where it is going.</string>
+    <string name="notice_held_since">This letter has been held since you opened it. Read why before printing it.</string>
+    <string name="placeholder_envelope_said">For example: Stamped NOT HERE</string>
+    <string name="chip_held">Held</string>
+    <string name="queue_empty_held">No letter is held. A letter is held when the person it is for was moved or freed after it was written.</string>
+    <plurals name="activity_waiting">
+        <item quantity="one">A letter you wrote them is waiting for you.</item>
+        <item quantity="other">%d letters you wrote them are waiting for you.</item>
+    </plurals>
 </resources>

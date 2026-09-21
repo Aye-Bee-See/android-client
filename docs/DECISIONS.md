@@ -12,7 +12,9 @@ All three writer actions go through the compose screen that already exists: choo
 
 The six return reasons are worded twice from the same code: a sentence with advice for the writer, a short choice for the member holding the envelope. A code this version does not know is shown as a return without a why, and an unknown hold as a plain hold: neither may look like a letter on its way.
 
-**Consequences.** iOS should copy the wording (`values/strings.xml`, "Returned mail" and "Held letters") so the two apps explain a return the same way. If the groups ask for more reasons, each needs three strings in three languages here.
+**Revised 21 September 2026.** iOS built this the next day, and where the two differed Android took iOS's side: choosing a relay group is now a one-question dialog in the conversation and not the edit path (the edit path still works, and still refuses to pre-select a group that stopped serving the person); the group's page replaces "Mark as printed" with "Print it anyway…" on a held letter, and a hold discovered by a 409 is announced and reloaded, not turned into a question mid-press. Android keeps the "On hold" chip and its per-reason advice; iOS keeps the status chip. See PLAN.md, phase 12, second pass.
+
+**Consequences.** The two apps now explain a return in the same words (`values/strings.xml`, "Returned mail" and "Held letters"; iOS `Domain/Letters.swift`). A change to either should be made in both. If the groups ask for more reasons, each needs three strings in three languages here.
 
 ## 2026-09-20: "delete my account" is guarded the way the iOS app guards it, and never by making people wait
 
