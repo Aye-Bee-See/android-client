@@ -1,9 +1,12 @@
 package me.paxana.abcmailbox.ui.account
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,7 +42,8 @@ fun DevServerDialog(
     onDismissRequest = onDismiss,
     title = { Text("API server") },
     text = {
-      Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      // A dialog gets a fixed share of the screen; with the keyboard up it is less than this content, so it scrolls.
+      Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Debug builds only. Enter your computer's address on this Wi-Fi, for example 192.168.1.20 (port 3000 is assumed). Saving signs you out.", style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
           value = text,
@@ -51,16 +55,15 @@ fun DevServerDialog(
         )
         Text("Default: $default", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         result?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = if (it.startsWith("Reachable")) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error) }
-      }
-    },
-    confirmButton = { TextButton(onClick = { onSave(text) }, enabled = !checking) { Text(if (checking) "Checking…" else "Save and check") } },
-    dismissButton = {
-      Column {
+        // The other developer actions live in the scrolling part, not in the dialog's button slots: those slots do not
+        // scroll, and with the keyboard up they were the part that fell off the bottom.
+        HorizontalDivider()
         // Show the address now in force; the field is local state and would otherwise keep the old one.
         TextButton(onClick = { text = default; onReset() }, enabled = !checking) { Text("Use default") }
         TextButton(onClick = { onSimulatePush(); onDismiss() }) { Text("Simulate a push in 8 s") }
-        TextButton(onClick = onDismiss) { Text("Close") }
       }
     },
+    confirmButton = { TextButton(onClick = { onSave(text) }, enabled = !checking) { Text(if (checking) "Checking…" else "Save and check") } },
+    dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
   )
 }
