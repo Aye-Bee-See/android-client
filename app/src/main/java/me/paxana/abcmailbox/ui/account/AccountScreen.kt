@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -50,8 +52,10 @@ fun AccountScreen(
     ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() }
   }
 
+  // Scrolls: the page outgrew a phone screen when the group's numbers and account deletion joined it, and the build
+  // line (with the hidden server dialog behind it) is the last thing on it.
   Column(
-    modifier = Modifier.fillMaxSize().padding(24.dp),
+    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
     Text(stringResource(R.string.title_account), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
