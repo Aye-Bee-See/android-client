@@ -147,6 +147,7 @@ class SplitSignInTest {
       """{"data":{"scheme":"split","kdfSalt":"SALT"},"success":true,"status":200}""", // or without its recipe
       """{"data":{"scheme":"pake2","kdfSalt":"SALT","kdfParams":$salted},"success":true,"status":200}""", // a scheme this app does not know
       """{"data":{},"success":true,"status":200}""", // nothing
+      """{"success":true,"status":200}""", // no body at all: not an older API, which answers 404 (found by the iOS side's review)
     )) {
       server.dispatcher = SchemeDispatcher(MockResponse().setBody(answer))
       val r = repo.login("carol", "carolpass") as ApiResult.Failure
@@ -154,7 +155,7 @@ class SplitSignInTest {
     }
     // Every request the server saw was a handshake (each answer had its own dispatcher, so apiRequestCount cannot say).
     val seen = generateSequence { server.takeRequest(200, java.util.concurrent.TimeUnit.MILLISECONDS) }.map { it.path!! }.toList()
-    assertEquals(4, seen.size); assertTrue("the password went out for none of them: $seen", seen.all { it.startsWith("/auth/login-params") })
+    assertEquals(5, seen.size); assertTrue("the password went out for none of them: $seen", seen.all { it.startsWith("/auth/login-params") })
   }
 
   @Test
@@ -174,6 +175,22 @@ class SplitSignInTest {
     vault.clear()
     server.queue(MockResponse().setBody("""{"data":${splitKeys("carolpass")},"success":true,"status":200}"""))
     assertTrue(repo.unlock("not-it") is ApiResult.Failure); assertNull(vault.keyPair(7))
+  }
+
+  @Test
+  fun `deleting an account from before, under the flag, proves the password the way sign-in does`() = runTest {
+    build()
+    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null)))
+    // The handshake says split (the flag is on); the account is plain. Without sign-in's one-time fallback, a right
+    // password would be called wrong here (found by the iOS side's review, 22 Sep 2026).
+    server.queue(MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}"""))
+    server.queue(MockResponse().setBody(login(noKeys)))
+    server.queue(MockResponse().setBody("""{"data":{"deleted":1,"letters":0,"replies":0,"attachments":0,"threads":0},"success":true,"status":200}"""))
+    assertTrue(repo.deleteAccount("carolpass") is ApiResult.Success)
+    assertEquals("auth(carolpass)with(SALT)", field(body(), "password"))
+    assertEquals("carolpass", field(body(), "password"))
+    assertEquals("deleted with what the server accepted", """{"id":7,"password":"carolpass"}""", server.next().body.readUtf8())
+    assertNull(store.flow.value)
   }
 
   @Test

@@ -39,6 +39,8 @@ import me.paxana.abcmailbox.data.crypto.KeyVault
 import me.paxana.abcmailbox.data.crypto.LetterCodec
 import me.paxana.abcmailbox.data.api.UpdateUserRequest
 import me.paxana.abcmailbox.data.api.AuthApi
+import me.paxana.abcmailbox.data.api.LoginParamsDto
+import me.paxana.abcmailbox.data.api.LoginData
 import me.paxana.abcmailbox.data.api.LoginRequest
 import me.paxana.abcmailbox.data.api.LogoutRequest
 import me.paxana.abcmailbox.data.api.apiCall
@@ -165,18 +167,20 @@ class DefaultSessionRepository @Inject constructor(
   }
 
   private suspend fun credential(username: String, password: String): ApiResult<Credential> {
-    val params = when (val r = apiCall(json) { api.loginParams(username) }) {
-      is ApiResult.Success -> r.value.data
-      // An API from before PR #114 has no such address: every account on it is plain.
-      is ApiResult.Failure -> if (r.error is AppError.NotFound) null else return r
+    // Only a 404 means an older API, with no handshake at all and every account plain. A 200 with no body is not that:
+    // it is a malformed answer, and it fails closed like any other (found by the iOS side's review, 22 Sep 2026).
+    val olderApi: Boolean
+    val params: LoginParamsDto? = when (val r = apiCall(json) { api.loginParams(username) }) {
+      is ApiResult.Success -> { olderApi = false; r.value.data }
+      is ApiResult.Failure -> if (r.error is AppError.NotFound) { olderApi = true; null } else return r
     }
     if (params?.isSplit == true) {
       val keys = engine.deriveSplit(password, params.kdfSalt!!, params.kdfParams!!)
       return ApiResult.Success(Credential(keys.authKey, keys, params.kdfSalt, params.kdfParams))
     }
-    // Fail closed: "split" without its salt, or a scheme this app has never heard of, is not "plain". Only a
-    // well-formed plain answer (or no handshake at all, an older API) may send the password itself.
-    if (params != null && !params.isWellFormed) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_scheme_refused))))
+    // Fail closed: "split" without its salt, a scheme this app has never heard of, or no answer at all, is not
+    // "plain". Only a well-formed plain answer, or an older API, may send the password itself.
+    if (!olderApi && params?.isWellFormed != true) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_scheme_refused))))
     // This phone has signed in to this name without sending the password. A server that now asks for the password
     // itself is not the server this account was made on, or has been tampered with. Nothing is sent.
     if (schemes.isKnownSplit(username)) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_scheme_downgrade, username)))
@@ -189,25 +193,37 @@ class DefaultSessionRepository @Inject constructor(
     is ApiResult.Failure -> if (r.error is AppError.NotFound) ApiResult.Success(false) else r
   }
 
+  /** A password the server accepted: the credential it was accepted in, and what sign-in answered. */
+  private class Proof(val cred: Credential, val response: LoginData)
+
+  /**
+   * Proves a password to the server, the one way every proof goes: signing in, then deleting an account, then
+   * confirming the current password before a change. Once REQUIRE_SPLIT_AUTH is on, the server says "split" for
+   * every name so as to say nothing about any of them, and an account made before the scheme can only sign in
+   * with the password itself. So a refused auth key is followed, once, by the password, but only for a name this
+   * phone has never known as split: for a known one the refusal stands, and the password stays here. (A mistyped
+   * password on a new phone does reach the server this way; PLAN.md, ask 23.) Nothing is stored here.
+   */
+  private suspend fun prove(name: String, password: String): ApiResult<Proof> {
+    val cred = when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+    var used = cred
+    var attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }
+    if (attempt is ApiResult.Failure && attempt.error is AppError.Unauthorized && cred.isSplit && !schemes.isKnownSplit(name)) {
+      cred.wipe()
+      used = Credential(password, null, null, null)
+      attempt = apiCall(json) { api.login(LoginRequest(name, password)) }
+    }
+    return when (attempt) {
+      is ApiResult.Failure -> { used.wipe(); attempt }
+      is ApiResult.Success -> ApiResult.Success(Proof(used, checkNotNull(attempt.value.data) { "login response had no data" }))
+    }
+  }
+
   override suspend fun login(username: String, password: String): ApiResult<Session> {
     val name = username.trim()
-    val cred = when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+    val proof = when (val p = prove(name, password)) { is ApiResult.Failure -> return p; is ApiResult.Success -> p.value }
+    val used = proof.cred; val response = proof.response
     try {
-      var used = cred
-      var attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }
-      // Once REQUIRE_SPLIT_AUTH is on, the server says "split" for every name so as to say nothing about any of
-      // them, and an account made before the scheme can only sign in with the password itself. So a refused auth
-      // key is followed, once, by the password, but only for a name this phone has never known as split: for a
-      // known one the refusal stands, and the password stays here. (A mistyped password on a new phone does reach
-      // the server this way; PLAN.md, ask 23.)
-      if (attempt is ApiResult.Failure && attempt.error is AppError.Unauthorized && cred.isSplit && !schemes.isKnownSplit(name)) {
-        used = Credential(password, null, null, null)
-        attempt = apiCall(json) { api.login(LoginRequest(name, password)) }
-      }
-      val response = when (attempt) {
-        is ApiResult.Failure -> return attempt
-        is ApiResult.Success -> checkNotNull(attempt.value.data) { "login response had no data" }
-      }
       val session = response.toSession()
       // Set the token for the interceptor now; the stored-session flow would only get there a moment later.
       cache.token = session.token
@@ -216,7 +232,7 @@ class DefaultSessionRepository @Inject constructor(
       if (modes.current() == EncryptionMode.E2E) prepareKeys(session, response.keys, password, used)
       return ApiResult.Success(session)
     } finally {
-      cred.wipe()
+      used.wipe()
     }
   }
 
@@ -361,13 +377,13 @@ class DefaultSessionRepository @Inject constructor(
     // ignores the password on this endpoint and deletes anyway (seen for real: a server that had not been
     // restarted since the merge). Signing in with it first means a wrong password can never delete anything,
     // whatever is on the other end. The token that sign-in issues is never stored; it goes with the account.
-    val cred = when (val c = credential(session.user.username, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
-    cred.wipe() // only what the server checks is needed here
-    when (val check = apiCall(json) { api.login(LoginRequest(session.user.username, cred.serverPassword)) }) {
-      is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_delete_wrong_password))) else check
-      is ApiResult.Success -> Unit
+    // The same proof as signing in, with its one-time fallback: an account from before, under the flag, must not be
+    // told its right password is wrong. What the server accepted is what it is asked to delete with.
+    val accepted = when (val p = prove(session.user.username, password)) {
+      is ApiResult.Failure -> return if (p.error is AppError.Unauthorized) ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_delete_wrong_password))) else p
+      is ApiResult.Success -> p.value.cred.also { it.wipe() }.serverPassword // only what the server checks is needed here
     }
-    return when (val r = apiCall(json) { api.deleteUser(DeleteAccountRequest(session.user.id, cred.serverPassword)) }) {
+    return when (val r = apiCall(json) { api.deleteUser(DeleteAccountRequest(session.user.id, accepted)) }) {
       is ApiResult.Failure -> r
       is ApiResult.Success -> withContext(NonCancellable) {
         // NonCancellable: the account is gone whatever happens next. A ViewModel scope cancelled half way
