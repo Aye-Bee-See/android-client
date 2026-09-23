@@ -49,8 +49,8 @@ class FakeSessionRepository(
     return ApiResult.Success(ClaimInfo("Alex", "Test Chapter", Instant.parse("2026-09-20T00:00:00Z")))
   }
 
-  override suspend fun claim(token: String, username: String, password: String, email: String?): ApiResult<Session> {
-    claims += listOf(token, username, password, email)
+  override suspend fun claim(token: String, username: String, password: String, email: String?, penName: String?): ApiResult<Session> {
+    claims += listOf(token, username, password, email, penName)
     nextError?.let { return ApiResult.Failure(it) }
     return login(username, password)
   }
@@ -63,8 +63,8 @@ class FakeSessionRepository(
     joinInfoError?.let { return ApiResult.Failure(it) }
     return ApiResult.Success(me.paxana.abcmailbox.domain.Invitation(1, "Portland ABC", Instant.parse("2026-10-22T19:00:00Z")))
   }
-  override suspend fun join(code: String, username: String, password: String, email: String?, name: String?): ApiResult<Session> {
-    joins += listOf(code, username, password, email, name)
+  override suspend fun join(code: String, username: String, password: String, email: String?, name: String?, penName: String?): ApiResult<Session> {
+    joins += listOf(code, username, password, email, name, penName)
     nextError?.let { return ApiResult.Failure(it) }
     return login(username, password)
   }

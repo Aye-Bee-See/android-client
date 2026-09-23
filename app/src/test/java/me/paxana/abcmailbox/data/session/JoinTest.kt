@@ -122,6 +122,14 @@ class JoinTest {
   }
 
   @Test
+  fun `a pen name goes with the join, one space between its words`() = runTest {
+    build(EncryptionMode.SERVER)
+    server.queue(MockResponse().setBody(joined)); server.queue(MockResponse().setBody(login(noKeys)))
+    assertTrue(repo.join("7Q4M2XKD9HBT", "sam", "longenough1", null, null, penName = " James   Hollow ") is ApiResult.Success)
+    assertEquals("James Hollow", field(body(), "penName"))
+  }
+
+  @Test
   fun `signed in, a join is refused before anything is sent`() = runTest {
     build()
     store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null), olderAccount = false))

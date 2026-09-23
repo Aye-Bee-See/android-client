@@ -183,7 +183,8 @@ class LetterWorkViewModel(
     _ui.update { it.copy(busy = true) }
     viewModelScope.launch {
       when (val r = group.setStatus(route.messageId, next, release = release)) {
-        is ApiResult.Success -> _ui.update { it.copy(busy = false, item = Loadable.Loaded(current.copy(letter = r.value.copy(attachments = current.letter.attachments))), notice = strings.get(if (next == LetterStatus.PRINTED) R.string.notice_marked_printed else R.string.notice_marked_mailed)) }
+        // The status answer is not a full read: what only a full read carries (attachments, the footer, the reference) is kept from the letter as loaded.
+        is ApiResult.Success -> _ui.update { it.copy(busy = false, item = Loadable.Loaded(current.copy(letter = r.value.copy(attachments = current.letter.attachments, footer = r.value.footer ?: current.letter.footer, replyReference = r.value.replyReference ?: current.letter.replyReference))), notice = strings.get(if (next == LetterStatus.PRINTED) R.string.notice_marked_printed else R.string.notice_marked_mailed)) }
         is ApiResult.Failure -> {
           // Held since this screen loaded: the person was moved or freed in the meantime. Not a question to pop at
           // someone mid-press: say so, and show the letter again, now with its reason and "Print it anyway…".

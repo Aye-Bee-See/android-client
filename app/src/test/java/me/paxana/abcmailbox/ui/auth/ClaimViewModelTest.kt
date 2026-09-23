@@ -30,7 +30,7 @@ class ClaimViewModelTest {
   @Test
   fun `a malformed token is refused locally and costs no request`() = runTest {
     val repo = FakeSessionRepository()
-    val vm = ClaimViewModel(repo, ClaimRoute(), TestStrings())
+    val vm = ClaimViewModel(repo, ClaimRoute(), TestStrings(), FakePenNames())
     vm.onTokenChange("abc-123"); vm.check(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals("That is 6 characters; a token has 24.", vm.ui.value.error)
     assertTrue(repo.claimChecks.isEmpty())
@@ -39,7 +39,7 @@ class ClaimViewModelTest {
   @Test
   fun `check then claim signs in, sending the normalised token`() = runTest {
     val repo = FakeSessionRepository()
-    val vm = ClaimViewModel(repo, ClaimRoute(), TestStrings())
+    val vm = ClaimViewModel(repo, ClaimRoute(), TestStrings(), FakePenNames())
     vm.onTokenChange("dj69-g5k7-xbmy-fww4-p4py-tj8c"); vm.check(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals(listOf(token), repo.claimChecks)
     assertEquals("Test Chapter", vm.ui.value.info?.groupName)
@@ -50,13 +50,13 @@ class ClaimViewModelTest {
     vm.onUnderstoodChange(true)
     assertTrue(vm.ui.value.canClaim)
     vm.claim(); dispatcher.scheduler.advanceUntilIdle()
-    assertEquals(listOf(token, "alexwrites", "longenough", ""), repo.claims.single())
+    assertEquals(listOf(token, "alexwrites", "longenough", "", null), repo.claims.single())
     assertTrue(repo.state.value is SessionState.SignedIn)
   }
 
   @Test
   fun `mismatched passwords and short usernames block the claim`() = runTest {
-    val vm = ClaimViewModel(FakeSessionRepository(), ClaimRoute(token), TestStrings())
+    val vm = ClaimViewModel(FakeSessionRepository(), ClaimRoute(token), TestStrings(), FakePenNames())
     dispatcher.scheduler.advanceUntilIdle() // arrived by link: checked automatically
     assertNotNull(vm.ui.value.info)
     vm.onUnderstoodChange(true); vm.onUsernameChange("al"); vm.onPasswordChange("longenough"); vm.onConfirmChange("longenough")
@@ -68,7 +68,7 @@ class ClaimViewModelTest {
   @Test
   fun `an expired token sends the person to their group, a used one asks who used it, and neither states a lifetime`() = runTest {
     fun messageFor(error: AppError, language: String = "en"): String {
-      val vm = ClaimViewModel(FakeSessionRepository(claimInfoError = error), ClaimRoute(), TestStrings(language))
+      val vm = ClaimViewModel(FakeSessionRepository(claimInfoError = error), ClaimRoute(), TestStrings(language), FakePenNames())
       vm.onTokenChange(token); vm.check(); dispatcher.scheduler.advanceUntilIdle()
       assertTrue(vm.ui.value.tokenDead); assertNull(vm.ui.value.info)
       return vm.ui.value.error!!
@@ -85,7 +85,7 @@ class ClaimViewModelTest {
 
   @Test
   fun `rate limiting surfaces the server's sentence`() = runTest {
-    val vm = ClaimViewModel(FakeSessionRepository(claimInfoError = AppError.RateLimited("Too many claim checks. Try again in 42 minute(s).", 2520)), ClaimRoute(), TestStrings())
+    val vm = ClaimViewModel(FakeSessionRepository(claimInfoError = AppError.RateLimited("Too many claim checks. Try again in 42 minute(s).", 2520)), ClaimRoute(), TestStrings(), FakePenNames())
     vm.onTokenChange(token); vm.check(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals("Too many claim checks. Try again in 42 minute(s).", vm.ui.value.error)
   }

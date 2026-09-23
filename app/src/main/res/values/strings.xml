@@ -5,7 +5,8 @@
   To translate, copy this file to res/values-<language>/strings.xml and translate the values.
 -->
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name" translatable="false">ABC Mailbox</string>
+    <!-- The project is letters.support since 22 September 2026 (API PR #121); the app identifier changes before the first store upload. -->
+    <string name="app_name" translatable="false">letters.support</string>
 
     <!-- Bottom navigation. Keep each to one short word if the language allows: they sit side by side. -->
     <string name="tab_directory">Directory</string>
@@ -1041,11 +1042,76 @@
     <string name="action_leave_anyway">Leave anyway</string>
     <string name="action_stay">Stay</string>
     <string name="slip_inviting">%s invites you to write to a prisoner.</string>
-    <string name="slip_how">Get the Aye Bee See app, choose “I have an invite code” and type this code, or point your camera at the square.</string>
+    <string name="slip_how">Get the letters.support app, choose “I have an invite code” and type this code, or point your camera at the square.</string>
     <string name="slip_shared_name">Invite codes, %s</string>
     <string name="error_invites_pdf">The PDF could not be written. The codes are still on this screen.</string>
 
     <!-- Copilot's review of PR #5: a slip's link, or a claim link, opened while signed in -->
     <string name="join_signed_in">You are signed in as @%s. An invite code makes a new account, so sign out first.</string>
     <string name="claim_signed_in">You are signed in as @%s. A claim token takes over another account, so sign out first.</string>
+
+    <!-- Phase 17: pen names (API PR #120) -->
+    <string name="label_pen_name">Pen name</string>
+    <string name="help_pen_name">The name your letters are signed with, and the name a prisoner writes back to. Two parts read as a name in a mail room. Optional now; you can set or change it later, and old names stay yours.</string>
+    <string name="pen_name_rules">3 to 40 characters, starting with a letter: letters, digits, spaces, hyphens, apostrophes and dots.</string>
+    <string name="pen_name_too_short">A pen name has at least 3 characters.</string>
+    <string name="pen_name_too_long">A pen name has at most 40 characters.</string>
+    <string name="pen_name_must_start_with_letter">A pen name starts with a letter.</string>
+    <string name="pen_name_bad_character">%s cannot be in a pen name.</string>
+    <string name="pen_name_available">%s is free.</string>
+    <string name="pen_name_two_parts_nudge">%s is free. A first and a last part, like a real name, reads better in a mail room.</string>
+    <string name="pen_name_taken">That name is taken.</string>
+    <string name="pen_name_check_failed">Could not check the name just now; it will be checked when you continue.</string>
+    <string name="title_pen_name">Your pen name</string>
+    <string name="pen_name_intro">Your letters are signed with your pen name, and prisoners write back to it. Every name you have used stays yours for ever and is never given to anyone else, so a reply to an old name still finds you.</string>
+    <string name="pen_name_none_yet">No pen name yet. Your letters are signed with your name, %s.</string>
+    <string name="pen_name_current">Your pen name is %s.</string>
+    <string name="label_new_pen_name">New pen name</string>
+    <string name="section_former_names">Names you have used</string>
+    <string name="pen_name_since">%1$s, since %2$s</string>
+    <string name="pen_name_current_tag">current</string>
+    <string name="notice_pen_name_saved">Your pen name is now %s.</string>
+    <string name="account_pen_name">Pen name: %s</string>
+    <string name="account_pen_name_none">Pen name: none yet</string>
+
+    <!-- Phase 17: the reply reference (API PR #120), on the letter and on the printed page -->
+    <string name="letter_reference">Reference %s</string>
+    <string name="reply_answers_letter">Answers the letter of %s</string>
+    <string name="reply_answers_gone_letter">Answers a letter that is no longer here</string>
+    <string name="footer_write_back">Write back to %1$s, c/o %2$s.</string>
+    <string name="footer_write_back_anonymous">Write back c/o %s.</string>
+    <string name="footer_reference">Reference %s: please write this number at the top of your reply.</string>
+    <string name="footer_heading">At the foot of the printed page</string>
+    <string name="footer_no_reference">This facility refuses unexplained numbers, so the page carries no reference. A reply is filed by the writer’s name.</string>
+
+    <!-- Phase 17: recording a reply by its number -->
+    <string name="title_reply_arrived">A reply came in</string>
+    <string name="action_reply_arrived">A reply came in the post…</string>
+    <string name="reply_lookup_intro">The prisoner was asked to write the reference number at the top of the reply. Type it, and the reply is filed on the right conversation, whoever wrote it and whatever name they used.</string>
+    <string name="label_reply_reference">Reference number</string>
+    <string name="help_reply_reference">Nine digits. Dashes and spaces do not matter.</string>
+    <string name="action_look_up">Look it up</string>
+    <string name="reference_empty">Enter the number at the top of the reply.</string>
+    <string name="reference_bad_character">The number is digits only; %s is not one.</string>
+    <plurals name="reference_wrong_length">
+        <item quantity="one">That is %1$d digit; a reference has %2$d.</item>
+        <item quantity="other">That is %1$d digits; a reference has %2$d.</item>
+    </plurals>
+    <string name="error_reference_checksum">That number has a mistake in it. Check it against the letter.</string>
+    <string name="error_reference_unknown">That is not a number on a letter this group mailed. Check it against the letter.</string>
+    <string name="reference_found_from">From %s</string>
+    <string name="reference_found_anonymous">From the group’s anonymous writer</string>
+    <string name="reference_found_to">Written to %s</string>
+    <string name="reference_found_mailed">Mailed %s</string>
+    <string name="reference_letter_gone">The letter itself has been deleted; the reply still goes to its writer.</string>
+    <string name="action_record_this_reply">Record the reply</string>
+    <string name="reply_no_number">No number on the reply?</string>
+    <string name="reply_by_name_help">Search the writers your group has mailed for, by any name they have used.</string>
+    <string name="label_writer_name">Writer’s name</string>
+    <string name="writer_formerly">%1$s (formerly %2$s)</string>
+    <string name="writers_none_found">Nobody by that name.</string>
+
+    <!-- Mail rules that came with API PR #120 (labels for Spanish and Russian; English comes from the server) -->
+    <string name="rule_no_reference_numbers">No reference numbers</string>
+    <string name="rule_reply_sheet_allowed">Reply sheet allowed</string>
 </resources>

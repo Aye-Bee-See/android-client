@@ -102,6 +102,12 @@ data class Letter(
   /** The note as the letter itself carries it (API PR #117). [returnNoteKnown] false means an older API that puts it on the history only. */
   val returnNoteOnLetter: String? = null,
   val returnNoteKnown: Boolean = false,
+  /** API PR #120: the nine digits on an outgoing letter's footer, as printed (`4827-1935-6`); null on a reply and from an older API. */
+  val replyReference: String? = null,
+  /** A reply: the letter it answers, when the server matched it by the reference; null when unmatched or that letter is gone. */
+  val repliesToId: Int? = null,
+  /** What the printed page's footer says; only with a full read. */
+  val footer: LetterFooter? = null,
 ) {
   val isHeld: Boolean get() = heldReason != null && status == LetterStatus.QUEUED
   /** What the envelope said when it came back, if the group wrote it down. It lives on the history row, so only a full read has it. */
@@ -114,6 +120,19 @@ data class Letter(
 }
 
 data class LastMessage(val id: Int, val fromPrisoner: Boolean, val status: LetterStatus, val at: Instant?, val preview: String?)
+
+/**
+ * The footer of a printed letter (API PR #120): who to write back to, care of which group, and the reference the
+ * prisoner is asked to copy. Worded here, in the app's language, from the API's parts. No QR code, no barcode: nothing
+ * machine-readable goes inside a prison.
+ */
+data class LetterFooter(val name: String?, val anonymous: Boolean, val careOfId: Int?, val careOfName: String?, val reference: String?, val replySheetAllowed: Boolean) {
+  fun sentence(strings: Strings): String {
+    val careOf = careOfName ?: strings.get(R.string.the_relay_group)
+    val who = if (anonymous || name.isNullOrBlank()) strings.get(R.string.footer_write_back_anonymous, careOf) else strings.get(R.string.footer_write_back, name, careOf)
+    return if (reference == null) who else who + " " + strings.get(R.string.footer_reference, reference)
+  }
+}
 
 data class Thread(
   val id: Int,

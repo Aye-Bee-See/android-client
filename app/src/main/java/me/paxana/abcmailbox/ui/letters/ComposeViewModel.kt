@@ -271,6 +271,7 @@ class ComposeViewModel(
         groupRelaysFacility = staffGroupId != null && s.facility?.relayGroups?.any { it.id == staffGroupId } == true,
         idempotencyKey = sendKey ?: java.util.UUID.randomUUID().toString().also { sendKey = it },
         resendOf = route.resendOf, replacesHeld = route.replacesHeld,
+        reference = route.reference,
       )
       when (val r = letters.send(letter)) {
         is ApiResult.Failure ->

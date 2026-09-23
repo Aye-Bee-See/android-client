@@ -84,9 +84,39 @@ interface LettersApi {
 
   @GET("messaging/retention")
   suspend fun retention(): ApiEnvelope<RetentionDto>
+
+  /**
+   * A reply reference looked up (API PR #120): group admins of the group that mailed the letter, rate limited. A
+   * number with a wrong check digit is a 400 with `condition: "checksum"` (nothing was looked up); one that is not
+   * this group's, or was never issued, is a 404 with `condition: "unknown"`.
+   */
+  @GET("messaging/reference")
+  suspend fun reference(@Query("number") number: String): ApiEnvelope<ReferenceLookupDto>
+
+  /** The writers whose letters this group mailed, by current or former pen name (at least two characters). */
+  @GET("messaging/writers")
+  suspend fun writersByName(@Query("name") name: String): ApiEnvelope<List<WriterMatchDto>>
 }
 
 @Serializable data class IdBody(val id: Int)
+
+/** What the printed page's footer says (API PR #120). `name` is null with `anonymous` for the group's shared writer; `reference` is null where the facility refuses numbers. */
+@Serializable data class FooterDto(val name: String? = null, val anonymous: Boolean = false, val careOf: NamedRef? = null, val reference: String? = null, val replySheetAllowed: Boolean = false)
+@Serializable
+data class ReferenceLookupDto(
+  val reference: String,
+  val letter: ReferenceLetterDto? = null,
+  val mailedAt: String? = null,
+  val chat: Int? = null,
+  val writer: ReferenceWriterDto,
+  val prisoner: ReferencePrisonerDto? = null,
+  val careOf: NamedRef? = null,
+)
+@Serializable data class ReferenceLetterDto(val id: Int, val chat: Int? = null, val status: String? = null, val paper: Boolean = false, val createdAt: String? = null)
+@Serializable data class ReferenceWriterDto(val id: Int, val penName: String? = null, val name: String? = null, val anonymous: Boolean = false)
+@Serializable data class ReferencePrisonerDto(val id: Int, val birthName: String? = null, val chosenName: String? = null)
+@Serializable data class WriterMatchDto(val id: Int, val penName: String? = null, val name: String? = null, val anonymous: Boolean = false, val matched: MatchedNameDto? = null)
+@Serializable data class MatchedNameDto(val name: String, val current: Boolean = true)
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
@@ -106,6 +136,8 @@ data class SendMessageRequest(
   val relayNote: String? = null,
   /** One of this writer's returned letters to the same prisoner, which this letter replaces. It is routed afresh. */
   val resendOf: Int? = null,
+  /** A reply filed by the number the prisoner copied (API PR #120): the server fills in `user`, `prisoner` and `repliesTo` from it. */
+  val reference: String? = null,
   val ciphertext: String? = null,
   val nonce: String? = null,
   val relayNoteCiphertext: String? = null,
@@ -195,6 +227,10 @@ data class MessageDto(
    * letters is one request and not a hundred and one. Absent from an older API.
    */
   @SerialName("prisoner_details") val prisonerDetails: PrisonerDto? = null,
+  // API PR #120: every outgoing letter's reference; a reply's letter answered; with `full=true`, what the printed footer says.
+  val replyReference: String? = null,
+  val repliesTo: Int? = null,
+  val footer: FooterDto? = null,
   // End-to-end mode: `messageText` is null and these carry the letter; `envelopes` is filtered to the caller.
   val ciphertext: String? = null,
   val nonce: String? = null,

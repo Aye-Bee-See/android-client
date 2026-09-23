@@ -27,6 +27,8 @@ data class SessionUser(
   val email: String?,
   val role: String,
   val chapterId: Int?,
+  /** The name the letters are signed with (API PR #120); null until one is chosen. */
+  val penName: String? = null,
 ) {
   val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: username
   val isStaff: Boolean get() = role == Role.CHAPTER || role == Role.ADMIN
@@ -49,6 +51,7 @@ fun LoginData.toSession() = Session(
     email = user.email,
     role = user.role,
     chapterId = user.chapterId,
+    penName = user.penName,
   ),
 )
 

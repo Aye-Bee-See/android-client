@@ -1023,11 +1023,77 @@
     <string name="action_leave_anyway">Salir de todos modos</string>
     <string name="action_stay">Quedarme</string>
     <string name="slip_inviting">%s te invita a escribir a una persona presa.</string>
-    <string name="slip_how">Instala la app Aye Bee See, elige «Tengo un código de invitación» y escribe este código, o apunta la cámara al cuadrado.</string>
+    <string name="slip_how">Instala la app letters.support, elige «Tengo un código de invitación» y escribe este código, o apunta la cámara al cuadrado.</string>
     <string name="slip_shared_name">Códigos de invitación, %s</string>
     <string name="error_invites_pdf">No se ha podido crear el PDF. Los códigos siguen en esta pantalla.</string>
 
     <!-- Copilot's review of PR #5: a slip's link, or a claim link, opened while signed in -->
     <string name="join_signed_in">Has iniciado sesión como @%s. Un código de invitación crea una cuenta nueva, así que cierra sesión primero.</string>
     <string name="claim_signed_in">Has iniciado sesión como @%s. Un código de activación toma otra cuenta, así que cierra sesión primero.</string>
+
+    <!-- Phase 17: pen names (API PR #120) -->
+    <string name="label_pen_name">Seudónimo</string>
+    <string name="help_pen_name">El nombre con el que se firman tus cartas y al que responde la persona presa. Dos partes se leen como un nombre en una sala de correo. Opcional por ahora; puedes ponerlo o cambiarlo después, y los nombres antiguos siguen siendo tuyos.</string>
+    <string name="pen_name_rules">De 3 a 40 caracteres, empezando por una letra: letras, cifras, espacios, guiones, apóstrofos y puntos.</string>
+    <string name="pen_name_too_short">Un seudónimo tiene al menos 3 caracteres.</string>
+    <string name="pen_name_too_long">Un seudónimo tiene como mucho 40 caracteres.</string>
+    <string name="pen_name_must_start_with_letter">Un seudónimo empieza por una letra.</string>
+    <string name="pen_name_bad_character">%s no puede estar en un seudónimo.</string>
+    <string name="pen_name_available">%s está libre.</string>
+    <string name="pen_name_two_parts_nudge">%s está libre. Una primera y una segunda parte, como un nombre real, se lee mejor en una sala de correo.</string>
+    <string name="pen_name_taken">Ese nombre está ocupado.</string>
+    <string name="pen_name_check_failed">No se ha podido comprobar el nombre ahora; se comprobará cuando continúes.</string>
+    <string name="title_pen_name">Tu seudónimo</string>
+    <string name="pen_name_intro">Tus cartas se firman con tu seudónimo, y las personas presas responden a él. Cada nombre que hayas usado sigue siendo tuyo para siempre y nunca se da a nadie más, así que una respuesta a un nombre antiguo sigue llegándote.</string>
+    <string name="pen_name_none_yet">Aún no tienes seudónimo. Tus cartas se firman con tu nombre, %s.</string>
+    <string name="pen_name_current">Tu seudónimo es %s.</string>
+    <string name="label_new_pen_name">Nuevo seudónimo</string>
+    <string name="section_former_names">Nombres que has usado</string>
+    <string name="pen_name_since">%1$s, desde el %2$s</string>
+    <string name="pen_name_current_tag">actual</string>
+    <string name="notice_pen_name_saved">Tu seudónimo ahora es %s.</string>
+    <string name="account_pen_name">Seudónimo: %s</string>
+    <string name="account_pen_name_none">Seudónimo: ninguno aún</string>
+
+    <!-- Phase 17: the reply reference (API PR #120), on the letter and on the printed page -->
+    <string name="letter_reference">Referencia %s</string>
+    <string name="reply_answers_letter">Responde a la carta del %s</string>
+    <string name="reply_answers_gone_letter">Responde a una carta que ya no está aquí</string>
+    <string name="footer_write_back">Responde a %1$s, a través de %2$s.</string>
+    <string name="footer_write_back_anonymous">Responde a través de %s.</string>
+    <string name="footer_reference">Referencia %s: por favor, escribe este número al principio de tu respuesta.</string>
+    <string name="footer_heading">Al pie de la página impresa</string>
+    <string name="footer_no_reference">Este centro rechaza números sin explicación, así que la página no lleva referencia. Una respuesta se archiva por el nombre de quien escribe.</string>
+
+    <!-- Phase 17: recording a reply by its number -->
+    <string name="title_reply_arrived">Ha llegado una respuesta</string>
+    <string name="action_reply_arrived">Ha llegado una respuesta por correo…</string>
+    <string name="reply_lookup_intro">A la persona presa se le pidió escribir el número de referencia al principio de la respuesta. Escríbelo, y la respuesta se archiva en la conversación correcta, sea quien sea y con el nombre que usara.</string>
+    <string name="label_reply_reference">Número de referencia</string>
+    <string name="help_reply_reference">Nueve cifras. Los guiones y los espacios dan igual.</string>
+    <string name="action_look_up">Buscar</string>
+    <string name="reference_empty">Escribe el número del principio de la respuesta.</string>
+    <string name="reference_bad_character">El número solo tiene cifras; %s no lo es.</string>
+    <plurals name="reference_wrong_length">
+        <item quantity="one">Eso es %1$d cifra; una referencia tiene %2$d.</item>
+        <item quantity="many">Eso son %1$d cifras; una referencia tiene %2$d.</item>
+        <item quantity="other">Eso son %1$d cifras; una referencia tiene %2$d.</item>
+    </plurals>
+    <string name="error_reference_checksum">Ese número tiene un error. Compáralo con la carta.</string>
+    <string name="error_reference_unknown">Ese no es un número de una carta que este grupo haya enviado. Compáralo con la carta.</string>
+    <string name="reference_found_from">De %s</string>
+    <string name="reference_found_anonymous">De la persona anónima del grupo</string>
+    <string name="reference_found_to">Escrita a %s</string>
+    <string name="reference_found_mailed">Enviada el %s</string>
+    <string name="reference_letter_gone">La carta en sí se ha eliminado; la respuesta sigue llegando a quien la escribió.</string>
+    <string name="action_record_this_reply">Registrar la respuesta</string>
+    <string name="reply_no_number">¿La respuesta no lleva número?</string>
+    <string name="reply_by_name_help">Busca entre las personas para las que tu grupo ha enviado cartas, por cualquier nombre que hayan usado.</string>
+    <string name="label_writer_name">Nombre de quien escribe</string>
+    <string name="writer_formerly">%1$s (antes %2$s)</string>
+    <string name="writers_none_found">Nadie con ese nombre.</string>
+
+    <!-- Mail rules that came with API PR #120 (labels for Spanish and Russian; English comes from the server) -->
+    <string name="rule_no_reference_numbers">Sin números de referencia</string>
+    <string name="rule_reply_sheet_allowed">Se permite hoja de respuesta</string>
 </resources>

@@ -57,8 +57,9 @@ data class OutboxPayload(
   // Both optional with defaults, so payloads queued by an older version of the app still open.
   val resendOf: Int? = null,
   val replacesHeld: Int? = null,
+  val reference: String? = null,
 ) {
-  fun toNewLetter() = NewLetter(prisonerId, body, relayNote, relayChapter, asWriterId, fromPrisoner, groupRelaysFacility, idempotencyKey, resendOf, replacesHeld)
+  fun toNewLetter() = NewLetter(prisonerId, body, relayNote, relayChapter, asWriterId, fromPrisoner, groupRelaysFacility, idempotencyKey, resendOf, reference = reference, replacesHeld = replacesHeld)
 }
 
 /** A queued letter as screens see it. */
@@ -150,7 +151,7 @@ class DefaultOutboxRepository @Inject constructor(
       }
     }
     // The compose screen's key if it already tried with one: that attempt may have arrived, and the same key is how the server will know.
-    val payload = OutboxPayload(letter.prisonerId, prisonerName, writingAs, letter.body, letter.relayNote, letter.relayChapter, letter.asWriterId, letter.fromPrisoner, letter.groupRelaysFacility, stored, resendOf = letter.resendOf, replacesHeld = letter.replacesHeld, idempotencyKey = letter.idempotencyKey ?: UUID.randomUUID().toString())
+    val payload = OutboxPayload(letter.prisonerId, prisonerName, writingAs, letter.body, letter.relayNote, letter.relayChapter, letter.asWriterId, letter.fromPrisoner, letter.groupRelaysFacility, stored, resendOf = letter.resendOf, replacesHeld = letter.replacesHeld, reference = letter.reference, idempotencyKey = letter.idempotencyKey ?: UUID.randomUUID().toString())
     return dao.insert(OutboxEntity(userId = userId, sealed = seal(payload), queuedAt = System.currentTimeMillis())).also { scheduler.schedule() }
   }
 

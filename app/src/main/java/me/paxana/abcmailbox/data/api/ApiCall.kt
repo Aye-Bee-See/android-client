@@ -25,12 +25,12 @@ fun HttpException.toAppError(json: Json): AppError {
   val envelope = body?.let { runCatching { json.decodeFromString<ApiEnvelope<JsonElement>>(it) }.getOrNull() }
   val info = envelope?.info ?: envelope?.error
   return when (code()) {
-    400 -> envelope?.errors?.takeIf { it.isNotEmpty() }?.let { AppError.Validation(it) }
-      ?: AppError.Validation(listOfNotNull(info ?: "The request was rejected."))
+    400 -> envelope?.errors?.takeIf { it.isNotEmpty() }?.let { AppError.Validation(it, envelope.condition) }
+      ?: AppError.Validation(listOfNotNull(envelope?.error ?: info ?: "The request was rejected."), envelope?.condition)
     401 -> AppError.Unauthorized(info)
     403 -> AppError.Forbidden(info ?: "You are not allowed to do that.")
     // Like a 409, a 404 may carry the useful sentence in `error` ("Message 99999 not found") under a general `info`.
-    404 -> AppError.NotFound(envelope?.error ?: info)
+    404 -> AppError.NotFound(envelope?.error ?: info, envelope?.condition)
     // Lifecycle refusals put the useful sentence in `error` ("A printed letter cannot move to queued"); `info` is generic.
     409 -> AppError.Conflict(envelope?.error ?: info, envelope?.name, envelope?.condition)
     410 -> AppError.Gone(info, goneCondition(envelope?.condition, envelope?.error))

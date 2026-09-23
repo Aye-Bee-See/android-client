@@ -51,6 +51,8 @@ data class NewLetter(
   val idempotencyKey: String? = null,
   /** The returned letter this one replaces (API PR #105). The server checks it is this writer's, returned, and to the same prisoner. */
   val resendOf: Int? = null,
+  /** A reply filed by its reference (API PR #120): the server fills in the writer, the prisoner and the letter answered from it. */
+  val reference: String? = null,
   /**
    * A held letter of the writer's own that this one stands in for (API PR #106, `reseal_needed`: in end-to-end
    * mode a letter sealed to the wrong group cannot be re-sealed by the server, so the phone sends it again).

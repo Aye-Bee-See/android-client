@@ -40,6 +40,7 @@ import me.paxana.abcmailbox.ui.common.PasswordStrengthMeter
 import me.paxana.abcmailbox.ui.common.UppercaseTransformation
 import me.paxana.abcmailbox.ui.common.asHeading
 import me.paxana.abcmailbox.ui.common.longDate
+import me.paxana.abcmailbox.text.rememberStrings
 
 /** A newcomer with a slip from a support group makes their own account (API PR #116). */
 @Composable
@@ -106,6 +107,8 @@ fun JoinScreen(
         visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth().testTag("join-confirm"))
+      PenNameField(ui.penName, viewModel::onPenNameChange, enabled = !ui.busy, strings = rememberStrings())
+      Text(stringResource(R.string.help_pen_name), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       OutlinedTextField(ui.name, viewModel::onNameChange, label = { Text(stringResource(R.string.label_name_optional)) }, supportingText = { Text(stringResource(R.string.help_name_optional)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("join-name"))
       OutlinedTextField(ui.email, viewModel::onEmailChange, label = { Text(stringResource(R.string.label_email_optional)) }, singleLine = true, enabled = !ui.busy,

@@ -102,6 +102,12 @@ abstract class BindingsModule {
   abstract fun pendingInvitesStore(impl: me.paxana.abcmailbox.data.repo.DataStorePendingInvitesStore): me.paxana.abcmailbox.data.repo.PendingInvitesStore
 
   @Binds
+  abstract fun penNameRepository(impl: me.paxana.abcmailbox.data.repo.DefaultPenNameRepository): me.paxana.abcmailbox.data.repo.PenNameRepository
+
+  @Binds
+  abstract fun referenceRepository(impl: me.paxana.abcmailbox.data.repo.DefaultReferenceRepository): me.paxana.abcmailbox.data.repo.ReferenceRepository
+
+  @Binds
   abstract fun activityRepository(impl: me.paxana.abcmailbox.data.activity.DefaultActivityRepository): me.paxana.abcmailbox.data.activity.ActivityRepository
 
   @Binds

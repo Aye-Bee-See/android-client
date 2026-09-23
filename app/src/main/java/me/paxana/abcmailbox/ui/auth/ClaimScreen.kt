@@ -114,6 +114,8 @@ fun ClaimScreen(
         visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth().testTag("claim-confirm"))
+      PenNameField(ui.penName, viewModel::onPenNameChange, enabled = !ui.busy, strings = me.paxana.abcmailbox.text.rememberStrings())
+      Text(stringResource(R.string.help_pen_name), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       OutlinedTextField(ui.email, viewModel::onEmailChange, label = { Text(stringResource(R.string.label_email_optional)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
 

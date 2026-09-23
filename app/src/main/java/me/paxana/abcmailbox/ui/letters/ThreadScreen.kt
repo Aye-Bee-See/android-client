@@ -219,14 +219,14 @@ private fun ThreadBody(
       item("empty") { Text(stringResource(R.string.thread_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
     }
     items(thread.letters, key = { it.id }) { letter ->
-      LetterCard(letter, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) }, onSendAgain = { onSendAgain(letter.id, letter.heldReason == HeldReason.RESEAL_NEEDED) }, onChooseRelay = { onChooseRelay(letter.id) })
+      LetterCard(letter, answered = letter.repliesToId?.let { id -> thread.letters.find { it.id == id } }, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) }, onSendAgain = { onSendAgain(letter.id, letter.heldReason == HeldReason.RESEAL_NEEDED) }, onChooseRelay = { onChooseRelay(letter.id) })
       HorizontalDivider()
     }
   }
 }
 
 @Composable
-private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onSendAgain: () -> Unit = {}, onChooseRelay: () -> Unit = {}) {
+private fun LetterCard(letter: Letter, answered: Letter? = null, busy: Boolean, mayChange: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onSendAgain: () -> Unit = {}, onChooseRelay: () -> Unit = {}) {
   Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(
@@ -239,6 +239,14 @@ private fun LetterCard(letter: Letter, busy: Boolean, mayChange: Boolean, onOpen
       Box(Modifier.weight(1f))
       // A held letter is still "queued" to the server. To its writer that word would be a lie: nothing is coming for it.
       if (letter.isHeld) Tag(stringResource(R.string.status_held)) else StatusChip(letter.status)
+    }
+    // API PR #120: the number at the foot of a sent letter, and which letter a reply answers (matched by that number).
+    if (!letter.fromPrisoner) letter.replyReference?.let { Text(stringResource(R.string.letter_reference, it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("letter-reference")) }
+    if (letter.fromPrisoner && letter.repliesToId != null) {
+      Text(
+        answered?.createdAt?.let { stringResource(R.string.reply_answers_letter, it.longDate()) } ?: stringResource(R.string.reply_answers_gone_letter),
+        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("reply-answers"),
+      )
     }
     if (letter.locked) {
       Text(stringResource(R.string.letter_locked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
