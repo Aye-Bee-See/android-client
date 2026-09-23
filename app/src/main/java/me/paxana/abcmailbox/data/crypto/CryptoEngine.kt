@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.crypto
 
+import me.paxana.abcmailbox.crypto.SplitAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -23,7 +24,11 @@ import me.paxana.abcmailbox.crypto.WrappedKey
 import javax.inject.Inject
 import javax.inject.Singleton
 
-class NewAccountKeys(val keyPair: Sodium.KeyPair, val fields: AccountKeyFields, val recoveryCode: String)
+/** [authKey] is set for the split scheme: what goes to the server as the password. */
+class NewAccountKeys(val keyPair: Sodium.KeyPair, val fields: AccountKeyFields, val recoveryCode: String, val authKey: String? = null)
+
+/** One sign-in's derived keys (API PR #114). Wiped as soon as the wrap key has opened the private key. */
+class SplitKeys(val wrapKey: ByteArray, val authKey: String) { fun wipe() = wrapKey.fill(0) }
 
 /**
  * The app's doorway to the `:crypto` module. An interface so JVM unit tests in
@@ -36,6 +41,19 @@ interface CryptoEngine {
   suspend fun createAccountKeys(password: String): NewAccountKeys
   suspend fun rewrapAll(keyPair: Sodium.KeyPair, password: String): NewAccountKeys
   suspend fun wrapForPassword(keyPair: Sodium.KeyPair, password: String): WrappedKey
+
+  // The split scheme (API PR #114): the password never reaches the server. See SplitAuth in :crypto.
+  /** Sign-in: the account's salt and recipe from `GET /auth/login-params`, the password from the person. Slow. */
+  suspend fun deriveSplit(password: String, salt: String, params: JsonElement): SplitKeys
+  /** A fresh salt, base64, for a split password that is set where there are no keys to wrap (server mode). */
+  fun newSalt(): String
+  fun defaultParams(): KdfParams
+  suspend fun createAccountKeysSplit(password: String): NewAccountKeys
+  suspend fun createAccountKeysUnderWrapKey(wrapKey: ByteArray, salt: String, params: JsonElement): NewAccountKeys
+  suspend fun rewrapAllSplit(keyPair: Sodium.KeyPair, password: String): NewAccountKeys
+  /** The password wrap alone, with the auth key: a password change keeps the recovery code. */
+  suspend fun wrapForSplitPassword(keyPair: Sodium.KeyPair, password: String): Pair<WrappedKey, String>
+  fun unlockWithWrapKey(publicKey: String, wrapped: String, wrapKey: ByteArray): Sodium.KeyPair
   suspend fun unlockWithPassword(publicKey: String, wrapped: String, password: String, salt: String, params: JsonElement): Sodium.KeyPair
   suspend fun unlockWithCode(publicKey: String, wrapped: String, code: String, salt: String, params: JsonElement): Sodium.KeyPair
   fun openChallenge(sealedChallenge: String, keyPair: Sodium.KeyPair): String
@@ -79,6 +97,34 @@ class SodiumCryptoEngine @Inject constructor() : CryptoEngine {
   override suspend fun wrapForPassword(keyPair: Sodium.KeyPair, password: String) = withContext(Dispatchers.Default) {
     Sodium.initialize(); KeyWrapping.wrap(keyPair.privateKey, password)
   }
+
+  override suspend fun deriveSplit(password: String, salt: String, params: JsonElement) = withContext(Dispatchers.Default) {
+    Sodium.initialize()
+    val keys = SplitAuth.derive(password, Sodium.fromBase64(salt), params(params))
+    SplitKeys(keys.wrapKey, keys.authKeyBase64).also { keys.authKey.fill(0) }
+  }
+  override fun newSalt(): String { Sodium.initialize(); return Sodium.toBase64(Sodium.randomBytes(Sodium.SALT_BYTES)) }
+  override fun defaultParams() = KdfParams()
+  override suspend fun createAccountKeysSplit(password: String) = withContext(Dispatchers.Default) {
+    Sodium.initialize()
+    val code = SecretCodes.generate()
+    val (kp, split) = AccountKeys.createSplit(password, code)
+    NewAccountKeys(kp, split.fields, code, split.authKey)
+  }
+  override suspend fun createAccountKeysUnderWrapKey(wrapKey: ByteArray, salt: String, params: JsonElement) = withContext(Dispatchers.Default) {
+    Sodium.initialize()
+    val code = SecretCodes.generate()
+    val (kp, fields) = AccountKeys.createUnderWrapKey(wrapKey, salt, params(params), code)
+    NewAccountKeys(kp, fields, code)
+  }
+  override suspend fun rewrapAllSplit(keyPair: Sodium.KeyPair, password: String) = withContext(Dispatchers.Default) {
+    Sodium.initialize()
+    val code = SecretCodes.generate()
+    val split = AccountKeys.wrapExistingSplit(keyPair, password, code)
+    NewAccountKeys(keyPair, split.fields, code, split.authKey)
+  }
+  override suspend fun wrapForSplitPassword(keyPair: Sodium.KeyPair, password: String) = withContext(Dispatchers.Default) { Sodium.initialize(); AccountKeys.wrapForSplitPassword(keyPair, password) }
+  override fun unlockWithWrapKey(publicKey: String, wrapped: String, wrapKey: ByteArray): Sodium.KeyPair { Sodium.initialize(); return AccountKeys.unlockWithWrapKey(publicKey, wrapped, wrapKey) }
 
   override suspend fun unlockWithPassword(publicKey: String, wrapped: String, password: String, salt: String, params: JsonElement) =
     withContext(Dispatchers.Default) { Sodium.initialize(); AccountKeys.unlockWithPassword(publicKey, wrapped, password, salt, params(params)) }

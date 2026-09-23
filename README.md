@@ -14,7 +14,7 @@ The Android client for Aye Bee See, a correspondence network for political priso
 | --- | --- |
 | `:app` | The Android app: Compose UI, Hilt, Retrofit, Room. Package `me.paxana.abcmailbox`. |
 | `:crypto` | Plain JVM Kotlin. Every libsodium call goes through `Sodium.kt`; tests run on the development machine and include fixtures produced by the API's own crypto code. |
-| `tools/` | `dev-seed.py` adds development data to a seeded API; `capture-contract.py` with `ContractCheckTest` checks the app against a running API after the API changes; `make-interop-fixture.mjs` regenerates the crypto test fixture. |
+| `tools/` | `dev-seed.py` adds development data to a seeded API; `capture-contract.py` with `ContractCheckTest` checks the app against a running API after the API changes; `make-interop-fixture.mjs` regenerates the crypto test fixture; `split-auth-key.mjs` derives the auth key a split-scheme account signs in with, for scripts (API PR #114). |
 
 ## Build
 
@@ -55,7 +55,7 @@ One build works against both API modes: the app asks `GET /health` which letter 
 ## Run against a local API
 
 1. In the API repository: `cp .env.example .env`, set `ENCRYPTION_KEY` from `npm run keygen`, then `DB_RESET=true npm start`.
-2. `python3 tools/dev-seed.py` adds relay links, a group member (`member1` / `password1`), and a managed writer with a claim token.
+2. `python3 tools/dev-seed.py` adds relay links, a group member (`member1` / `password1`), and a managed writer with a claim token. On an API that knows the split sign-in scheme it makes `member1` that way; on an end-to-end API it cannot (an account there must come with keys), so run it before `REQUIRE_SPLIT_AUTH` is switched on.
 3. Start an emulator and install: `./gradlew :app:installDebug`. Debug builds talk to `http://10.0.2.2:3000`, the emulator's name for the host machine.
 4. Sign in as `user1` / `password1` for a writer who already has a thread.
 

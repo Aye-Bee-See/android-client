@@ -515,7 +515,7 @@
     <string name="claim_warning_e2e">Your password protects your encryption key. No one, not this site and not your group, can read your letters without it. After this step you will get a recovery code: it is the only way back in if you forget the password.</string>
     <string name="claim_warning_server">There is no \"email me a reset link\". Keep your password somewhere safe; if you lose it, a network admin has to help you.</string>
     <string name="help_username_length">3 to 16 characters</string>
-    <string name="help_password_length">At least 7 characters</string>
+    <string name="help_password_length">At least 10 characters. A few unrelated words with spaces make a strong one that is easy to remember.</string>
     <string name="label_confirm_password">Confirm password</string>
     <string name="error_passwords_differ">Passwords do not match.</string>
     <string name="claim_understood">I understand that a lost password cannot be reset by email.</string>
@@ -582,7 +582,7 @@
     <string name="error_change_password">Could not change the password.</string>
     <string name="change_password_intro">Changing your password signs out every other device. This one stays signed in.</string>
     <string name="label_current_password">Current password</string>
-    <string name="help_new_password">At least 7 characters, different from the current one</string>
+    <string name="help_new_password">At least 10 characters, different from the current one</string>
     <string name="action_changing">Changing…</string>
 
     <!-- The offline copy of the directory -->
@@ -911,4 +911,14 @@
     <string name="token_shown_once">Shown once: when you leave this screen it cannot be shown again, only replaced.</string>
     <string name="error_token_expired">This token has expired. Ask the group that set up your account for a new one: making one takes them a moment, and they will tell you how long it is good for.</string>
     <string name="error_token_used">This token has already been used. If that was you, sign in with the username and password you chose then. If it was not, tell the group that set up your account.</string>
+
+    <!-- The split sign-in scheme (API PR #114): the password never reaches the server -->
+    <string name="strength_weak">Weak</string>
+    <string name="strength_fair">Fair</string>
+    <string name="strength_good">Good</string>
+    <string name="strength_strong">Strong</string>
+    <string name="strength_label">Strength: %s. A rough guess; nothing here can know whether a password has leaked.</string>
+    <!-- %s is a username -->
+    <string name="error_scheme_downgrade">This phone has signed in to %s without sending the password, and the server now asks for the password itself. That is not how this account works, so nothing was sent. Try again later; if it keeps happening, tell your group.</string>
+    <string name="error_scheme_refused">The server would not accept this password in the form the app sends it. The app may need updating.</string>
 </resources>

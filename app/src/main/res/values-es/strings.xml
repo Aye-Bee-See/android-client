@@ -481,7 +481,7 @@
     <string name="claim_warning_e2e">Tu contraseña protege tu clave de cifrado. Nadie, ni este servicio ni tu grupo, puede leer tus cartas sin ella. Después de este paso recibirás un código de recuperación: es la única forma de volver a entrar si olvidas la contraseña.</string>
     <string name="claim_warning_server">No existe «envíame un enlace para restablecerla». Guarda tu contraseña en un lugar seguro; si la pierdes, tendrá que ayudarte un administrador de la red.</string>
     <string name="help_username_length">De 3 a 16 caracteres</string>
-    <string name="help_password_length">Al menos 7 caracteres</string>
+    <string name="help_password_length">Al menos 10 caracteres. Unas cuantas palabras sin relación, con espacios, dan una contraseña fuerte y fácil de recordar.</string>
     <string name="label_confirm_password">Confirmar la contraseña</string>
     <string name="error_passwords_differ">Las contraseñas no coinciden.</string>
     <string name="claim_understood">Entiendo que una contraseña perdida no se puede restablecer por correo electrónico.</string>
@@ -549,7 +549,7 @@
     <string name="error_change_password">No se pudo cambiar la contraseña.</string>
     <string name="change_password_intro">Al cambiar la contraseña se cierra la sesión en todos los demás dispositivos. En este sigue abierta.</string>
     <string name="label_current_password">Contraseña actual</string>
-    <string name="help_new_password">Al menos 7 caracteres, distinta de la actual</string>
+    <string name="help_new_password">Al menos 10 caracteres, distinta de la actual</string>
     <string name="action_changing">Cambiando…</string>
 
     <!-- The offline copy of the directory -->
@@ -889,4 +889,13 @@
     <string name="token_shown_once">Se muestra una sola vez: al salir de esta pantalla ya no se puede volver a ver, solo sustituir.</string>
     <string name="error_token_expired">Este código ha caducado. Pide uno nuevo al grupo que creó tu cuenta: crearlo les lleva un momento, y te dirán hasta cuándo sirve.</string>
     <string name="error_token_used">Este código ya se ha usado. Si fuiste tú, inicia sesión con el nombre de usuario y la contraseña que elegiste entonces. Si no, avisa al grupo que creó tu cuenta.</string>
+
+    <!-- The split sign-in scheme (API PR #114): the password never reaches the server -->
+    <string name="strength_weak">Débil</string>
+    <string name="strength_fair">Aceptable</string>
+    <string name="strength_good">Buena</string>
+    <string name="strength_strong">Fuerte</string>
+    <string name="strength_label">Fortaleza: %s. Una estimación aproximada; nada aquí puede saber si una contraseña se ha filtrado.</string>
+    <string name="error_scheme_downgrade">Este teléfono ha iniciado sesión como %s sin enviar la contraseña, y ahora el servidor pide la contraseña en sí. Esta cuenta no funciona así, de modo que no se ha enviado nada. Inténtalo más tarde; si se repite, avisa a tu grupo.</string>
+    <string name="error_scheme_refused">El servidor no ha aceptado esta contraseña en la forma en que la app la envía. Puede que haya que actualizar la app.</string>
 </resources>

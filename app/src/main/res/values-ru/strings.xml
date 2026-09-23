@@ -495,7 +495,7 @@
     <string name="claim_warning_e2e">Пароль защищает ваш ключ шифрования. Без него никто — ни этот сервис, ни ваша группа — не сможет прочитать ваши письма. После этого шага вы получите код восстановления: это единственный способ вернуть доступ, если вы забудете пароль.</string>
     <string name="claim_warning_server">Ссылки для сброса пароля по почте не существует. Храните пароль в надёжном месте; если вы его потеряете, помочь сможет только администратор сети.</string>
     <string name="help_username_length">От 3 до 16 символов</string>
-    <string name="help_password_length">Не менее 7 символов</string>
+    <string name="help_password_length">Не менее 10 символов. Несколько несвязанных слов через пробел дают надёжный и легко запоминающийся пароль.</string>
     <string name="label_confirm_password">Повторите пароль</string>
     <string name="error_passwords_differ">Пароли не совпадают.</string>
     <string name="claim_understood">Я понимаю, что утерянный пароль нельзя сбросить по электронной почте.</string>
@@ -564,7 +564,7 @@
     <string name="error_change_password">Не удалось сменить пароль.</string>
     <string name="change_password_intro">При смене пароля на всех остальных устройствах будет выполнен выход. На этом вы останетесь в системе.</string>
     <string name="label_current_password">Текущий пароль</string>
-    <string name="help_new_password">Не менее 7 символов, не совпадает с текущим</string>
+    <string name="help_new_password">Не менее 10 символов, отличный от нынешнего</string>
     <string name="action_changing">Меняем…</string>
 
     <!-- The offline copy of the directory -->
@@ -926,4 +926,13 @@
     <string name="token_shown_once">Показывается один раз: после выхода с этого экрана его нельзя показать снова, только заменить.</string>
     <string name="error_token_expired">Срок действия этого кода истёк. Попросите новый у группы, создавшей ваш аккаунт: это займёт у них минуту, и вам скажут, до какого числа он действует.</string>
     <string name="error_token_used">Этот код уже использован. Если это были вы, войдите с именем пользователя и паролем, которые тогда выбрали. Если нет, сообщите группе, создавшей ваш аккаунт.</string>
+
+    <!-- The split sign-in scheme (API PR #114): the password never reaches the server -->
+    <string name="strength_weak">Слабый</string>
+    <string name="strength_fair">Средний</string>
+    <string name="strength_good">Хороший</string>
+    <string name="strength_strong">Надёжный</string>
+    <string name="strength_label">Надёжность: %s. Примерная оценка; здесь нельзя узнать, утёк ли пароль.</string>
+    <string name="error_scheme_downgrade">Этот телефон входил в аккаунт %s, не отправляя пароль, а теперь сервер запрашивает сам пароль. Этот аккаунт работает иначе, поэтому ничего не отправлено. Попробуйте позже; если это повторяется, сообщите своей группе.</string>
+    <string name="error_scheme_refused">Сервер не принял этот пароль в том виде, в каком его отправляет приложение. Возможно, приложение нужно обновить.</string>
 </resources>

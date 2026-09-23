@@ -45,7 +45,29 @@ def call(method, path, body=None, token=None, ok=(200, 201)):
         raise SystemExit(f"{method} {path} -> {e.code}: {payload.get('info') or payload.get('errors')}")
 
 
+def split_fields(password, salt=None, params=None):
+    """The split sign-in scheme (API PR #114), through tools/split-auth-key.mjs: the auth key the app would send."""
+    import subprocess, os
+    args = ["node", os.path.join(os.path.dirname(os.path.abspath(__file__)), "split-auth-key.mjs"), password]
+    if salt: args += [salt, str(params.get("opslimit", 2)), str(params.get("memlimit", 67108864))]
+    return json.loads(subprocess.check_output(args, text=True))
+
+
+def server_speaks_split(username):
+    """None on an API from before the scheme; otherwise the login-params answer."""
+    status, r = call("GET", f"/auth/login-params?username={username}", ok=(200, 404))
+    return r.get("data") if status == 200 else None
+
+
 def login(username, password):
+    """As the app signs in: the auth key where the server says split, and the password itself once if that is refused
+    (under REQUIRE_SPLIT_AUTH every name is called split, and an account from before can only sign in the old way)."""
+    params = server_speaks_split(username)
+    if params and params.get("scheme") == "split":
+        sent = split_fields(password, params["kdfSalt"], params["kdfParams"])["password"]
+        status, r = call("POST", "/auth/login", {"username": username, "password": sent}, ok=(200, 401))
+        if status == 200:
+            return r["data"]["token"]["token"]
     _, r = call("POST", "/auth/login", {"username": username, "password": password})
     return r["data"]["token"]["token"]
 
@@ -126,11 +148,26 @@ step(f"prisoners {[p['id'] for p in prisoners[:3]]} featured; {prisoners[1]['id'
 # 5. Group member account ------------------------------------------------------
 status, r = call("GET", "/auth/user?username=member1", token=admin, ok=(200, 404))
 if status == 404:
-    call("POST", "/auth/user", {
+    account = {
         "username": "member1", "password": "password1", "email": "member1@example.com",
         "name": "Test Chapter Member", "role": "chapter", "chapterId": seeded["id"],
-    }, token=admin)
-    step("created chapter member account member1 / password1")
+    }
+    # Where the server knows the split scheme, every new account is made that way (and under REQUIRE_SPLIT_AUTH it must be).
+    # Not on an end-to-end server: there an account's keys must come with its password, and only its owner's device
+    # can make them. Such an account is created plain and gets its keys at first sign-in; under REQUIRE_SPLIT_AUTH an
+    # admin cannot create one at all (asked of the API, PLAN.md 24).
+    if health.get("encryptionMode") != "e2e" and server_speaks_split("member1"):
+        account.update(split_fields("password1"))
+    status, r = call("POST", "/auth/user", account, token=admin, ok=(200, 201, 400))
+    if status == 400 and "go together" in " ".join(r.get("errors") or []):
+        # The API refuses a split password without keys ("wrappedPrivateKey, kdfSalt, and kdfParams go together"),
+        # which in server mode means no split account can be made at all (PLAN.md, ask 26). Plain, then.
+        for k in ("authScheme", "kdfSalt", "kdfParams"): account.pop(k, None)
+        account["password"] = "password1"
+        call("POST", "/auth/user", account, token=admin)
+    elif status == 400:
+        raise SystemExit(f"POST /auth/user -> 400: {r.get('errors')}")
+    step("created chapter member account member1 / password1" + (" (split scheme)" if "authScheme" in account else ""))
 else:
     step("chapter member account member1 already exists")
 member = login("member1", "password1")

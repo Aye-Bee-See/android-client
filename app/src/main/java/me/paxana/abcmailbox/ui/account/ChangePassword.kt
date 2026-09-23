@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
+import me.paxana.abcmailbox.ui.common.PasswordStrengthMeter
+import me.paxana.abcmailbox.domain.PasswordRules
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -54,7 +56,7 @@ data class ChangePasswordUiState(
   val done: Boolean = false,
 ) {
   val matches: Boolean get() = new == confirm
-  val canSubmit: Boolean get() = !busy && current.isNotEmpty() && new.length >= 7 && matches && new != current
+  val canSubmit: Boolean get() = !busy && current.isNotEmpty() && new.length >= PasswordRules.MIN_LENGTH && matches && new != current
 }
 
 @HiltViewModel
@@ -103,6 +105,7 @@ fun ChangePasswordScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: Chan
         modifier = Modifier.fillMaxWidth().testTag("pw-current"))
       OutlinedTextField(ui.new, viewModel::onNew, label = { Text(stringResource(R.string.label_new_password)) }, supportingText = { Text(stringResource(R.string.help_new_password)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("pw-new"))
+      PasswordStrengthMeter(ui.new)
       OutlinedTextField(ui.confirm, viewModel::onConfirm, label = { Text(stringResource(R.string.label_confirm_new_password)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
         isError = ui.confirm.isNotEmpty() && !ui.matches,
         supportingText = { if (ui.confirm.isNotEmpty() && !ui.matches) Text(stringResource(R.string.error_passwords_differ)) },

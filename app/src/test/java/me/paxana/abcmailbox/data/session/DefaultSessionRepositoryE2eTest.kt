@@ -1,6 +1,9 @@
 package me.paxana.abcmailbox.data.session
 
+import me.paxana.abcmailbox.apiRequestCount
+import me.paxana.abcmailbox.SchemeDispatcher
 import me.paxana.abcmailbox.next
+import me.paxana.abcmailbox.queue
 import me.paxana.abcmailbox.text.TestStrings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -49,8 +52,9 @@ class DefaultSessionRepositoryE2eTest {
   @Before
   fun setUp() {
     server.start()
+    server.dispatcher = SchemeDispatcher() // an API from before the split scheme: everything below is the plain path
     val api = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(AuthApi::class.java)
-    repo = DefaultSessionRepository(store, api, SessionCache(), json, FixedMode(EncryptionMode.E2E), engine, vault, TestScope(UnconfinedTestDispatcher()), TestStrings())
+    repo = DefaultSessionRepository(store, api, SessionCache(), json, FixedMode(EncryptionMode.E2E), engine, vault, TestScope(UnconfinedTestDispatcher()), TestStrings(), FakeSchemeMemory())
   }
 
   @After fun tearDown() = server.shutdown()
@@ -62,8 +66,8 @@ class DefaultSessionRepositoryE2eTest {
 
   @Test
   fun `first sign-in on an end-to-end server creates keys, uploads all seven fields, and queues the recovery code`() = runTest {
-    server.enqueue(MockResponse().setBody(login(noKeys)))
-    server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    server.queue(MockResponse().setBody(login(noKeys)))
+    server.queue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     assertTrue(repo.login("carol", "carolpass") is ApiResult.Success)
 
     assertEquals("/auth/login", server.next().path)
@@ -82,21 +86,21 @@ class DefaultSessionRepositoryE2eTest {
 
   @Test
   fun `sign-in with existing keys unlocks them with the password and shows no code`() = runTest {
-    server.enqueue(MockResponse().setBody(login(keysUnder("carolpass"))))
+    server.queue(MockResponse().setBody(login(keysUnder("carolpass"))))
     repo.login("carol", "carolpass")
     assertEquals("PUB-CAROL", String(vault.keyPair(7)!!.publicKey))
     assertNull(repo.pendingRecoveryCode.value)
-    assertEquals(1, server.requestCount)
+    assertEquals(1, server.apiRequestCount)
   }
 
   @Test
   fun `claiming opens the key with the token and re-wraps the same key under the new password`() = runTest {
-    server.enqueue(MockResponse().setBody("""{"data":{"writer":{"id":7,"name":"Carol"},"chapter":{"id":1,"name":"Test Chapter"},"expiresAt":"2026-09-20T00:00:00.000Z","publicKey":"PUB-CAROL","claimWrappedPrivateKey":"wrapped(PUB-CAROL)under(TOKEN24)","claimSalt":"s","claimKdfParams":{"kdf":"argon2id"}},"success":true,"status":200}"""))
+    server.queue(MockResponse().setBody("""{"data":{"writer":{"id":7,"name":"Carol"},"chapter":{"id":1,"name":"Test Chapter"},"expiresAt":"2026-09-20T00:00:00.000Z","publicKey":"PUB-CAROL","claimWrappedPrivateKey":"wrapped(PUB-CAROL)under(TOKEN24)","claimSalt":"s","claimKdfParams":{"kdf":"argon2id"}},"success":true,"status":200}"""))
     val info = (repo.claimInfo("TOKEN24") as ApiResult.Success).value
     assertTrue(info.endToEnd)
 
-    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
-    server.enqueue(MockResponse().setBody(login(keysUnder("newpass77"))))
+    server.queue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
+    server.queue(MockResponse().setBody(login(keysUnder("newpass77"))))
     assertTrue(repo.claim("TOKEN24", "carol", "newpass77", null) is ApiResult.Success)
 
     server.next() // the check
@@ -110,10 +114,10 @@ class DefaultSessionRepositoryE2eTest {
 
   @Test
   fun `a password change carries the key re-wrapped under the new password`() = runTest {
-    server.enqueue(MockResponse().setBody(login(keysUnder("carolpass"))))
+    server.queue(MockResponse().setBody(login(keysUnder("carolpass"))))
     repo.login("carol", "carolpass")
-    server.enqueue(MockResponse().setBody(login(keysUnder("carolpass")))) // the current-password check
-    server.enqueue(MockResponse().setBody("""{"data":{"updatedRows":[1],"token":{"token":"jwt-2","expires":2}},"success":true,"status":200}"""))
+    server.queue(MockResponse().setBody(login(keysUnder("carolpass")))) // the current-password check
+    server.queue(MockResponse().setBody("""{"data":{"updatedRows":[1],"token":{"token":"jwt-2","expires":2}},"success":true,"status":200}"""))
     assertTrue(repo.changePassword("carolpass", "brandnew77") is ApiResult.Success)
 
     server.next(); server.next()
@@ -125,9 +129,9 @@ class DefaultSessionRepositoryE2eTest {
 
   @Test
   fun `recovery opens the key with the code, answers the challenge, and signs in`() = runTest {
-    server.enqueue(MockResponse().setBody("""{"data":{"publicKey":"PUB-CAROL","recoveryWrappedPrivateKey":"wrapped(PUB-CAROL)under(SAVEDCODE)","recoverySalt":"s","recoveryKdfParams":{"kdf":"argon2id"},"sealedChallenge":"CH"},"success":true,"status":200}"""))
-    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
-    server.enqueue(MockResponse().setBody(login(keysUnder("afterrecovery"))))
+    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-CAROL","recoveryWrappedPrivateKey":"wrapped(PUB-CAROL)under(SAVEDCODE)","recoverySalt":"s","recoveryKdfParams":{"kdf":"argon2id"},"sealedChallenge":"CH"},"success":true,"status":200}"""))
+    server.queue(MockResponse().setResponseCode(201).setBody("""{"data":{},"success":true,"status":201}"""))
+    server.queue(MockResponse().setBody(login(keysUnder("afterrecovery"))))
     assertTrue(repo.recover("carol", "SAVEDCODE", "afterrecovery") is ApiResult.Success)
 
     assertEquals("/auth/recover?username=carol", server.next().path)
@@ -139,17 +143,17 @@ class DefaultSessionRepositoryE2eTest {
 
   @Test
   fun `a wrong recovery code is refused locally and never reaches the finish step`() = runTest {
-    server.enqueue(MockResponse().setBody("""{"data":{"publicKey":"PUB-CAROL","recoveryWrappedPrivateKey":"wrapped(PUB-CAROL)under(SAVEDCODE)","recoverySalt":"s","recoveryKdfParams":{"kdf":"argon2id"},"sealedChallenge":"CH"},"success":true,"status":200}"""))
+    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-CAROL","recoveryWrappedPrivateKey":"wrapped(PUB-CAROL)under(SAVEDCODE)","recoverySalt":"s","recoveryKdfParams":{"kdf":"argon2id"},"sealedChallenge":"CH"},"success":true,"status":200}"""))
     val r = repo.recover("carol", "WRONGCODE", "afterrecovery") as ApiResult.Failure
     assertTrue((r.error as AppError.Validation).errors.single().contains("does not match"))
-    assertEquals(1, server.requestCount)
+    assertEquals(1, server.apiRequestCount)
   }
 
   @Test
   fun `signing out forgets the key`() = runTest {
-    server.enqueue(MockResponse().setBody(login(keysUnder("carolpass"))))
+    server.queue(MockResponse().setBody(login(keysUnder("carolpass"))))
     repo.login("carol", "carolpass")
-    server.enqueue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    server.queue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     repo.logout()
     assertNull(vault.keyPair(7))
   }

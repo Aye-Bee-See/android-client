@@ -36,6 +36,7 @@ object Sodium {
 
   const val KEY_BYTES = 32
   const val NONCE_BYTES = 24
+  const val KDF_CONTEXT_BYTES = 8
   const val SALT_BYTES = 16
 
   /** Default Argon2id cost: libsodium's "interactive" tier, fast enough for a phone. */
@@ -118,6 +119,22 @@ object Sodium {
    *    directly here with the real byte length. Found by the Kotlin-to-Node
    *    interop test, 17 September 2026.
    */
+  /**
+   * `crypto_kdf_derive_from_key`: a subkey from a 32-byte master key, named by a number and an eight-character
+   * context. Deterministic, and cheap: the slow part (Argon2id) has already been paid for the master key. Two
+   * subkeys of one master are unrelated to each other, which is the whole point of the split sign-in scheme.
+   */
+  fun deriveSubkey(masterKey: ByteArray, subkeyId: Long, context: String): ByteArray {
+    require(masterKey.size == KEY_BYTES) { "master key must be $KEY_BYTES bytes" }
+    val ctx = context.toByteArray(Charsets.US_ASCII)
+    require(ctx.size == KDF_CONTEXT_BYTES) { "context must be exactly $KDF_CONTEXT_BYTES ASCII characters" }
+    initialize()
+    val out = ByteArray(KEY_BYTES)
+    val rc = LibsodiumInitializer.sodiumJna.crypto_kdf_derive_from_key(out, KEY_BYTES, subkeyId, ctx, masterKey)
+    check(rc == 0) { "crypto_kdf_derive_from_key failed" }
+    return out
+  }
+
   fun deriveKey(
     secret: String,
     salt: ByteArray,
