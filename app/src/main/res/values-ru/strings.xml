@@ -1069,4 +1069,8 @@
     <string name="slip_how">Установите приложение Aye Bee See, выберите «У меня есть код приглашения» и введите этот код, или наведите камеру на квадрат.</string>
     <string name="slip_shared_name">Коды приглашения, %s</string>
     <string name="error_invites_pdf">Не удалось создать PDF. Коды по-прежнему на этом экране.</string>
+
+    <!-- Copilot's review of PR #5: a slip's link, or a claim link, opened while signed in -->
+    <string name="join_signed_in">Вы вошли как @%s. Код приглашения создаёт новый аккаунт, поэтому сначала выйдите.</string>
+    <string name="claim_signed_in">Вы вошли как @%s. Код активации переводит на вас другой аккаунт, поэтому сначала выйдите.</string>
 </resources>

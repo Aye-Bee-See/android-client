@@ -30,6 +30,7 @@ class InviteCodesViewModelTest {
 
   private class FakeInvites : InviteRepository {
     var loads = 0
+    var kept: IssuedInvites? = null
     var issueError: AppError? = null
     val cancels = mutableListOf<String?>()
     val issued = mutableListOf<Triple<Int, String?, Int?>>()
@@ -37,8 +38,10 @@ class InviteCodesViewModelTest {
     override suspend fun issue(count: Int, label: String?, days: Int?): ApiResult<IssuedInvites> {
       issued += Triple(count, label, days)
       issueError?.let { return ApiResult.Failure(it) }
-      return ApiResult.Success(IssuedInvites("b2", label, null, List(count) { "7Q4M2XKD9HB$it" }, "Portland ABC", 3 + count, 20))
+      return ApiResult.Success(IssuedInvites("b2", label, null, List(count) { "7Q4M2XKD9HB$it" }, "Portland ABC", 3 + count, 20).also { kept = it })
     }
+    override suspend fun pending() = kept
+    override suspend fun finished() { kept = null }
     override suspend fun cancel(batch: String?): ApiResult<Int> { cancels += batch; return ApiResult.Success(3) }
   }
 
@@ -59,7 +62,15 @@ class InviteCodesViewModelTest {
     assertEquals("the form is cleared for the next batch", "", vm.ui.value.label)
 
     vm.finishedWithCodes(); dispatcher.scheduler.advanceUntilIdle()
-    assertNull(vm.ui.value.issued); assertEquals("the list was reloaded", 2, invites.loads)
+    assertNull(vm.ui.value.issued); assertNull("gone from the phone too", invites.kept); assertEquals("the list was reloaded", 2, invites.loads)
+  }
+
+  @Test
+  fun `a batch the app was killed on is shown again before anything else`() = runTest {
+    val invites = FakeInvites().apply { kept = IssuedInvites("b9", null, null, listOf("7Q4M2XKD9HBT"), "Portland ABC", 4, 20) }
+    val vm = InviteCodesViewModel(invites, TestStrings())
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("b9", vm.ui.value.issued?.batch)
   }
 
   @Test

@@ -51,9 +51,14 @@ fun JoinScreen(
   viewModel: JoinViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
-  LaunchedEffect(sessionState) { if (sessionState is SessionState.SignedIn && ui.invitation != null) onJoined() }
+  LaunchedEffect(sessionState, ui.joined) { if (sessionState is SessionState.SignedIn && ui.joined) onJoined() }
 
   DetailScaffold(title = stringResource(R.string.title_join), onBack = onBack) { padding ->
+    // Opened (by a slip's link, say) while an account is signed in: nothing is made until that is dealt with.
+    if (sessionState is SessionState.SignedIn && !ui.joined) {
+      SignedInNotice(padding, stringResource(R.string.join_signed_in, sessionState.session.user.username), onSignOut = viewModel::signOut, onBack = onBack)
+      return@DetailScaffold
+    }
     Column(
       Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 8.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp),

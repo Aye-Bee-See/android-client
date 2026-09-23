@@ -82,7 +82,7 @@ data class InviteCodesUiState(
   val daysText: String = "",
   val busy: Boolean = false,
   val error: String? = null,
-  /** A batch just made, shown once; while set the screen shows the slips and nothing else. */
+  /** A batch made and not yet printed or saved, shown once; while set the screen shows the slips and nothing else. */
   val issued: IssuedInvites? = null,
   /** The batch a cancel is being confirmed for ([ALL_BATCHES] for every batch), or null. */
   val confirmCancel: String? = null,
@@ -97,15 +97,19 @@ data class InviteCodesUiState(
 
 /**
  * A group's invite codes (API PR #116): the standing list with counts and the quota, a form to make a batch,
- * and cancelling. A batch just made is held here until the person says they have printed or saved it, because
- * the server says the codes once and a screen rebuilt on rotation must not lose them.
+ * and cancelling. A batch made is shown until the person says they have printed or saved it, because the server
+ * says the codes once; the repository keeps it on the phone meanwhile, so a process death loses nothing either.
  */
 @HiltViewModel
 class InviteCodesViewModel @Inject constructor(private val invites: InviteRepository, private val strings: Strings) : ViewModel() {
   private val _ui = MutableStateFlow(InviteCodesUiState())
   val ui: StateFlow<InviteCodesUiState> = _ui.asStateFlow()
 
-  init { load() }
+  init {
+    // A batch the app was killed on comes back first, before anything else is offered.
+    viewModelScope.launch { invites.pending()?.let { kept -> _ui.update { it.copy(issued = kept) } } }
+    load()
+  }
 
   fun load() {
     viewModelScope.launch {
@@ -132,8 +136,11 @@ class InviteCodesViewModel @Inject constructor(private val invites: InviteReposi
     }
   }
 
-  /** The person has printed or saved the slips: the codes leave the screen for good, and the list is reloaded. */
-  fun finishedWithCodes() { _ui.update { it.copy(issued = null) }; load() }
+  /** The person has printed or saved the slips: the codes leave the screen and the phone for good, and the list is reloaded. */
+  fun finishedWithCodes() {
+    _ui.update { it.copy(issued = null) }
+    viewModelScope.launch { invites.finished(); load() }
+  }
 
   fun askCancel(batch: String) = _ui.update { it.copy(confirmCancel = batch, error = null, cancelledNotice = null) }
   fun dismissCancel() = _ui.update { it.copy(confirmCancel = null) }

@@ -1044,4 +1044,8 @@
     <string name="slip_how">Get the Aye Bee See app, choose “I have an invite code” and type this code, or point your camera at the square.</string>
     <string name="slip_shared_name">Invite codes, %s</string>
     <string name="error_invites_pdf">The PDF could not be written. The codes are still on this screen.</string>
+
+    <!-- Copilot's review of PR #5: a slip's link, or a claim link, opened while signed in -->
+    <string name="join_signed_in">You are signed in as @%s. An invite code makes a new account, so sign out first.</string>
+    <string name="claim_signed_in">You are signed in as @%s. A claim token takes over another account, so sign out first.</string>
 </resources>

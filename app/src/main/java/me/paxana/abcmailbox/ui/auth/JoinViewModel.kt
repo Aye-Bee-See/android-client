@@ -14,6 +14,7 @@ import me.paxana.abcmailbox.R
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.session.SessionRepository
+import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.InviteCode
 import me.paxana.abcmailbox.domain.Invitation
 import me.paxana.abcmailbox.domain.PasswordRules
@@ -34,6 +35,8 @@ data class JoinUiState(
   val error: String? = null,
   /** The code was refused for good (used, cancelled, expired, never issued): show the "ask for another" state. */
   val codeDead: Boolean = false,
+  /** The account was made and signed in from this screen: the session that follows is the new one, and the screen may leave. */
+  val joined: Boolean = false,
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && code.isNotBlank()
@@ -59,10 +62,15 @@ class JoinViewModel(
   private val _ui = MutableStateFlow(JoinUiState(code = route.code?.let { InviteCode.pretty(it) }.orEmpty()))
   val ui: StateFlow<JoinUiState> = _ui.asStateFlow()
 
+  /** Signed in already: an invite code makes a new account, which must not replace the session unasked. */
+  private val signedInAs: String? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.username
+
   init {
-    // Arrived by the slip's link: check the code straight away.
-    if (route.code != null && InviteCode.isWellFormed(route.code)) check()
+    // Arrived by the slip's link: check the code straight away, unless somebody is signed in (the screen says so instead).
+    if (route.code != null && InviteCode.isWellFormed(route.code) && signedInAs == null) check()
   }
+
+  fun signOut() { viewModelScope.launch { sessions.logout() } }
 
   fun onCodeChange(v: String) = _ui.update { it.copy(code = v, error = null, codeDead = false, invitation = null) }
   fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null) }
@@ -75,6 +83,7 @@ class JoinViewModel(
 
   fun check() {
     val typed = _ui.value.code
+    signedInAs?.let { name -> _ui.update { it.copy(error = strings.get(R.string.join_signed_in, name)) }; return }
     InviteCode.problem(typed, strings)?.let { problem -> _ui.update { it.copy(error = problem) }; return }
     _ui.update { it.copy(busy = true, error = null, codeDead = false) }
     viewModelScope.launch {
@@ -92,7 +101,7 @@ class JoinViewModel(
     viewModelScope.launch {
       when (val r = sessions.join(InviteCode.normalise(s.code), s.username, s.password, s.email, s.name)) {
         // Success flips the session to signed-in; the screen leaves on its own.
-        is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "") }
+        is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", joined = true) }
         is ApiResult.Failure -> _ui.update { it.copy(busy = false, codeDead = r.error.isDeadCode, error = r.error.toJoinMessage(strings)) }
       }
     }

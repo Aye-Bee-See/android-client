@@ -1026,4 +1026,8 @@
     <string name="slip_how">Instala la app Aye Bee See, elige «Tengo un código de invitación» y escribe este código, o apunta la cámara al cuadrado.</string>
     <string name="slip_shared_name">Códigos de invitación, %s</string>
     <string name="error_invites_pdf">No se ha podido crear el PDF. Los códigos siguen en esta pantalla.</string>
+
+    <!-- Copilot's review of PR #5: a slip's link, or a claim link, opened while signed in -->
+    <string name="join_signed_in">Has iniciado sesión como @%s. Un código de invitación crea una cuenta nueva, así que cierra sesión primero.</string>
+    <string name="claim_signed_in">Has iniciado sesión como @%s. Un código de activación toma otra cuenta, así que cierra sesión primero.</string>
 </resources>

@@ -16,6 +16,7 @@ class InviteCodeTest {
     assertFalse("U is not in the alphabet", InviteCode.isWellFormed("7q4m-2xkd-9hbu"))
     assertFalse(InviteCode.isWellFormed("7q4m-2xkd"))
     assertEquals("7Q4M-2XKD-9HBT", InviteCode.pretty("7q4m2xkd9hbt"))
+    assertFalse("only dashes and spaces are ignored; a stray character is kept for the check to name", InviteCode.isWellFormed("7q4m-2xkd-9hbt!"))
   }
 
   @Test
@@ -28,6 +29,7 @@ class InviteCodeTest {
     val strings = TestStrings()
     assertEquals("Enter the code on your slip.", InviteCode.problem("  ", strings))
     assertEquals("Codes never contain the character U. Check for a look-alike.", InviteCode.problem("7Q4M-2XKD-9HBU", strings))
+    assertEquals("Codes never contain the character !. Check for a look-alike.", InviteCode.problem("7Q4M-2XKD-9HBT!", strings))
     assertEquals("That is 8 characters; a code has 12.", InviteCode.problem("7Q4M-2XKD", strings))
     assertEquals("That is 13 characters; a code has only 12.", InviteCode.problem("7Q4M-2XKD-9HBT7", strings))
     assertNull(InviteCode.problem("7q4m 2xkd 9hbt", strings))

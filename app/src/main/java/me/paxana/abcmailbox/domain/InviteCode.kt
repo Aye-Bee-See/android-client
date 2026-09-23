@@ -18,8 +18,11 @@ object InviteCode {
   const val LINK_HOST = "letters.support"
   const val LINK_PATH = "/join"
 
-  /** Upper case, letters and digits only, look-alikes folded as the server folds them. */
-  fun normalise(input: String): String = input.uppercase().filter { it.isLetterOrDigit() }
+  /**
+   * Upper case, dashes and spaces dropped, look-alikes folded as the server folds them. Nothing else is dropped: a
+   * stray character stays, so that [problem] names it instead of a shortened code going out.
+   */
+  fun normalise(input: String): String = input.uppercase().filter { it != '-' && !it.isWhitespace() }
     .map { when (it) { 'O' -> '0'; 'I', 'L' -> '1'; else -> it } }.joinToString("")
 
   fun isWellFormed(input: String): Boolean = normalise(input).let { c -> c.length == LENGTH && c.all { it in ALPHABET } }

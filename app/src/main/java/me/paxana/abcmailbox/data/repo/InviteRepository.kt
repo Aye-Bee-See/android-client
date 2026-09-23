@@ -28,8 +28,14 @@ import javax.inject.Singleton
 interface InviteRepository {
   suspend fun quota(): ApiResult<InviteQuota>
 
-  /** Issues [count] codes (1 to 50). The answer is the only time the server says them. */
+  /** Issues [count] codes (1 to 50). The answer is the only time the server says them; it is kept on the phone until [finished]. */
   suspend fun issue(count: Int, label: String?, days: Int?): ApiResult<IssuedInvites>
+
+  /** A batch issued and not yet printed or saved, kept across a process death. Null when there is none. */
+  suspend fun pending(): IssuedInvites?
+
+  /** The person has the slips: the codes leave the phone. */
+  suspend fun finished()
 
   /** Cancels the unused codes of one batch, or of every batch when [batch] is null. Answers how many were cancelled. */
   suspend fun cancel(batch: String?): ApiResult<Int>
@@ -46,6 +52,7 @@ class DefaultInviteRepository @Inject constructor(
   private val sessions: SessionRepository,
   private val json: Json,
   private val strings: Strings,
+  private val pending: PendingInvitesStore,
 ) : InviteRepository {
 
   private val groupId: Int? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.chapterId
@@ -67,11 +74,20 @@ class DefaultInviteRepository @Inject constructor(
       is ApiResult.Success -> checkNotNull(g.value.data) { "chapter response had no data" }.name
     }
     val request = IssueInviteCodesRequest(count = count, label = label?.trim()?.ifBlank { null }, days = days)
-    return apiCall(json) { api.issueInviteCodes(request) }.map { env ->
-      val d = checkNotNull(env.data) { "invite-codes response had no data" }
-      IssuedInvites(d.batch, d.label, d.expiresAt?.toInstant(), d.codes, groupName, d.outstanding, d.limit)
+    return when (val r = apiCall(json) { api.issueInviteCodes(request) }) {
+      is ApiResult.Failure -> r
+      is ApiResult.Success -> {
+        val d = checkNotNull(r.value.data) { "invite-codes response had no data" }
+        val issued = IssuedInvites(d.batch, d.label, d.expiresAt?.toInstant(), d.codes, groupName, d.outstanding, d.limit)
+        // Kept before it is answered: from here the codes survive whatever happens to the process.
+        pending.save(issued)
+        ApiResult.Success(issued)
+      }
     }
   }
+
+  override suspend fun pending(): IssuedInvites? = pending.load()
+  override suspend fun finished() = pending.clear()
 
   override suspend fun cancel(batch: String?): ApiResult<Int> {
     if (groupId == null) return notInGroup()

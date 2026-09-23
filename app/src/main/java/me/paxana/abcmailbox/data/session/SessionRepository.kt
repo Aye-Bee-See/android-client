@@ -306,6 +306,7 @@ class DefaultSessionRepository @Inject constructor(
     }
 
   override suspend fun claim(token: String, username: String, password: String, email: String?): ApiResult<Session> {
+    (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.claim_signed_in, it.session.user.username))) }
     var request = ClaimRequest(token, username.trim(), password, email?.trim()?.ifBlank { null })
     var recoveryCode: String? = null
     // Every new account is split where the server knows the scheme (API PR #114).
@@ -352,6 +353,8 @@ class DefaultSessionRepository @Inject constructor(
    * mode and a salt and recipe alone in server mode. Then the ordinary sign-in, which the code has no part in.
    */
   override suspend fun join(code: String, username: String, password: String, email: String?, name: String?): ApiResult<Session> {
+    // A new account must not replace a session unasked (a slip's link opened while signed in); the screen says so first.
+    (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.join_signed_in, it.session.user.username))) }
     val user = username.trim()
     var request = JoinRequest(code, user, password, email?.trim()?.ifBlank { null }, name?.trim()?.ifBlank { null })
     var recoveryCode: String? = null

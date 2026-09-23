@@ -52,6 +52,19 @@ class JoinViewModelTest {
   }
 
   @Test
+  fun `while an account is signed in, a slip's link makes nothing and sends nothing`() = runTest {
+    val repo = FakeSessionRepository().apply { signInAs(me.paxana.abcmailbox.data.session.SessionUser(1, "carol", null, null, "user", null)) }
+    val vm = JoinViewModel(repo, JoinRoute("7Q4M-2XKD-9HBT"), TestStrings())
+    dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("not checked on arrival", repo.joinChecks.isEmpty())
+    vm.check(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("You are signed in as @carol. An invite code makes a new account, so sign out first.", vm.ui.value.error)
+    assertTrue(repo.joinChecks.isEmpty()); assertFalse(vm.ui.value.joined)
+    vm.signOut(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(repo.state.value is SessionState.SignedOut)
+  }
+
+  @Test
   fun `arrived by the slip's link, the code is checked at once`() = runTest {
     val repo = FakeSessionRepository()
     val vm = JoinViewModel(repo, JoinRoute("7Q4M-2XKD-9HBT"), TestStrings())

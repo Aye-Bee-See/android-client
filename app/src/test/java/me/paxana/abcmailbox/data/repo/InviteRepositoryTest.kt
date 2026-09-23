@@ -26,11 +26,17 @@ class InviteRepositoryTest {
   private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; explicitNulls = false }
   private val sessions = FakeSessionRepository()
   private lateinit var repo: DefaultInviteRepository
+  private val kept = object : PendingInvitesStore {
+    var issued: me.paxana.abcmailbox.domain.IssuedInvites? = null
+    override suspend fun save(issued: me.paxana.abcmailbox.domain.IssuedInvites) { this.issued = issued }
+    override suspend fun load() = issued
+    override suspend fun clear() { issued = null }
+  }
 
   @Before fun setUp() {
     server.start()
     val api = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(GroupApi::class.java)
-    repo = DefaultInviteRepository(api, sessions, json, TestStrings())
+    repo = DefaultInviteRepository(api, sessions, json, TestStrings(), kept)
     sessions.signInAs(SessionUser(9, "member1", "Sam", null, "chapter", 1))
   }
   @After fun tearDown() = server.shutdown()
@@ -47,6 +53,8 @@ class InviteRepositoryTest {
     assertEquals(listOf("7Q4M-2XKD-9HBT", "2B9X-K4NM-7PQR"), r.value.codes)
     assertEquals("Portland ABC", r.value.groupName); assertEquals("k3Zp0Q9x", r.value.batch); assertEquals(2, r.value.outstanding); assertEquals(20, r.value.limit)
     assertEquals("2026-10-22T19:00:00Z", r.value.expiresAt.toString())
+    // Kept on the phone until the person has the slips: a process death in between loses nothing.
+    assertEquals(r.value, repo.pending()); repo.finished(); assertNull(repo.pending())
   }
 
   @Test

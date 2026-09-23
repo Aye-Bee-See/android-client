@@ -111,6 +111,7 @@ class JoinTest {
     assertNull("nothing to show: no keys were made", repo.pendingRecoveryCode.value)
 
     server.next()
+    store.clear() // signed out: a join while signed in is refused (see below)
     server.dispatcher = SchemeDispatcher() // 404: an API from before the scheme
     build()
     server.queue(MockResponse().setBody(joined)); server.queue(MockResponse().setBody(login("""{"publicKey":"PUB-NEW","wrappedPrivateKey":"wrapped(PUB-NEW)under(longenough1)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null}""")))
@@ -118,6 +119,15 @@ class JoinTest {
     assertTrue(repo.join("7Q4M2XKD9HBT", "dave", "longenough1", null, null) is ApiResult.Success)
     val plain = body()
     assertNull(plain["authScheme"]); assertEquals("longenough1", field(plain, "password")); assertEquals("wrapped(PUB-NEW)under(longenough1)", field(plain, "wrappedPrivateKey"))
+  }
+
+  @Test
+  fun `signed in, a join is refused before anything is sent`() = runTest {
+    build()
+    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null), olderAccount = false))
+    val r = repo.join("7Q4M2XKD9HBT", "sam", "longenough1", null, null) as ApiResult.Failure
+    assertTrue(r.error is AppError.Forbidden); assertTrue(r.error.userMessage!!.contains("@carol")); assertEquals(0, server.apiRequestCount)
+    assertEquals("the session stands", "jwt-1", store.flow.value?.token)
   }
 
   @Test

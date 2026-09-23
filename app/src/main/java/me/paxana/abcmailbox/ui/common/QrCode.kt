@@ -3,7 +3,6 @@ package me.paxana.abcmailbox.ui.common
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -12,7 +11,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -24,20 +22,28 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
  * page in [me.paxana.abcmailbox.ui.group.InviteSlipsPdf], so both show the very same code.
  */
 object QrCodes {
-  /** The modules of a QR code for [text], row by row, `true` for dark. Error correction M; no quiet zone, the caller adds its own margin. */
-  fun matrix(text: String): Array<BooleanArray> {
+  /** The quiet zone a reader needs around a QR code, in modules: the specification's four. */
+  const val QUIET_ZONE = 4
+
+  /**
+   * The modules of a QR code for [text], row by row, `true` for dark, with [quietZone] light modules around it.
+   * Error correction M. The quiet zone is part of the grid so that every renderer has it whatever its size: a
+   * fixed margin in dp or points is not four modules once the code is small.
+   */
+  fun matrix(text: String, quietZone: Int = QUIET_ZONE): Array<BooleanArray> {
     val hints = mapOf(EncodeHintType.MARGIN to 0, EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M)
     val m = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, 0, 0, hints)
-    return Array(m.height) { y -> BooleanArray(m.width) { x -> m.get(x, y) } }
+    val side = m.width + 2 * quietZone
+    return Array(side) { y -> BooleanArray(side) { x -> val mx = x - quietZone; val my = y - quietZone; mx in 0 until m.width && my in 0 until m.height && m.get(mx, my) } }
   }
 }
 
-/** A QR code, always black on white whatever the theme, so that any camera reads it. Square; size it by [modifier]. */
+/** A QR code, always black on white whatever the theme, so that any camera reads it. Square; size it by [modifier]. The quiet zone is in the grid. */
 @Composable
 fun QrCode(text: String, modifier: Modifier = Modifier, contentDescription: String? = null) {
   val matrix = remember(text) { QrCodes.matrix(text) }
   Canvas(
-    modifier.aspectRatio(1f).background(Color.White).padding(8.dp)
+    modifier.aspectRatio(1f).background(Color.White)
       .semantics { if (contentDescription != null) this.contentDescription = contentDescription },
   ) {
     val n = matrix.size

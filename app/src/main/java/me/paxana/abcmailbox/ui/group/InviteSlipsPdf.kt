@@ -88,8 +88,9 @@ object InviteSlipsPdf {
     canvas.drawText(InviteCode.pretty(code), left, y + 15f, codePaint)
     y += 24f
 
-    // The QR code, bottom right: the join link with the code, black on the page's white, the link in words under it.
-    val qrSide = (box.bottom - pad - 9f - y).coerceAtMost(88f)
+    // The QR code, bottom right: the join link with the code, black on the page's white, its quiet zone in the grid
+    // (so the URL under it stays outside the zone), the link in words under it.
+    val qrSide = (box.bottom - pad - 9f - y).coerceAtMost(96f)
     val qrLeft = box.right - pad - qrSide
     val matrix = QrCodes.matrix(InviteCode.link(code))
     val cell = qrSide / matrix.size
