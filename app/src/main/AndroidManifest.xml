@@ -66,6 +66,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="abcmailbox" android:host="claim" />
             </intent-filter>
+            <!-- An invite-code slip's QR code: https://letters.support/join?code=… (API PR #116), and the scheme form. autoVerify
+                 takes effect once the domain hosts assetlinks.json (docs/PLAN.md, ask 4); until then Android offers the app as a choice. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="letters.support" android:path="/join" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="abcmailbox" android:host="join" />
+            </intent-filter>
         </activity>
     </application>
 

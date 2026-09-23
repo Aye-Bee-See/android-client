@@ -52,6 +52,9 @@ import kotlinx.serialization.Serializable
 @Serializable data object LoginRoute
 /** `token` is set when the screen was opened by a claim link. */
 @Serializable data class ClaimRoute(val token: String? = null)
+/** `code` is set when the screen was opened by a slip's link (API PR #116). */
+@Serializable data class JoinRoute(val code: String? = null)
+@Serializable data object InviteCodesRoute
 @Serializable data object RecoverRoute
 @Serializable data object ChangePasswordRoute
 @Serializable data object DeleteAccountRoute

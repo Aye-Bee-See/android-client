@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.session.SessionRepository
+import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.ClaimInfo
 import me.paxana.abcmailbox.domain.ClaimToken
 import me.paxana.abcmailbox.ui.nav.ClaimRoute
@@ -34,6 +35,8 @@ data class ClaimUiState(
   val error: String? = null,
   /** True when the token was refused as used or expired: show the "ask for a new one" state. */
   val tokenDead: Boolean = false,
+  /** The account was claimed and signed in from this screen: the session that follows is the new one, and the screen may leave. */
+  val claimed: Boolean = false,
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && token.isNotBlank()
@@ -58,10 +61,15 @@ class ClaimViewModel(
   private val _ui = MutableStateFlow(ClaimUiState(token = route.token?.let { ClaimToken.pretty(it) }.orEmpty()))
   val ui: StateFlow<ClaimUiState> = _ui.asStateFlow()
 
+  /** Signed in already: a claim takes over another account, which must not replace the session unasked. */
+  private val signedInAs: String? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.username
+
   init {
-    // Arrived by link with a token: check it straight away.
-    if (route.token != null && ClaimToken.isWellFormed(route.token)) check()
+    // Arrived by link with a token: check it straight away, unless somebody is signed in (the screen says so instead).
+    if (route.token != null && ClaimToken.isWellFormed(route.token) && signedInAs == null) check()
   }
+
+  fun signOut() { viewModelScope.launch { sessions.logout() } }
 
   fun onTokenChange(v: String) = _ui.update { it.copy(token = v, error = null, tokenDead = false, info = null) }
   fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null) }
@@ -74,6 +82,7 @@ class ClaimViewModel(
 
   fun check() {
     val typed = _ui.value.token
+    signedInAs?.let { name -> _ui.update { it.copy(error = strings.get(R.string.claim_signed_in, name)) }; return }
     ClaimToken.problem(typed, strings)?.let { problem -> _ui.update { it.copy(error = problem) }; return }
     _ui.update { it.copy(busy = true, error = null, tokenDead = false) }
     viewModelScope.launch {
@@ -91,7 +100,7 @@ class ClaimViewModel(
     viewModelScope.launch {
       when (val r = sessions.claim(ClaimToken.normalise(s.token), s.username, s.password, s.email)) {
         // Success flips the session to signed-in; the screen leaves on its own.
-        is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "") }
+        is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", claimed = true) }
         is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage(strings)) }
       }
     }

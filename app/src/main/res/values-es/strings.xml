@@ -461,7 +461,7 @@
     <string name="label_username">Nombre de usuario</string>
     <string name="action_hide">Ocultar</string>
     <string name="action_show">Mostrar</string>
-    <string name="login_no_account">¿No tienes cuenta? Las cuentas las crean quienes organizan los grupos de apoyo. Pide al grupo con el que escribes que te cree una.</string>
+    <string name="login_no_account">¿No tienes cuenta? Un grupo de apoyo puede darte un código de invitación, o crear una cuenta para ti y entregártela con un código de activación.</string>
     <string name="action_have_token">Tengo un código de activación</string>
     <string name="action_forgot_password">¿Has olvidado tu contraseña?</string>
     <string name="error_wrong_credentials">Nombre de usuario o contraseña incorrectos.</string>
@@ -940,4 +940,94 @@
 
     <!-- Copilot's review of PR #4: a session from before the app recorded which way it signs in -->
     <string name="error_scheme_unknown_session">El servidor no ha aceptado esa contraseña en la forma en que la app la envía ahora, así que no se ha cambiado nada. Puede estar mal escrita. O, si tu cuenta es de antes de que la app dejara de enviar contraseñas, cierra sesión y vuelve a iniciarla con la contraseña en sí.</string>
+
+    <!-- Phase 16: invite codes (API PR #116). The writer joins with one -->
+    <string name="action_have_invite">Tengo un código de invitación</string>
+    <string name="title_join">Unirse con un código de invitación</string>
+    <string name="join_intro">Un grupo de apoyo reparte códigos de invitación en papelitos: en las noches de cartas y a las personas por las que responde. Escribe el tuyo aquí, o abre el código cuadrado del papelito con la cámara.</string>
+    <string name="label_invite_code">Código de invitación</string>
+    <string name="invite_code_help">Doce letras y cifras, en grupos de cuatro. Las mayúsculas, los guiones y los espacios dan igual.</string>
+    <string name="action_check_code">Comprobar el código</string>
+    <string name="invite_code_empty">Escribe el código de tu papelito.</string>
+    <string name="invite_code_bad_character">Los códigos nunca contienen el carácter %1$s. Comprueba si es otro parecido.</string>
+    <plurals name="invite_code_too_short">
+        <item quantity="one">Eso es %1$d carácter; un código tiene %2$d.</item>
+        <item quantity="many">Eso son %1$d caracteres; un código tiene %2$d.</item>
+        <item quantity="other">Eso son %1$d caracteres; un código tiene %2$d.</item>
+    </plurals>
+    <plurals name="invite_code_too_long">
+        <item quantity="one">Eso es %1$d carácter; un código solo tiene %2$d.</item>
+        <item quantity="many">Eso son %1$d caracteres; un código solo tiene %2$d.</item>
+        <item quantity="other">Eso son %1$d caracteres; un código solo tiene %2$d.</item>
+    </plurals>
+    <string name="join_invited_by">%s te invita a escribir.</string>
+    <string name="join_good_until">El código es válido hasta el %s.</string>
+    <string name="join_setup_title">Elige tus datos de acceso</string>
+    <string name="join_privacy">El grupo sabrá que se usó un código de esta tanda, y nada más: ni cuál, ni quién.</string>
+    <string name="label_name_optional">Tu nombre (opcional)</string>
+    <string name="help_name_optional">Lo verá el grupo a través del que escribes. Déjalo vacío para usar tu nombre de usuario.</string>
+    <string name="action_join">Crear mi cuenta</string>
+    <string name="action_joining">Creando…</string>
+    <string name="action_different_code">Usar otro código</string>
+    <string name="notice_joined">Tu cuenta está lista. Te damos la bienvenida.</string>
+    <string name="invite_code_kept">El código no se ha gastado. Corrige lo que falla e inténtalo de nuevo.</string>
+    <string name="error_invite_unknown">Ese código no es uno que el servidor conozca. Compáralo con el papelito.</string>
+    <string name="error_invite_used">Este código de invitación ya se ha usado. Pide otro al grupo.</string>
+    <string name="error_invite_cancelled">El grupo anuló este código de invitación. Pídeles otro.</string>
+    <string name="error_invite_expired">Este código de invitación ha caducado. Pide otro al grupo.</string>
+    <string name="error_invite_inactive">El grupo que emitió este código ya no está activo en el sitio.</string>
+    <string name="error_invite_gone">Este código de invitación ya no se puede usar. Pide otro al grupo.</string>
+
+    <!-- Phase 16: invite codes, the group's side. Slips to print, and the standing list -->
+    <string name="title_invite_codes">Códigos de invitación</string>
+    <string name="invite_codes_intro">Un código de invitación permite a alguien crear su propia cuenta, sin nada que traspasar. Imprime una tanda, reparte los papelitos en una noche de cartas o a cualquiera por quien tu grupo responda, y el código hace el resto.</string>
+    <string name="invite_codes_privacy">Tu grupo solo ve cifras. El servidor nunca registra qué cuenta creó un código, ni qué código creó una cuenta.</string>
+    <string name="invite_quota">%1$d de %2$d códigos en uso.</string>
+    <string name="invite_quota_explained">Un código usado libera su sitio al momento. Uno sin usar cuenta hasta que caduca o lo anulas.</string>
+    <string name="section_print_invites">Imprimir códigos de invitación</string>
+    <string name="label_invite_count">Cuántos</string>
+    <string name="help_invite_count">De 1 a 50</string>
+    <string name="label_invite_label">Etiqueta (opcional)</string>
+    <string name="help_invite_label">Para tu lista, por ejemplo «Noche de cartas, 2 de octubre».</string>
+    <string name="label_invite_days">Días de validez (opcional)</string>
+    <string name="help_invite_days">Solo para que caduquen antes, con el evento para el que son. Vacío significa la duración habitual.</string>
+    <string name="action_issue_invites">Crear los códigos</string>
+    <string name="action_issuing">Creando…</string>
+    <string name="section_invite_batches">Tandas</string>
+    <string name="invite_batches_none">Aún no se ha creado ningún código.</string>
+    <plurals name="invite_batch_unlabelled">
+        <item quantity="one">Una tanda de %d código</item>
+        <item quantity="many">Una tanda de %d códigos</item>
+        <item quantity="other">Una tanda de %d códigos</item>
+    </plurals>
+    <string name="invite_batch_made">Creada el %s</string>
+    <string name="invite_batch_use_by">Usar antes del %s</string>
+    <string name="invite_batch_counts">%1$d usados, %2$d sin usar, %3$d anulados, %4$d caducados</string>
+    <string name="action_cancel_unused">Anular los no usados</string>
+    <string name="action_cancel_all_unused">Anular todos los códigos sin usar</string>
+    <string name="cancel_invites_title">¿Anular los códigos sin usar?</string>
+    <string name="cancel_invites_text">Los papelitos ya repartidos dejarán de funcionar. Las cuentas ya creadas con esta tanda se mantienen.</string>
+    <string name="cancel_all_invites_text">Todos los códigos sin usar de todas las tandas dejarán de funcionar. Las cuentas ya creadas se mantienen.</string>
+    <string name="action_cancel_codes">Anular los códigos</string>
+    <plurals name="notice_invites_cancelled">
+        <item quantity="one">%d código anulado</item>
+        <item quantity="many">%d códigos anulados</item>
+        <item quantity="other">%d códigos anulados</item>
+    </plurals>
+    <string name="invites_shown_once">Estos códigos se muestran una sola vez. Imprímelos o guarda el PDF ahora; el servidor no volverá a decirlos.</string>
+    <string name="action_print">Imprimir</string>
+    <string name="action_share_pdf">Compartir como PDF</string>
+    <string name="action_finished_with_codes">Ya los he impreso o guardado</string>
+    <string name="invites_leave_title">¿Salir de los códigos?</string>
+    <string name="invites_leave_text">No se volverán a mostrar. ¿Los has impreso o guardado?</string>
+    <string name="action_leave_anyway">Salir de todos modos</string>
+    <string name="action_stay">Quedarme</string>
+    <string name="slip_inviting">%s te invita a escribir a una persona presa.</string>
+    <string name="slip_how">Instala la app Aye Bee See, elige «Tengo un código de invitación» y escribe este código, o apunta la cámara al cuadrado.</string>
+    <string name="slip_shared_name">Códigos de invitación, %s</string>
+    <string name="error_invites_pdf">No se ha podido crear el PDF. Los códigos siguen en esta pantalla.</string>
+
+    <!-- Copilot's review of PR #5: a slip's link, or a claim link, opened while signed in -->
+    <string name="join_signed_in">Has iniciado sesión como @%s. Un código de invitación crea una cuenta nueva, así que cierra sesión primero.</string>
+    <string name="claim_signed_in">Has iniciado sesión como @%s. Un código de activación toma otra cuenta, así que cierra sesión primero.</string>
 </resources>

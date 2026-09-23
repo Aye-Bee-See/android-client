@@ -54,6 +54,20 @@ interface AuthApi {
   @POST("auth/claim")
   suspend fun claim(@Body body: ClaimRequest): ApiEnvelope<JsonElement>
 
+  /**
+   * Public, rate limited like claim checks (API PR #116): who is vouching for an invite code, and until when.
+   * 404 for a code never issued; 410 with `condition` `used`, `cancelled`, `expired` or `inactive`.
+   */
+  @GET("auth/join")
+  suspend fun joinInfo(@Query("code") code: String): ApiEnvelope<JoinInfoDto>
+
+  /**
+   * Public: make an account with an invite code. The keys come with it, made on this phone, as on a claim. A 400
+   * (a taken username, say) leaves the code unspent, so the same code can be sent again once the form is fixed.
+   */
+  @POST("auth/join")
+  suspend fun join(@Body body: JoinRequest): ApiEnvelope<JsonElement>
+
   /** The caller's key bundle: wrapped private key, salt, KDF parameters, and the group key when a member. */
   @GET("auth/keys")
   suspend fun keys(): ApiEnvelope<KeyBundleDto>
@@ -94,6 +108,27 @@ data class ClaimInfoDto(
 
 @Serializable
 data class NamedRef(val id: Int, val name: String? = null)
+
+@Serializable data class JoinInfoDto(val chapter: NamedRef, val expiresAt: String? = null)
+
+@Serializable
+data class JoinRequest(
+  val code: String,
+  val username: String,
+  val password: String,
+  val email: String? = null,
+  val name: String? = null,
+  /** `"split"`: `password` is the auth key, derived with `kdfSalt`/`kdfParams` (API PR #114). Absent means plain. */
+  val authScheme: String? = null,
+  // End-to-end mode: a keypair made here, wrapped under the password and under a new recovery code.
+  val publicKey: String? = null,
+  val wrappedPrivateKey: String? = null,
+  val kdfSalt: String? = null,
+  val kdfParams: KdfParams? = null,
+  val recoveryWrappedPrivateKey: String? = null,
+  val recoverySalt: String? = null,
+  val recoveryKdfParams: KdfParams? = null,
+)
 
 @Serializable
 data class ClaimRequest(

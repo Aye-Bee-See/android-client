@@ -55,6 +55,20 @@ class FakeSessionRepository(
     return login(username, password)
   }
 
+  var joinInfoError: AppError? = null
+  val joinChecks = mutableListOf<String>()
+  val joins = mutableListOf<List<String?>>()
+  override suspend fun joinInfo(code: String): ApiResult<me.paxana.abcmailbox.domain.Invitation> {
+    joinChecks += code
+    joinInfoError?.let { return ApiResult.Failure(it) }
+    return ApiResult.Success(me.paxana.abcmailbox.domain.Invitation(1, "Portland ABC", Instant.parse("2026-10-22T19:00:00Z")))
+  }
+  override suspend fun join(code: String, username: String, password: String, email: String?, name: String?): ApiResult<Session> {
+    joins += listOf(code, username, password, email, name)
+    nextError?.let { return ApiResult.Failure(it) }
+    return login(username, password)
+  }
+
   override val pendingRecoveryCode = MutableStateFlow<String?>(null)
   override fun recoveryCodeSaved() { pendingRecoveryCode.value = null }
   override val keysLocked = MutableStateFlow(false)

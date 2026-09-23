@@ -48,6 +48,8 @@ import me.paxana.abcmailbox.data.api.apiCall
 import me.paxana.abcmailbox.data.api.map
 import me.paxana.abcmailbox.di.ApplicationScope
 import me.paxana.abcmailbox.domain.ClaimInfo
+import me.paxana.abcmailbox.domain.Invitation
+import me.paxana.abcmailbox.data.api.JoinRequest
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -75,6 +77,12 @@ interface SessionRepository {
 
   /** Claims the account, then signs in with the new credentials. */
   suspend fun claim(token: String, username: String, password: String, email: String?): ApiResult<Session>
+
+  /** Who is vouching for an invite code (API PR #116), before a username is asked for. The code must already be normalised. */
+  suspend fun joinInfo(code: String): ApiResult<Invitation>
+
+  /** Makes an account with an invite code, with keys made here as on a claim, then signs in with it. */
+  suspend fun join(code: String, username: String, password: String, email: String?, name: String?): ApiResult<Session>
 
   /** Verifies `current` by signing in with it, changes the password, and adopts the fresh token. */
   suspend fun changePassword(current: String, new: String): ApiResult<Unit>
@@ -298,6 +306,7 @@ class DefaultSessionRepository @Inject constructor(
     }
 
   override suspend fun claim(token: String, username: String, password: String, email: String?): ApiResult<Session> {
+    (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.claim_signed_in, it.session.user.username))) }
     var request = ClaimRequest(token, username.trim(), password, email?.trim()?.ifBlank { null })
     var recoveryCode: String? = null
     // Every new account is split where the server knows the scheme (API PR #114).
@@ -329,6 +338,44 @@ class DefaultSessionRepository @Inject constructor(
     return when (val claimed = apiCall(json) { api.claim(request) }) {
       is ApiResult.Failure -> claimed
       is ApiResult.Success -> login(username, password).also { if (it is ApiResult.Success && recoveryCode != null) _pendingRecoveryCode.value = recoveryCode }
+    }
+  }
+
+  override suspend fun joinInfo(code: String): ApiResult<Invitation> =
+    apiCall(json) { api.joinInfo(code) }.map { env ->
+      val d = checkNotNull(env.data) { "join response had no data" }
+      Invitation(d.chapter.id, d.chapter.name ?: "", d.expiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() })
+    }
+
+  /**
+   * An invite code makes an account that is the person's from the first request (API PR #116), so the keys are
+   * made here, as for any new account: split wherever the server knows the scheme, with a keypair in end-to-end
+   * mode and a salt and recipe alone in server mode. Then the ordinary sign-in, which the code has no part in.
+   */
+  override suspend fun join(code: String, username: String, password: String, email: String?, name: String?): ApiResult<Session> {
+    // A new account must not replace a session unasked (a slip's link opened while signed in); the screen says so first.
+    (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.join_signed_in, it.session.user.username))) }
+    val user = username.trim()
+    var request = JoinRequest(code, user, password, email?.trim()?.ifBlank { null }, name?.trim()?.ifBlank { null })
+    var recoveryCode: String? = null
+    val split = when (val r = splitSupported(user)) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
+    if (modes.current() == EncryptionMode.E2E) {
+      val fresh = if (split) engine.createAccountKeysSplit(password) else engine.createAccountKeys(password)
+      recoveryCode = fresh.recoveryCode
+      val f = fresh.fields
+      request = request.copy(
+        password = fresh.authKey ?: password, authScheme = SPLIT.takeIf { split },
+        publicKey = f.publicKey, wrappedPrivateKey = f.password.wrapped, kdfSalt = f.password.salt, kdfParams = f.password.params,
+        recoveryWrappedPrivateKey = f.recovery.wrapped, recoverySalt = f.recovery.salt, recoveryKdfParams = f.recovery.params,
+      )
+    } else if (split) {
+      val salt = engine.newSalt(); val params = engine.defaultParams()
+      val keys = engine.deriveSplit(password, salt, json.encodeToJsonElement(KdfParams.serializer(), params))
+      request = request.copy(password = keys.authKey, authScheme = SPLIT, kdfSalt = salt, kdfParams = params).also { keys.wipe() }
+    }
+    return when (val joined = apiCall(json) { api.join(request) }) {
+      is ApiResult.Failure -> joined
+      is ApiResult.Success -> login(user, password).also { if (it is ApiResult.Success && recoveryCode != null) _pendingRecoveryCode.value = recoveryCode }
     }
   }
 
