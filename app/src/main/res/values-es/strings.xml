@@ -428,7 +428,7 @@
     <string name="group_key_open">Cifrado de extremo a extremo · clave del grupo abierta (versión %1$d)</string>
     <string name="action_members">Miembros</string>
     <string name="group_key_none_title">Tu grupo todavía no tiene clave de cifrado</string>
-    <string name="group_key_none_text">En este servidor las cartas se cifran para que solo puedan leerlas quien escribe y el grupo de reenvío. Tu grupo necesita una clave propia para que alguien pueda enviarle una carta. Se crea en este teléfono, una sola vez, y después se la entregas a los demás miembros.</string>
+    <string name="group_key_none_text">En este servidor las cartas se cifran para que solo puedan leerlas quien escribe y el grupo de reenvío. Tu grupo necesita una clave propia para que alguien pueda enviarle una carta. Se crea en este teléfono, una sola vez; quien la crea pasa a ser el administrador propietario del grupo y se la entrega a los demás administradores.</string>
     <string name="action_set_up_group_key">Crear la clave del grupo</string>
     <string name="action_setting_up">Creando…</string>
     <string name="group_key_not_held_title">Todavía no te han entregado la clave del grupo</string>
