@@ -27,7 +27,11 @@ import javax.inject.Singleton
 /** [authKey] is set for the split scheme: what goes to the server as the password. */
 class NewAccountKeys(val keyPair: Sodium.KeyPair, val fields: AccountKeyFields, val recoveryCode: String, val authKey: String? = null)
 
-/** One sign-in's derived keys (API PR #114). Wiped as soon as the wrap key has opened the private key. */
+/**
+ * One sign-in's derived keys (API PR #114). [wipe] zeroes the wrap key, the one that opens letters, as soon as it
+ * has opened the private key. The auth key is a `String`, like the typed password and the request body it is written
+ * into, and cannot be zeroed; that is acceptable because it opens no letter, and the server holds only a hash of it.
+ */
 class SplitKeys(val wrapKey: ByteArray, val authKey: String) { fun wipe() = wrapKey.fill(0) }
 
 /**
