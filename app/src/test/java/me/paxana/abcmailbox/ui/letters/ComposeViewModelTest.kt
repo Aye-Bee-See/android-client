@@ -329,7 +329,7 @@ class ComposeViewModelTest {
 
   class FakeSession(role: String = "user", chapterId: Int? = null) : SessionRepository {
     override val state: StateFlow<SessionState> = MutableStateFlow(SessionState.SignedIn(Session("t", 0, SessionUser(1, "user1", null, null, role, chapterId))))
-    override suspend fun login(username: String, password: String) = ApiResult.Failure(AppError.Unauthorized(null))
+    override suspend fun login(username: String, password: String, olderAccount: Boolean) = ApiResult.Failure(AppError.Unauthorized(null))
     override suspend fun logout(everywhere: Boolean) = ApiResult.Success(Unit)
     override val expired = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     override suspend fun claimInfo(token: String) = ApiResult.Failure(AppError.NotFound(null))

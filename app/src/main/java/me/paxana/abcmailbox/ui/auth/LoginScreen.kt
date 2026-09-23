@@ -1,5 +1,10 @@
 package me.paxana.abcmailbox.ui.auth
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Row
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.asHeading
@@ -118,6 +123,15 @@ fun LoginScreen(
       style = MaterialTheme.typography.bodyMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    // Not a feature, an escape hatch: the API moves every account to the split scheme before it stops telling
+    // accounts apart, so this is for the odd one that was not. The app never sends the password on its own.
+    Row(
+      Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = ui.olderAccount, enabled = !ui.submitting, role = Role.Checkbox, onValueChange = viewModel::onOlderAccount).testTag("older-account"),
+      verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+      Checkbox(checked = ui.olderAccount, onCheckedChange = null, enabled = !ui.submitting)
+      Text(stringResource(R.string.older_account_toggle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     TextButton(onClick = onClaim, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_have_token)) }
     TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_forgot_password)) }
     TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_back)) }

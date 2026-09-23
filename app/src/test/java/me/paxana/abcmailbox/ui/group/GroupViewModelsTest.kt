@@ -193,6 +193,18 @@ class GroupViewModelsTest {
   }
 
   @Test
+  fun `a move somebody else made first is a refresh, not a failure, one letter or thirty`() = runTest {
+    val meanwhile = AppError.Conflict("Letter 41 was changed by someone else meanwhile; nothing was moved.", "LetterStatusError")
+    val one = FakeGroup(refuse = meanwhile); val vm = LetterWorkViewModel(one, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    vm.advance(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Somebody else got there first; the list has been refreshed.", vm.ui.value.notice); assertEquals("looked again", 2, one.looks)
+
+    val many = FakeGroup().apply { batchRefusal = meanwhile }; val q = queueVm(many); q.startSelecting(); q.toggle(queued(47))
+    q.markSelected(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Somebody else got there first; the list has been refreshed.", q.selection.value.notice); assertFalse(q.selection.value.selecting); assertEquals(1, q.selection.value.done)
+  }
+
+  @Test
   fun `all or none, and when it is none the ticks stay so that the rest can still go`() = runTest {
     val group = FakeGroup().apply { batchRefusal = AppError.Conflict("Letter 47: a printed letter cannot move to printed.", "LetterStatusError") }
     val vm = queueVm(group); vm.startSelecting(); vm.toggle(queued(47)); vm.toggle(queued(48))

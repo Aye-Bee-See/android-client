@@ -9,6 +9,8 @@ data class Session(
   val token: String,
   val expiresAtMillis: Long,
   val user: SessionUser,
+  /** Signed in the way accounts from before the split scheme sign in, by the person's explicit choice: every later proof of the password in this session goes the same way. */
+  val olderAccount: Boolean = false,
 )
 
 @Serializable

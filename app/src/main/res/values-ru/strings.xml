@@ -960,4 +960,20 @@
     <string name="error_delete_owner">Вы — администратор-владелец вашей группы, а в группе есть другие администраторы. Сначала сделайте владельцем одного из них («Ключ группы» на странице группы). Ничего не удалено.</string>
     <string name="delete_owner_notice">Вы — администратор-владелец, а в вашей группе есть другие администраторы. Сначала сделайте владельцем одного из них, иначе сервер откажет.</string>
     <string name="activity_group_ownerless">У вашей группы сейчас нет администратора-владельца; нового назначит суперадминистратор.</string>
+    <!-- The API's answers of 22 September (PR #117), and the brief's review notes -->
+    <string name="older_account_toggle">Этот аккаунт создан до того, как приложение перестало отправлять пароли: войти с самим паролем. Только если так сказал суперадминистратор.</string>
+    <string name="error_delete_anonymous">Это общий анонимный аккаунт группы. В нём хранятся анонимные письма всех, для кого писала группа, и он исчезает вместе с группой. Ничего не удалено.</string>
+    <plurals name="thread_waiting_for_you">
+        <item quantity="one">%d письмо ждёт вашего решения</item>
+        <item quantity="few">%d письма ждут вашего решения</item>
+        <item quantity="many">%d писем ждут вашего решения</item>
+        <item quantity="other">%d письма ждут вашего решения</item>
+    </plurals>
+    <plurals name="thread_held_count">
+        <item quantity="one">%d письмо задержано</item>
+        <item quantity="few">%d письма задержаны</item>
+        <item quantity="many">%d писем задержано</item>
+        <item quantity="other">%d письма задержаны</item>
+    </plurals>
+    <string name="notice_changed_meanwhile">Кто-то успел раньше; список обновлён.</string>
 </resources>

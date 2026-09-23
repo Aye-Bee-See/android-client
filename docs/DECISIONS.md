@@ -20,6 +20,8 @@ Short records of choices that are not obvious from the code. Newest first.
 
 **Rejected.** Sending the password when the handshake says "split" and the account turns out plain, *without* trying the auth key first: the auth key is the only thing a split account accepts, and trying it first costs nothing but a derivation. Never falling back: then no account from before could sign in from a new phone under the flag. Remembering "plain" as well as "split": a plain memory would stop an account moving to split from another device.
 
+**Revised 23 September 2026.** The API decided (its brief, item 23): every account is moved to `split` before the flag goes on, and a client never sends the password on its own after a refused auth key. The automatic fallback is gone. What remains is an explicit choice on the sign-in screen ("an account from before… sign in with the password itself"), which sends the password as it is, once, by the person's decision and never for a name this phone knows as split; the session remembers the way it was signed in, so a later proof of the password (a change, a deletion, an unlock) goes the same way. The mistyped-password cost below no longer applies.
+
 **Consequences.** Under the flag, a mistyped password on a phone that does not know the account goes to the server in plain (PLAN.md, ask 23). The password rules are the app's now: `PasswordRules.MIN_LENGTH` and the meter; the server checks only the auth key's shape. `SchemeMemory` is never cleared by signing out or by deleting an account; a factory reset clears it.
 
 ## 2026-09-20: a held letter is shown as "On hold", and sending again is the compose screen

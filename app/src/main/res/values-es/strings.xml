@@ -923,4 +923,18 @@
     <string name="error_delete_owner">Eres el administrador propietario de tu grupo y el grupo tiene otros administradores. Haz antes propietario a uno de ellos (Clave del grupo, en la página del grupo). No se ha eliminado nada.</string>
     <string name="delete_owner_notice">Eres el administrador propietario y tu grupo tiene otros administradores. Haz antes propietario a uno de ellos, o el servidor se negará.</string>
     <string name="activity_group_ownerless">Tu grupo no tiene administrador propietario por ahora; un superadministrador nombrará uno nuevo.</string>
+    <!-- The API's answers of 22 September (PR #117), and the brief's review notes -->
+    <string name="older_account_toggle">Esta cuenta es de antes de que la app dejara de enviar contraseñas: iniciar sesión con la contraseña en sí. Solo si un superadministrador te lo ha indicado.</string>
+    <string name="error_delete_anonymous">Esta es la cuenta anónima compartida de un grupo. Guarda las cartas anónimas de todas las personas para las que el grupo escribió, y desaparece con el grupo. No se ha eliminado nada.</string>
+    <plurals name="thread_waiting_for_you">
+        <item quantity="one">Una carta espera a que decidas</item>
+        <item quantity="many">%d cartas esperan a que decidas</item>
+        <item quantity="other">%d cartas esperan a que decidas</item>
+    </plurals>
+    <plurals name="thread_held_count">
+        <item quantity="one">%d carta retenida</item>
+        <item quantity="many">%d cartas retenidas</item>
+        <item quantity="other">%d cartas retenidas</item>
+    </plurals>
+    <string name="notice_changed_meanwhile">Alguien se adelantó; la lista se ha actualizado.</string>
 </resources>

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.letters
 
+import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.ui.common.ReloadOnNews
 import me.paxana.abcmailbox.text.rememberStrings
 import me.paxana.abcmailbox.R
@@ -121,6 +122,12 @@ fun ThreadRow(t: Thread, onClick: () -> Unit, showWriter: Boolean = false) {
     title = t.title(rememberStrings()),
     secondary = listOfNotNull(t.writer?.takeIf { showWriter }?.let { stringResource(R.string.writer_named, it.label(rememberStrings())) }, t.prisoner?.facility?.let { f -> f.name + (f.country?.let { ", $it" } ?: "") }).joinToString(" · ").ifBlank { null },
     subtitle = direction + (t.lastActivity?.let { " · ${it.shortDate()}" } ?: ""),
+    // A hold the writer can lift is theirs to see first; a group sees how many letters of the thread wait (API PR #117).
+    notice = when {
+      t.heldCount == 0 -> null
+      t.waitsForWriter && !showWriter -> pluralStringResource(R.plurals.thread_waiting_for_you, t.heldCount, t.heldCount)
+      else -> pluralStringResource(R.plurals.thread_held_count, t.heldCount, t.heldCount)
+    },
     onClick = onClick,
   )
 }

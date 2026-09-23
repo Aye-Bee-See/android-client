@@ -62,7 +62,11 @@ interface SessionRepository {
   /** Emits when the server ended the session (revoked, expired, banned), so the UI can say so once. */
   val expired: SharedFlow<Unit>
 
-  suspend fun login(username: String, password: String): ApiResult<Session>
+  /**
+   * [olderAccount]: the person chose "sign in with my password itself", for an account made before the split scheme on a
+   * server that now calls every name split. The password is sent as it is, once, by that choice and never by the app's own.
+   */
+  suspend fun login(username: String, password: String, olderAccount: Boolean = false): ApiResult<Session>
   suspend fun logout(everywhere: Boolean = false): ApiResult<Unit>
 
   /** Who a claim token is for; the token must already be normalised. */
@@ -204,27 +208,26 @@ class DefaultSessionRepository @Inject constructor(
    * phone has never known as split: for a known one the refusal stands, and the password stays here. (A mistyped
    * password on a new phone does reach the server this way; PLAN.md, ask 23.) Nothing is stored here.
    */
-  private suspend fun prove(name: String, password: String): ApiResult<Proof> {
-    val cred = when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
-    var used = cred
-    var attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }
-    if (attempt is ApiResult.Failure && attempt.error is AppError.Unauthorized && cred.isSplit && !schemes.isKnownSplit(name)) {
-      cred.wipe()
-      used = Credential(password, null, null, null)
-      attempt = apiCall(json) { api.login(LoginRequest(name, password)) }
-    }
-    return when (attempt) {
-      is ApiResult.Failure -> { used.wipe(); attempt }
-      is ApiResult.Success -> ApiResult.Success(Proof(used, checkNotNull(attempt.value.data) { "login response had no data" }))
+  private suspend fun prove(name: String, password: String, olderAccount: Boolean): ApiResult<Proof> {
+    // The API decided (its brief, item 23): accounts are moved to split before the flag goes on, and a client never
+    // sends the password on its own after a refused auth key. An account from before signs in only by the person's
+    // explicit choice, and even then not a name this phone knows as split.
+    val cred = if (olderAccount) {
+      if (schemes.isKnownSplit(name)) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_scheme_downgrade, name)))
+      Credential(password, null, null, null)
+    } else when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+    return when (val attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }) {
+      is ApiResult.Failure -> { cred.wipe(); attempt }
+      is ApiResult.Success -> ApiResult.Success(Proof(cred, checkNotNull(attempt.value.data) { "login response had no data" }))
     }
   }
 
-  override suspend fun login(username: String, password: String): ApiResult<Session> {
+  override suspend fun login(username: String, password: String, olderAccount: Boolean): ApiResult<Session> {
     val name = username.trim()
-    val proof = when (val p = prove(name, password)) { is ApiResult.Failure -> return p; is ApiResult.Success -> p.value }
+    val proof = when (val p = prove(name, password, olderAccount)) { is ApiResult.Failure -> return p; is ApiResult.Success -> p.value }
     val used = proof.cred; val response = proof.response
     try {
-      val session = response.toSession()
+      val session = response.toSession().copy(olderAccount = olderAccount)
       // Set the token for the interceptor now; the stored-session flow would only get there a moment later.
       cache.token = session.token
       store.save(session)
@@ -333,7 +336,7 @@ class DefaultSessionRepository @Inject constructor(
     val session = (state.value as? SessionState.SignedIn)?.session
       ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
     // The API does not ask for the current password, so confirm it by signing in with it (in whichever scheme the account uses).
-    when (val check = login(session.user.username, current)) {
+    when (val check = login(session.user.username, current, olderAccount = session.olderAccount)) {
       is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) {
         ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_current_password_wrong))))
       } else {
@@ -379,7 +382,7 @@ class DefaultSessionRepository @Inject constructor(
     // whatever is on the other end. The token that sign-in issues is never stored; it goes with the account.
     // The same proof as signing in, with its one-time fallback: an account from before, under the flag, must not be
     // told its right password is wrong. What the server accepted is what it is asked to delete with.
-    val accepted = when (val p = prove(session.user.username, password)) {
+    val accepted = when (val p = prove(session.user.username, password, session.olderAccount)) {
       is ApiResult.Failure -> return if (p.error is AppError.Unauthorized) ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_delete_wrong_password))) else p
       is ApiResult.Success -> p.value.cred.also { it.wipe() }.serverPassword // only what the server checks is needed here
     }
@@ -404,15 +407,11 @@ class DefaultSessionRepository @Inject constructor(
       is ApiResult.Success -> r.value.data
     }
     if (bundle?.hasKeys != true) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_no_keys_yet))))
-    val cred = when (val c = credential(session.user.username, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+    // The session's own way decides: an account signed in as one from before has its key wrapped under the password itself.
+    val cred = if (session.olderAccount) Credential(password, null, null, null) else when (val c = credential(session.user.username, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
     return try {
-      suspend fun plain() = engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!)
-      // Under the flag the handshake calls every account "split"; an account from before has its key wrapped
-      // under the password itself. The same one-time fallback as sign-in, and the password goes nowhere here.
-      val mayFallBack = !schemes.isKnownSplit(session.user.username)
-      val keyPair = cred.split?.let { split ->
-        runCatching { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, split.wrapKey) }.getOrElse { e -> if (mayFallBack) plain() else throw e }
-      } ?: plain()
+      val keyPair = cred.split?.let { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, it.wrapKey) }
+        ?: engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!)
       vault.store(session.user.id, keyPair)
       ApiResult.Success(Unit)
     } catch (e: Exception) {

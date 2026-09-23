@@ -20,6 +20,8 @@ data class LoginUiState(
   val username: String = "",
   val password: String = "",
   val showPassword: Boolean = false,
+  /** The person's explicit choice to send the password itself: an account from before the split scheme. */
+  val olderAccount: Boolean = false,
   val submitting: Boolean = false,
   val error: String? = null,
 ) {
@@ -43,13 +45,14 @@ class LoginViewModel @Inject constructor(
   fun onUsernameChange(value: String) = _uiState.update { it.copy(username = value, error = null) }
   fun onPasswordChange(value: String) = _uiState.update { it.copy(password = value, error = null) }
   fun onToggleShowPassword() = _uiState.update { it.copy(showPassword = !it.showPassword) }
+  fun onOlderAccount(v: Boolean) = _uiState.update { it.copy(olderAccount = v, error = null) }
 
   fun onSubmit() {
     val current = _uiState.value
     if (!current.canSubmit) return
     _uiState.update { it.copy(submitting = true, error = null) }
     viewModelScope.launch {
-      when (val result = sessions.login(current.username, current.password)) {
+      when (val result = sessions.login(current.username, current.password, current.olderAccount)) {
         is ApiResult.Success -> _uiState.update { it.copy(submitting = false, password = "") }
         is ApiResult.Failure -> _uiState.update { it.copy(submitting = false, error = result.error.toLoginMessage(strings)) }
       }

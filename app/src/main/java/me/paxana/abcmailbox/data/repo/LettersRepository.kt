@@ -112,9 +112,10 @@ class DefaultLettersRepository @Inject constructor(
    * Best effort: a read that fails leaves the letter as it was, with its reason and without its note.
    */
   private suspend fun Thread.withReturnsFilledIn(): Thread {
-    if (letters.none { it.status == LetterStatus.RETURNED }) return this
+    // Since API PR #117 the note is on the letter itself; only an older API's rows need the read.
+    if (letters.none { it.status == LetterStatus.RETURNED && !it.returnNoteKnown }) return copy(letters = letters.map { l -> if (l.status == LetterStatus.RETURNED) l.copy(resentAs = letters.filter { it.resendOfId == l.id }.map { Resent(it.id, it.status, it.createdAt) }) else l })
     val full = coroutineScope {
-      letters.filter { it.status == LetterStatus.RETURNED }.map { l -> async { l.id to (apiCall(json) { api.message(l.id) } as? ApiResult.Success)?.value?.data?.toDomain() } }.awaitAll().toMap()
+      letters.filter { it.status == LetterStatus.RETURNED && !it.returnNoteKnown }.map { l -> async { l.id to (apiCall(json) { api.message(l.id) } as? ApiResult.Success)?.value?.data?.toDomain() } }.awaitAll().toMap()
     }
     return copy(letters = letters.map { l ->
       if (l.status != LetterStatus.RETURNED) return@map l

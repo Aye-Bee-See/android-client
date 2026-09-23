@@ -143,6 +143,11 @@ class DeleteAccountViewModel @Inject constructor(
               // reasons applies except in that sentence. The account's role decides the words (asked of the API: a reason code).
               is AppError.Conflict -> strings.get(when {
                 e.name != "AccountDeleteError" -> R.string.error_delete_generic
+                // The API's code, where it sends one (PR #117); the guesses below are for an API that does not yet.
+                e.condition == "only_admin" -> R.string.error_delete_only_admin
+                e.condition == "group_owner" -> R.string.error_delete_owner
+                e.condition == "last_key_holder" -> R.string.error_delete_last_key_holder
+                e.condition == "anonymous" -> R.string.error_delete_anonymous
                 role == AccountRole.ADMIN -> R.string.error_delete_only_admin
                 // Two refusals for a group admin, told apart by the server's sentence until it sends a reason code (PLAN.md, ask 16).
                 s.inGroup && e.info?.contains("owner", ignoreCase = true) == true -> R.string.error_delete_owner

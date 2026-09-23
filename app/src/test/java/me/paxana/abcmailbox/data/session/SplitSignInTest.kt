@@ -120,22 +120,24 @@ class SplitSignInTest {
   }
 
   @Test
-  fun `under the flag every name is called split, so an account from before gets one more try with the password, and a known split account gets none`() = runTest {
+  fun `a refused auth key is the end of it, and the password itself goes only by the person's explicit choice`() = runTest {
     build()
     val refused = MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}""")
+    // The API's decision (its brief, item 23): no fallback on the app's own.
     server.queue(refused)
-    server.queue(MockResponse().setBody(login("""{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under(carolpass)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null}""")))
-    assertTrue(repo.login("carol", "carolpass") is ApiResult.Success)
-    assertEquals("auth(carolpass)with(SALT)", field(body(), "password"))
-    assertEquals("the password itself, once", "carolpass", field(body(), "password"))
-    assertNotNull("and it opened the keys the old way", vault.keyPair(7)); assertFalse("a plain sign-in is not remembered as split", memory.isKnownSplit("carol"))
+    assertTrue((repo.login("carol", "carolpass") as ApiResult.Failure).error is AppError.Unauthorized)
+    assertEquals("auth(carolpass)with(SALT)", field(body(), "password")); assertEquals(1, server.apiRequestCount)
 
+    // The explicit choice: the password as it is, no derivation, and the session remembers the way it was signed in.
+    server.queue(MockResponse().setBody(login("""{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under(carolpass)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null}""")))
+    assertTrue(repo.login("carol", "carolpass", olderAccount = true) is ApiResult.Success)
+    assertEquals("carolpass", field(body(), "password")); assertNotNull(vault.keyPair(7))
+    assertTrue(store.flow.value!!.olderAccount); assertFalse("not remembered as split", memory.isKnownSplit("carol"))
+
+    // Even that choice cannot send the password of a name this phone knows as split.
     memory.split += "dave"
-    server.queue(refused)
-    val r = repo.login("dave", "davepass99") as ApiResult.Failure
-    assertTrue(r.error is AppError.Unauthorized)
-    assertEquals("auth(davepass99)with(SALT)", field(body(), "password"))
-    assertEquals("no second try: the password stays on the phone", 3, server.apiRequestCount)
+    val r = repo.login("dave", "davepass99", olderAccount = true) as ApiResult.Failure
+    assertTrue(r.error is AppError.Forbidden); assertEquals("nothing sent", 2, server.apiRequestCount)
   }
 
   @Test
@@ -159,17 +161,17 @@ class SplitSignInTest {
   }
 
   @Test
-  fun `unlocking the keys after a restart follows the same rules as signing in, and sends no password`() = runTest {
+  fun `unlocking the keys after a restart follows the session's own way, and sends no password`() = runTest {
     build()
-    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null)))
-    // An account from before, under the flag: the handshake says split, the key is wrapped under the password itself.
+    // Signed in as an account from before, by the person's choice: the key is wrapped under the password itself.
+    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null), olderAccount = true))
     val plainKeys = """{"data":{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under(carolpass)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null},"success":true,"status":200}"""
     server.queue(MockResponse().setBody(plainKeys))
     assertTrue(repo.unlock("carolpass") is ApiResult.Success); assertNotNull(vault.keyPair(7))
     assertEquals("only the key bundle was fetched", 1, server.apiRequestCount)
 
-    // A split account: its wrap key opens the key, and a wrong password opens nothing and is tried no other way.
-    vault.clear(); memory.split += "carol"
+    // A split session: its wrap key opens the key; a wrong password opens nothing and is tried no other way.
+    vault.clear(); store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null))); memory.split += "carol"
     server.queue(MockResponse().setBody("""{"data":${splitKeys("carolpass")},"success":true,"status":200}"""))
     assertTrue(repo.unlock("carolpass") is ApiResult.Success); assertNotNull(vault.keyPair(7))
     vault.clear()
@@ -178,18 +180,14 @@ class SplitSignInTest {
   }
 
   @Test
-  fun `deleting an account from before, under the flag, proves the password the way sign-in does`() = runTest {
+  fun `deleting an account signed in as one from before proves the password the same way, and sends what was accepted`() = runTest {
     build()
-    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null)))
-    // The handshake says split (the flag is on); the account is plain. Without sign-in's one-time fallback, a right
-    // password would be called wrong here (found by the iOS side's review, 22 Sep 2026).
-    server.queue(MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}"""))
+    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null), olderAccount = true))
     server.queue(MockResponse().setBody(login(noKeys)))
     server.queue(MockResponse().setBody("""{"data":{"deleted":1,"letters":0,"replies":0,"attachments":0,"threads":0},"success":true,"status":200}"""))
     assertTrue(repo.deleteAccount("carolpass") is ApiResult.Success)
-    assertEquals("auth(carolpass)with(SALT)", field(body(), "password"))
-    assertEquals("carolpass", field(body(), "password"))
-    assertEquals("deleted with what the server accepted", """{"id":7,"password":"carolpass"}""", server.next().body.readUtf8())
+    assertEquals("the session's way: no derivation, no handshake", "carolpass", field(body(), "password"))
+    assertEquals("""{"id":7,"password":"carolpass"}""", server.next().body.readUtf8())
     assertNull(store.flow.value)
   }
 

@@ -106,6 +106,11 @@ class DeleteAccountViewModelTest {
     assertTrue(messageFor(member(), "member1")!!.startsWith("You are the last person holding your group’s key."))
     assertFalse("the server's sentence names an endpoint; people never see it", messageFor(member(), "member1")!!.contains("PUT"))
     assertTrue(messageFor(admin, "admin")!!.startsWith("This is the only admin account."))
+    // With the API's codes (PR #117) the sentence is not read at all.
+    for ((condition, start) in listOf("only_admin" to "This is the only admin account.", "group_owner" to "You are your group’s group-owner admin", "last_key_holder" to "You are the last person holding your group’s key.", "anonymous" to "This is a group’s shared anonymous account.")) {
+      val vm = vm(FakeEraser(ApiResult.Failure(AppError.Conflict("whatever the sentence", "AccountDeleteError", condition))), member()); vm.fillIn(username = "member1"); vm.submit(); dispatcher.scheduler.advanceUntilIdle()
+      assertTrue(condition, vm.ui.value.error!!.startsWith(start))
+    }
     val ownerRefusal = ApiResult.Failure(AppError.Conflict("This account is the group-owner admin of Test Chapter, which has other group admins. Make one of them the owner first (PUT /auth/chapter-owner).", "AccountDeleteError"))
     run { val vm = vm(FakeEraser(ownerRefusal), member()); vm.fillIn(username = "member1"); vm.submit(); dispatcher.scheduler.advanceUntilIdle(); assertTrue(vm.ui.value.error!!.startsWith("You are your group’s group-owner admin")) }
     assertEquals("The server will not delete this account as things stand. Nothing was deleted.", messageFor(writer(), "user1"))

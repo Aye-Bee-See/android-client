@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.data.repo
 
+import kotlinx.serialization.decodeFromString
+import me.paxana.abcmailbox.domain.HeldReason
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiEnvelope
 import me.paxana.abcmailbox.data.api.ChatDto
@@ -33,6 +35,16 @@ class LettersMappersTest {
     assertEquals("Test Prison", t.prisoner?.facility?.name)
     val relayed = t.letters.first { it.relayGroupId != null }
     assertEquals("Test Chapter", relayed.relayGroupName)
+  }
+
+  @Test
+  fun `an inbox row says how many of its letters are held and whether the writer can lift the hold (API PR 117)`() {
+    val row = json.decodeFromString<ChatDto>("""{"id":41,"user":2,"prisoner":1,"heldCount":2,"heldReasons":["choose_relay","prisoner_free"]}""").toDomain()
+    assertEquals(2, row.heldCount); assertEquals(listOf(HeldReason.CHOOSE_RELAY, HeldReason.PRISONER_FREE), row.heldReasons); assertTrue(row.waitsForWriter)
+    val group = json.decodeFromString<ChatDto>("""{"id":41,"user":2,"prisoner":1,"heldCount":1,"heldReasons":["prisoner_free"]}""").toDomain()
+    assertFalse("freed: the group decides, not the writer", group.waitsForWriter)
+    val older = json.decodeFromString<ChatDto>("""{"id":41,"user":2,"prisoner":1}""").toDomain()
+    assertEquals(0, older.heldCount); assertFalse(older.waitsForWriter)
   }
 
   @Test
