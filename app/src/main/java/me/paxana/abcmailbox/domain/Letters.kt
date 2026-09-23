@@ -99,10 +99,13 @@ data class Letter(
   val resendOfId: Int? = null,
   /** On a returned letter: what was sent in its place. Only on a full read. */
   val resentAs: List<Resent> = emptyList(),
+  /** The note as the letter itself carries it (API PR #117). [returnNoteKnown] false means an older API that puts it on the history only. */
+  val returnNoteOnLetter: String? = null,
+  val returnNoteKnown: Boolean = false,
 ) {
   val isHeld: Boolean get() = heldReason != null && status == LetterStatus.QUEUED
   /** What the envelope said when it came back, if the group wrote it down. It lives on the history row, so only a full read has it. */
-  val returnNote: String? get() = history.lastOrNull { it.to == LetterStatus.RETURNED }?.note?.takeIf { it.isNotBlank() }
+  val returnNote: String? get() = returnNoteOnLetter?.takeIf { it.isNotBlank() } ?: history.lastOrNull { it.to == LetterStatus.RETURNED }?.note?.takeIf { it.isNotBlank() }
   val returnedAt: Instant? get() = history.lastOrNull { it.to == LetterStatus.RETURNED }?.at ?: statusChangedAt.takeIf { status == LetterStatus.RETURNED }
   /** Offered once: a letter already sent again shows what replaced it. Not for a letter this device cannot open, which has no text to send. */
   val canSendAgain: Boolean get() = !fromPrisoner && status == LetterStatus.RETURNED && resentAs.isEmpty() && !locked
@@ -121,7 +124,12 @@ data class Thread(
   val letters: List<Letter>,
   /** The account on the writer's side; groups use it to label threads and to know if they may write in them. */
   val writer: ThreadWriter? = null,
+  /** Letters of this thread that are held, and why (API PR #117). */
+  val heldCount: Int = 0,
+  val heldReasons: List<HeldReason> = emptyList(),
 ) {
+  /** A hold only the writer can lift: choosing who mails it, or sending it again. */
+  val waitsForWriter: Boolean get() = heldReasons.any { it == HeldReason.CHOOSE_RELAY || it == HeldReason.RESEAL_NEEDED }
   fun title(strings: Strings): String = prisoner?.name ?: strings.get(R.string.prisoner_numbered, prisonerId)
 }
 

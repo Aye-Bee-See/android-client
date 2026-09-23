@@ -101,7 +101,8 @@ class QueueViewModel @Inject constructor(private val group: GroupRepository, ses
       when (val r = group.setStatusOfMany(ids, next)) {
         is ApiResult.Success -> _selection.update { QueueSelection(notice = strings.plural(if (next == LetterStatus.PRINTED) R.plurals.notice_many_printed else R.plurals.notice_many_mailed, r.value), done = it.done + 1) }
         // The ticks stay: after un-ticking the one letter that stopped it, the rest can go.
-        is ApiResult.Failure -> _selection.update { it.copy(busy = false, notice = strings.get(R.string.error_batch_nothing_changed, r.error.userMessage ?: strings.get(R.string.error_update_letter))) }
+        is ApiResult.Failure -> if ((r.error as? AppError.Conflict)?.changedMeanwhile == true) _selection.update { QueueSelection(notice = strings.get(R.string.notice_changed_meanwhile), done = it.done + 1) }
+          else _selection.update { it.copy(busy = false, notice = strings.get(R.string.error_batch_nothing_changed, r.error.userMessage ?: strings.get(R.string.error_update_letter))) }
       }
     }
   }
@@ -187,8 +188,9 @@ class LetterWorkViewModel(
           // Held since this screen loaded: the person was moved or freed in the meantime. Not a question to pop at
           // someone mid-press: say so, and show the letter again, now with its reason and "Print it anyway…".
           val held = (r.error as? AppError.Conflict)?.name == "LetterHeldError"
-          _ui.update { it.copy(busy = false, notice = if (held) strings.get(R.string.notice_held_since) else r.error.userMessage ?: strings.get(R.string.error_update_letter)) }
-          if (held) load()
+          val meanwhile = (r.error as? AppError.Conflict)?.changedMeanwhile == true
+          _ui.update { it.copy(busy = false, notice = when { held -> strings.get(R.string.notice_held_since); meanwhile -> strings.get(R.string.notice_changed_meanwhile); else -> r.error.userMessage ?: strings.get(R.string.error_update_letter) }) }
+          if (held || meanwhile) load()
         }
       }
     }

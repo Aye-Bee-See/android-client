@@ -55,7 +55,7 @@ One build works against both API modes: the app asks `GET /health` which letter 
 ## Run against a local API
 
 1. In the API repository: `cp .env.example .env`, set `ENCRYPTION_KEY` from `npm run keygen`, then `DB_RESET=true npm start`.
-2. `python3 tools/dev-seed.py` adds relay links, a group member (`member1` / `password1`), and a managed writer with a claim token. On an API that knows the split sign-in scheme it makes `member1` that way; on an end-to-end API it cannot (an account there must come with keys), so run it before `REQUIRE_SPLIT_AUTH` is switched on.
+2. `python3 tools/dev-seed.py` adds relay links, a group member (`member1` / `password1`), and a managed writer with a claim token. On an API that knows the split sign-in scheme it makes `member1` that way; on an end-to-end API it cannot (an account there must come with keys, made on the holder's device), so run it before `REQUIRE_SPLIT_AUTH` is switched on, or with it off: under the flag nobody makes an account for someone else, by design (the API's brief, item 24).
 3. Start an emulator and install: `./gradlew :app:installDebug`. Debug builds talk to `http://10.0.2.2:3000`, the emulator's name for the host machine.
 4. Sign in as `user1` / `password1` for a writer who already has a thread.
 

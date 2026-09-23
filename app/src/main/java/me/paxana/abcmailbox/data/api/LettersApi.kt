@@ -4,6 +4,8 @@ import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -138,6 +140,9 @@ data class ChatDto(
   val lastMessageAt: String? = null,
   @SerialName("last_message") val lastMessage: LastMessageDto? = null,
   val messages: List<MessageDto>? = null,
+  /** API PR #117: how many of the thread's letters are held, and the distinct reasons. */
+  val heldCount: Int = 0,
+  val heldReasons: List<String> = emptyList(),
   @SerialName("user_details") val userDetails: UserDto? = null,
   @SerialName("prisoner_details") val prisonerDetails: PrisonerDto? = null,
 )
@@ -175,6 +180,12 @@ data class MessageDto(
   @SerialName("relay_group") val relayGroup: RelayGroupDto? = null,
   // Returned mail and held letters (API PRs #105, #106). All read-only except `resendOf`, which is set on create.
   val returnReason: String? = null,
+  /**
+   * API PR #117: what the envelope said, on the letter itself. "Absent" (an older API, which keeps it on the history
+   * only) and "null" (not returned) have to be told apart, and a JSON null on a nullable field decodes to Kotlin null,
+   * so the default is a marker that no real answer contains.
+   */
+  @Serializable(with = ReturnNoteField::class) val returnNote: String = ReturnNoteField.ABSENT,
   val heldReason: String? = null,
   val resendOf: Int? = null,
   @SerialName("resent_as") val resentAs: List<ResentDto>? = null,
@@ -191,6 +202,19 @@ data class MessageDto(
   val relayNoteNonce: String? = null,
   val envelopes: List<EnvelopeDto>? = null,
 )
+
+/**
+ * Three answers for one field: absent (an older API), `null` (not returned), a note. `coerceInputValues` turns a JSON
+ * null on a non-null field into its default before any serializer sees it, so this one declares a nullable shape and
+ * reads the null itself, into a marker no real note contains.
+ */
+object ReturnNoteField : kotlinx.serialization.KSerializer<String> {
+  const val ABSENT = "\u0000absent"
+  const val NONE = "\u0000none"
+  override val descriptor = String.serializer().nullable.descriptor
+  override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): String = if (decoder.decodeNotNullMark()) decoder.decodeString() else { decoder.decodeNull(); NONE }
+  override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: String) = if (value == NONE || value == ABSENT) encoder.encodeNull() else encoder.encodeString(value)
+}
 
 @Serializable data class RelayGroupDto(val id: Int, val name: String)
 @Serializable data class ResentDto(val id: Int, val status: String? = null, val createdAt: String? = null)

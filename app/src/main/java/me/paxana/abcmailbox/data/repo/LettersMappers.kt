@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.data.api.ReturnNoteField
 import me.paxana.abcmailbox.data.api.AttachmentDto
 import me.paxana.abcmailbox.data.api.ChatDto
 import me.paxana.abcmailbox.data.api.MessageDto
@@ -46,6 +47,8 @@ fun MessageDto.toDomain(): Letter = Letter(
   heldReason = HeldReason.fromKey(heldReason),
   resendOfId = resendOf,
   resentAs = resentAs.orEmpty().map { Resent(it.id, LetterStatus.fromKey(it.status), it.createdAt.toInstantOrNull()) },
+  returnNoteOnLetter = returnNote.takeIf { it != ReturnNoteField.ABSENT && it != ReturnNoteField.NONE },
+  returnNoteKnown = returnNote != ReturnNoteField.ABSENT,
 )
 
 /** `letter` and `preview` let the caller decrypt in end-to-end mode; the defaults are the server-mode pass-through. */
@@ -71,4 +74,6 @@ fun ChatDto.toDomain(
   writer = userDetails?.let { u ->
     me.paxana.abcmailbox.domain.ThreadWriter(u.id, u.name?.takeIf { it.isNotBlank() } ?: u.username, u.managedBy, u.anonymousForChapter)
   },
+  heldCount = heldCount,
+  heldReasons = heldReasons.mapNotNull { HeldReason.fromKey(it) },
 )

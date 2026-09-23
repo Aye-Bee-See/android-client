@@ -32,7 +32,7 @@ fun HttpException.toAppError(json: Json): AppError {
     // Like a 409, a 404 may carry the useful sentence in `error` ("Message 99999 not found") under a general `info`.
     404 -> AppError.NotFound(envelope?.error ?: info)
     // Lifecycle refusals put the useful sentence in `error` ("A printed letter cannot move to queued"); `info` is generic.
-    409 -> AppError.Conflict(envelope?.error ?: info, envelope?.name)
+    409 -> AppError.Conflict(envelope?.error ?: info, envelope?.name, envelope?.condition)
     410 -> AppError.Gone(info, goneCondition(envelope?.condition, envelope?.error))
     // An Idempotency-Key reused for a different request (API PR #97). Retrying unchanged would get the same answer, so it is a refusal, not a server fault.
     422 -> AppError.Validation(listOfNotNull(envelope?.error ?: info ?: "The request was rejected."))

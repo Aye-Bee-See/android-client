@@ -27,7 +27,7 @@ class FakeSessionRepository(
   private val _state = MutableStateFlow<SessionState>(SessionState.SignedOut)
   override val state: StateFlow<SessionState> = _state
 
-  override suspend fun login(username: String, password: String): ApiResult<Session> {
+  override suspend fun login(username: String, password: String, olderAccount: Boolean): ApiResult<Session> {
     attempts += username to password
     nextError?.let { return ApiResult.Failure(it) }
     val session = Session("tok", 0L, SessionUser(1, username, null, null, "user", null))

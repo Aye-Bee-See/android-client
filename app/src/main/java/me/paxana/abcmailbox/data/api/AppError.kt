@@ -20,9 +20,11 @@ sealed class AppError : Exception() {
 
   /** A lifecycle or state conflict (409), for example moving a letter backwards. */
   /** [name] is the API's error name (`KeyVersionError`, `LetterStatusError`, `IdempotencyError`), for the few callers that must tell them apart. */
-  data class Conflict(val info: String?, val name: String? = null) : AppError() {
+  data class Conflict(val info: String?, val name: String? = null, /** A code beside the sentence, where the API has one (PR #117): `only_admin`, `group_owner`, `last_key_holder`, `anonymous`… */ val condition: String? = null) : AppError() {
     /** The same Idempotency-Key is being processed right now (a retry racing the original): wait a second and ask again. */
     val isStillProcessing: Boolean get() = name == "IdempotencyError"
+    /** A status move that another volunteer (or a double tap) made first: refresh, do not show red. Read from the sentence until the API has a condition for it (PLAN.md, ask 28). */
+    val changedMeanwhile: Boolean get() = name == "LetterStatusError" && info?.contains("someone else", ignoreCase = true) == true
   }
 
   /** A used or expired claim token (410). */

@@ -97,6 +97,20 @@ class LettersRepositoryTest {
   }
 
   @Test
+  fun `with the note on the letter itself, a conversation needs no read per returned letter`() = runTest {
+    // The same conversation as an API with PR #117 sends it: `returnNote` on every row, null where there is none.
+    val withNotes = fixture("chat-returned-and-held.json").replace(""""returnReason": "transferred",""", """"returnReason": "transferred", "returnNote": "Stamped NOT HERE",""").replace(""""returnReason": "rule_violation",""", """"returnReason": "rule_violation", "returnNote": null,""").replace(""""returnReason": "bad_address",""", """"returnReason": "bad_address", "returnNote": null,""")
+    server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+      override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest) = if (request.path!!.startsWith("/chat/chat")) MockResponse().setBody(withNotes) else MockResponse().setResponseCode(500)
+    }
+    val thread = (repo.thread(1) as ApiResult.Success).value
+    assertEquals("Stamped NOT HERE", thread.letters.first { it.id == 1 }.returnNote); assertEquals(null, thread.letters.first { it.id == 2 }.returnNote)
+    assertEquals("what replaced it is still read off the conversation", listOf(6), thread.letters.first { it.id == 1 }.resentAs.map { it.id })
+    val asked = generateSequence { server.takeRequest(100, java.util.concurrent.TimeUnit.MILLISECONDS) }.map { it.path!! }.toList()
+    assertEquals("one request, the conversation", listOf("/chat/chat?id=1&full=true"), asked)
+  }
+
+  @Test
   fun `a reason or a hold this version has never heard of is still a return, still a hold`() {
     assertEquals(ReturnReason.UNKNOWN, ReturnReason.fromKey("lost_in_flood")); assertEquals(null, ReturnReason.fromKey(null))
     assertEquals(HeldReason.OTHER, HeldReason.fromKey("awaiting_censor")); assertEquals(null, HeldReason.fromKey(null)); assertEquals(null, HeldReason.fromKey(""))

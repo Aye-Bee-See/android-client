@@ -947,4 +947,19 @@
     <string name="error_delete_owner">You are your group’s group-owner admin and the group has other group admins. Make one of them the owner first (Group key, on the Group page). Nothing was deleted.</string>
     <string name="delete_owner_notice">You are the group-owner admin and your group has other group admins. Make one of them the owner first, or the server will refuse.</string>
     <string name="activity_group_ownerless">Your group has no group-owner admin at the moment; a superadmin names a new one.</string>
+    <!-- The API's answers of 22 September (PR #117), and the brief's review notes -->
+    <string name="older_account_toggle">This is an account from before the app stopped sending passwords: sign in with the password itself. Only if a superadmin told you to.</string>
+    <string name="error_delete_anonymous">This is a group’s shared anonymous account. It holds the anonymous letters of everyone the group wrote for, and goes when the group does. Nothing was deleted.</string>
+    <plurals name="thread_waiting_for_you">
+        <item quantity="one">A letter is waiting for you to decide</item>
+        <item quantity="other">%d letters are waiting for you to decide</item>
+    </plurals>
+    <plurals name="thread_held_count">
+        <item quantity="one">%d letter on hold</item>
+        <item quantity="other">%d letters on hold</item>
+    </plurals>
+    <string name="notice_changed_meanwhile">Somebody else got there first; the list has been refreshed.</string>
+
+    <!-- Copilot's review of PR #4: a session from before the app recorded which way it signs in -->
+    <string name="error_scheme_unknown_session">The server did not accept that password the way the app now sends it, so nothing was changed. It may be mistyped. Or, if your account is from before the app stopped sending passwords, sign out and sign in again with the password itself.</string>
 </resources>
