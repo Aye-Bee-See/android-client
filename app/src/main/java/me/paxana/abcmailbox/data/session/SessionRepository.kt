@@ -215,7 +215,9 @@ class DefaultSessionRepository @Inject constructor(
     }
     return when (attempt) {
       is ApiResult.Failure -> { used.wipe(); attempt }
-      is ApiResult.Success -> ApiResult.Success(Proof(used, checkNotNull(attempt.value.data) { "login response had no data" }))
+      // A success with no body is a malformed answer, not a session: say so, with the wrap key wiped like any other failure.
+      is ApiResult.Success -> attempt.value.data?.let { ApiResult.Success(Proof(used, it)) }
+        ?: run { used.wipe(); ApiResult.Failure(AppError.Unexpected(IllegalStateException("login response had no data"))) }
     }
   }
 

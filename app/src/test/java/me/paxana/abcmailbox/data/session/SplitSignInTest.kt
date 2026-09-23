@@ -194,6 +194,15 @@ class SplitSignInTest {
   }
 
   @Test
+  fun `a sign-in answer with no body is a failure, not a crash, and the wrap key is wiped like any other`() = runTest {
+    build()
+    server.queue(MockResponse().setBody("""{"success":true,"status":200}"""))
+    val r = repo.login("carol", "carolpass")
+    assertTrue((r as ApiResult.Failure).error is AppError.Unexpected)
+    assertNull(store.flow.value); assertNull(vault.keyPair(7))
+  }
+
+  @Test
   fun `claiming an account makes it split, with the key re-wrapped beside the auth key`() = runTest {
     build()
     server.queue(MockResponse().setBody("""{"data":{"writer":{"id":7,"name":"Carol"},"chapter":{"id":1,"name":"Test Chapter"},"expiresAt":"2026-10-05T00:00:00.000Z","publicKey":"PUB-CAROL","claimWrappedPrivateKey":"wrapped(PUB-CAROL)under(TOKEN24)","claimSalt":"cs","claimKdfParams":{"kdf":"argon2id"}},"success":true,"status":200}"""))
