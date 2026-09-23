@@ -166,6 +166,26 @@ class GroupRepositoryTest {
   }
 
   @Test
+  fun `the members list says who the group-owner admin is and who is waiting, and ownership is passed with one request`() = runTest {
+    val e2e = endToEnd()
+    // Recorded from the API on 23 Sep 2026 (PR #115): `owner` and `waiting` beside the members.
+    server.enqueue(MockResponse().setBody("""{"data":{"chapter":1,"publicKey":"$groupPublic","keyVersion":3,"keyRotatedAt":null,"owner":9,"waiting":[10],"members":[{"id":9,"username":"member1","name":"Sam","publicKey":"PUB-SAM","holdsGroupKey":true},{"id":10,"username":"member2","name":"Noor","publicKey":"PUB-NOOR","holdsGroupKey":false}]},"success":true,"status":200}"""))
+    val members = (e2e.members() as ApiResult.Success).value
+    assertEquals(listOf(true, false), members.map { it.isOwner }); assertEquals(listOf(false, true), members.map { it.isWaiting })
+    server.next()
+
+    server.enqueue(MockResponse().setBody("""{"data":{"chapter":1,"owner":10,"previous":9,"holdsGroupKey":false},"info":"Group-owner admin changed.","success":true,"status":200,"name":"keys chapterOwner"}"""))
+    val change = (e2e.makeOwner(10) as ApiResult.Success).value
+    val req = server.next()
+    assertEquals("PUT", req.method); assertEquals("/auth/chapter-owner", req.path); assertEquals("""{"chapter":1,"user":10}""", req.body.readUtf8())
+    assertEquals(10, change.newOwnerId); assertFalse("the answer says the key still has to be handed over", change.holdsGroupKey)
+
+    // A holder who is not the owner, or a superadmin, is refused with the API's sentence (recorded).
+    server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"Only the group-owner admin of this chapter can hand its key to a group admin, take it away, or rotate it.","status":403}"""))
+    assertEquals("Only the group-owner admin of this chapter can hand its key to a group admin, take it away, or rotate it.", (e2e.stopHandingKeyTo(10) as ApiResult.Failure).error.userMessage)
+  }
+
+  @Test
   fun `the Held list shows held letters only, even when an older server ignores the filter`() {
     fun letter(id: Int, held: HeldReason?, status: LetterStatus = LetterStatus.QUEUED) = QueueItem(Letter(id, 1, 1, 3, false, status, "x", null, 1, null, false, null, null, emptyList(), emptyList(), heldReason = held), null)
     // A server with PR #106 filtered: the page is believed, total and all.

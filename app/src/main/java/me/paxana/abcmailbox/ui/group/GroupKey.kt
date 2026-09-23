@@ -1,5 +1,8 @@
 package me.paxana.abcmailbox.ui.group
 
+import androidx.compose.ui.platform.testTag
+import me.paxana.abcmailbox.ui.common.Tag
+import me.paxana.abcmailbox.ui.common.AlertBanner
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.ErrorText
@@ -73,7 +76,13 @@ fun GroupKeyBanner(onMembers: () -> Unit, viewModel: GroupKeyViewModel = hiltVie
     is GroupKeyState.NotHeld -> Notice(
       title = stringResource(R.string.group_key_not_held_title),
       body = stringResource(R.string.group_key_not_held_text),
-    ) { OutlinedButton(onClick = viewModel::refresh) { Text(stringResource(R.string.action_check_again)) } }
+    ) {
+      // The page says who the group-owner admin is, which is what somebody waiting for the key needs to know.
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = viewModel::refresh) { Text(stringResource(R.string.action_check_again)) }
+        TextButton(onClick = onMembers) { Text(stringResource(R.string.action_members)) }
+      }
+    }
     GroupKeyState.Locked -> Notice(
       title = stringResource(R.string.group_key_locked_title),
       body = stringResource(R.string.group_key_locked_text),
@@ -101,6 +110,7 @@ fun GroupKeyScreen(onBack: () -> Unit, viewModel: GroupKeyViewModel = hiltViewMo
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val snackbar = remember { SnackbarHostState() }
   var confirmStop by remember { mutableStateOf<GroupMember?>(null) }
+  var confirmOwner by remember { mutableStateOf<GroupMember?>(null) }
   LaunchedEffect(Unit) { viewModel.loadMembers() }
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
 
@@ -110,22 +120,41 @@ fun GroupKeyScreen(onBack: () -> Unit, viewModel: GroupKeyViewModel = hiltViewMo
         Loadable.Loading -> LoadingBox()
         is Loadable.Failed -> ErrorBox(m.error, onRetry = viewModel::loadMembers)
         is Loadable.Loaded -> LazyColumn(Modifier.weight(1f)) {
+          val owner = m.value.firstOrNull { it.isOwner }
+          val iAmOwner = owner?.isMe == true
           item("intro") {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              // Who may act comes first: for everyone but the owner this page is a list to read, not a set of controls.
+              Text(
+                when { iAmOwner -> stringResource(R.string.owner_is_you); owner != null -> stringResource(R.string.owner_is, owner.name); else -> stringResource(R.string.owner_none) },
+                style = MaterialTheme.typography.bodyMedium,
+              )
+              // Said strongly, and on the page where the key is handed out: this is the one thing that must be understood.
+              AlertBanner(stringResource(R.string.key_warning))
               Text(stringResource(R.string.members_intro), style = MaterialTheme.typography.bodyMedium)
-              Text(stringResource(R.string.members_stop_explained), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              if (iAmOwner) Text(stringResource(R.string.members_stop_explained), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
               ui.error?.let { ErrorText(it) }
             }
             HorizontalDivider()
           }
           items(m.value, key = { it.id }) { member ->
-            MemberRow(member, busy = ui.busyMemberId == member.id, onHand = { viewModel.hand(member) }, onStop = { confirmStop = member })
+            MemberRow(member, iAmOwner = iAmOwner, busy = ui.busyMemberId == member.id, onHand = { viewModel.hand(member) }, onStop = { confirmStop = member }, onMakeOwner = { confirmOwner = member })
             HorizontalDivider()
           }
         }
       }
       SnackbarHost(snackbar) { Snackbar(it) }
     }
+  }
+
+  confirmOwner?.let { member ->
+    AlertDialog(
+      onDismissRequest = { confirmOwner = null },
+      title = { Text(stringResource(R.string.make_owner_title, member.name)) },
+      text = { Text(stringResource(R.string.make_owner_text)) },
+      confirmButton = { TextButton(onClick = { viewModel.makeOwner(member); confirmOwner = null }, modifier = Modifier.testTag("make-owner-confirm")) { Text(stringResource(R.string.action_make_owner_confirm)) } },
+      dismissButton = { TextButton(onClick = { confirmOwner = null }) { Text(stringResource(R.string.action_cancel)) } },
+    )
   }
 
   confirmStop?.let { member ->
@@ -140,22 +169,29 @@ fun GroupKeyScreen(onBack: () -> Unit, viewModel: GroupKeyViewModel = hiltViewMo
 }
 
 @Composable
-private fun MemberRow(member: GroupMember, busy: Boolean, onHand: () -> Unit, onStop: () -> Unit) {
+private fun MemberRow(member: GroupMember, iAmOwner: Boolean, busy: Boolean, onHand: () -> Unit, onStop: () -> Unit, onMakeOwner: () -> Unit) {
   Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-      Text(if (member.isMe) stringResource(R.string.member_you, member.name) else member.name, style = MaterialTheme.typography.titleSmall)
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(if (member.isMe) stringResource(R.string.member_you, member.name) else member.name, style = MaterialTheme.typography.titleSmall)
+        if (member.isOwner) Tag(stringResource(R.string.member_owner_badge))
+      }
       Text(
         when {
           member.holdsGroupKey -> stringResource(R.string.member_holds_key)
           !member.hasOwnKey -> stringResource(R.string.member_never_signed_in)
+          member.isWaiting -> stringResource(R.string.member_waiting, member.name)
           else -> stringResource(R.string.member_cannot_read)
         },
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
-    when {
-      member.isMe -> Unit
-      member.holdsGroupKey -> TextButton(onClick = onStop, enabled = !busy) { Text(stringResource(R.string.action_stop)) }
+    // The controls are the owner's alone (API PR #115): a holder who is not the owner is refused by the server, so nothing is offered.
+    if (iAmOwner && !member.isMe) when {
+      member.holdsGroupKey -> Row {
+        TextButton(onClick = onMakeOwner, enabled = !busy, modifier = Modifier.testTag("make-owner-${member.id}")) { Text(stringResource(R.string.action_make_owner)) }
+        TextButton(onClick = onStop, enabled = !busy) { Text(stringResource(R.string.action_stop)) }
+      }
       member.hasOwnKey -> Button(onClick = onHand, enabled = !busy) { Text(stringResource(if (busy) R.string.action_sealing else R.string.action_hand_key)) }
     }
   }

@@ -97,7 +97,7 @@ class GroupViewModelsTest {
     val group = FakeGroup(); val vm = GroupKeyViewModel(group, TestStrings())
     vm.setUp(); dispatcher.scheduler.advanceUntilIdle()
     assertTrue(vm.keyState.value is GroupKeyState.Ready)
-    assertTrue(vm.ui.value.notice!!.contains("Hand it to the other members"))
+    assertTrue(vm.ui.value.notice!!.contains("Hand it to the other group admins"))
 
     val late = GroupKeyViewModel(FakeGroup(refuse = AppError.Conflict("This group already has keys.")), TestStrings())
     late.setUp(); dispatcher.scheduler.advanceUntilIdle()

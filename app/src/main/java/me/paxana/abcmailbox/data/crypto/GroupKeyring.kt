@@ -23,7 +23,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** The group's opened keypair. `publicKey` is base64, as it travels; `version` goes on everything sealed to it. */
-class GroupKey(val groupId: Int, val keyPair: Sodium.KeyPair, val publicKey: String, val version: Int)
+class GroupKey(val groupId: Int, val keyPair: Sodium.KeyPair, val publicKey: String, val version: Int, /** This account is the chapter's group-owner admin. */ val isOwner: Boolean = false)
 
 /** Where a group member stands with their group's key. Screens explain each case; none is an error to hide. */
 sealed interface GroupKeyState {
@@ -131,7 +131,7 @@ class DefaultGroupKeyring @Inject constructor(
       return@withLock set(GroupKeyState.NotHeld(groupId))
     }
     loadedFor = me.id
-    set(GroupKeyState.Ready(GroupKey(groupId, groupPair, publicKey, org.keyVersion ?: 1)))
+    set(GroupKeyState.Ready(GroupKey(groupId, groupPair, publicKey, org.keyVersion ?: 1, org.isOwner)))
 
     // Custody keys. A failure here leaves those writers' own envelopes closed; the group's envelopes still open.
     (apiCall(json) { groupApi.writers() } as? ApiResult.Success)?.value?.data.orEmpty().forEach { w ->

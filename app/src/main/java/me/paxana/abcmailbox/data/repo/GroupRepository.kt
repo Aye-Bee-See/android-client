@@ -41,6 +41,7 @@ import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.Group
 import me.paxana.abcmailbox.domain.GroupMember
+import me.paxana.abcmailbox.domain.OwnerChange
 import me.paxana.abcmailbox.domain.IssuedToken
 import me.paxana.abcmailbox.domain.Letter
 import me.paxana.abcmailbox.domain.LetterStatus
@@ -99,7 +100,10 @@ interface GroupRepository {
   suspend fun refreshKeyState(): GroupKeyState
   /** Makes the group's keypair on this device, once, and seals the private half to this member. */
   suspend fun setUpGroupKey(): ApiResult<Unit>
+  /** With who the group-owner admin is (`isOwner`) and who is waiting for the key (`isWaiting`), API PR #115. */
   suspend fun members(): ApiResult<List<GroupMember>>
+  /** Passes the group-owner role to [memberId]; the caller stops being it. Owner only. */
+  suspend fun makeOwner(memberId: Int): ApiResult<OwnerChange> = ApiResult.Failure(AppError.Unexpected(UnsupportedOperationException()))
   suspend fun handKeyTo(memberId: Int): ApiResult<Unit>
   suspend fun stopHandingKeyTo(memberId: Int): ApiResult<Unit>
   /** The facility's other relay groups: the only groups the server lets a letter be shared with. Empty in server mode. */
@@ -294,8 +298,16 @@ class DefaultGroupRepository @Inject constructor(
     val user = viewer ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
     val groupId = user.chapterId ?: return ApiResult.Success(emptyList())
     return apiCall(json) { api.members(groupId) }.map { env ->
-      env.data?.members.orEmpty().map { GroupMember(it.id, it.name?.takeIf { n -> n.isNotBlank() } ?: it.username ?: strings.get(R.string.member_numbered, it.id), it.publicKey != null, it.holdsGroupKey, it.id == user.id) }
+      val d = env.data
+      d?.members.orEmpty().map {
+        GroupMember(it.id, it.name?.takeIf { n -> n.isNotBlank() } ?: it.username ?: strings.get(R.string.member_numbered, it.id), it.publicKey != null, it.holdsGroupKey, it.id == user.id, isOwner = it.id == d?.owner, isWaiting = it.id in d?.waitingIds.orEmpty())
+      }
     }
+  }
+
+  override suspend fun makeOwner(memberId: Int): ApiResult<OwnerChange> {
+    val groupId = viewer?.chapterId ?: return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
+    return apiCall(json) { api.transferOwner(MemberRef(groupId, memberId)) }.map { OwnerChange(it.data?.owner ?: memberId, it.data?.holdsGroupKey == true) }
   }
 
   override suspend fun handKeyTo(memberId: Int): ApiResult<Unit> {
