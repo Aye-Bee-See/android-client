@@ -364,7 +364,7 @@
     <string name="tab_to_print">К печати</string>
     <string name="tab_conversations">Переписка</string>
     <string name="tab_writers">Авторы</string>
-    <string name="not_in_group">Этот аккаунт пока не состоит в группе. Администратор сети должен назначить вам группу, чтобы вы видели её письма.</string>
+    <string name="not_in_group">Этот аккаунт пока не состоит в группе. Суперадминистратор должен назначить вам группу, чтобы вы видели её письма.</string>
     <string name="queue_empty_queued">Нет писем, ожидающих печати.</string>
     <string name="queue_empty_printed">Нет напечатанных писем, ожидающих отправки.</string>
     <string name="queue_empty_mailed">Отправленных писем нет.</string>
@@ -446,16 +446,16 @@
     <string name="action_set_up_group_key">Создать ключ группы</string>
     <string name="action_setting_up">Создаём…</string>
     <string name="group_key_not_held_title">Вам ещё не передали ключ группы</string>
-    <string name="group_key_not_held_text">Пока участник, у которого есть ключ, не передаст его вам, письма для вашей группы останутся заблокированными на этом телефоне. Попросите его открыть «Письма», «Участники» и выбрать ваше имя.</string>
+    <string name="group_key_not_held_text">Пока администратор-владелец группы не передаст вам ключ, письма для вашей группы останутся заблокированными на этом телефоне. Попросите его открыть «Письма», «Ключ группы» и выбрать ваше имя.</string>
     <string name="action_check_again">Проверить ещё раз</string>
     <string name="group_key_locked_title">Ваши письма на этом устройстве заблокированы</string>
     <string name="group_key_locked_text">Разблокируйте их паролем на вкладке «Аккаунт»; ключ группы открывается вашим собственным.</string>
     <string name="group_key_failed_title">Не удалось проверить ключ группы</string>
     <string name="error_no_connection">Нет соединения с сервером.</string>
     <string name="title_group_key">Ключ группы</string>
-    <string name="members_intro">У каждого участника своя запечатанная копия ключа группы, поэтому общий пароль никому не нужен. Передайте ключ участнику — и он сможет читать и печатать письма группы.</string>
-    <string name="members_stop_explained">Если убрать участника из этого списка, новых копий он получать не будет. Забрать копию, которую его телефон уже открыл, нельзя: если кто-то должен потерять доступ окончательно, смените ключ группы на сайте.</string>
-    <string name="stop_handing_title">Перестать передавать ключ участнику %1$s?</string>
+    <string name="members_intro">У каждого администратора группы своя запечатанная копия ключа группы, поэтому общий пароль никому не нужен. Администратор, у которого есть ключ, может читать и печатать все письма, которые отправляет группа.</string>
+    <string name="members_stop_explained">Если убрать администратора из этого списка, новых копий он получать не будет. Забрать копию, которую его телефон уже открыл, нельзя: если кто-то должен потерять доступ окончательно, смените ключ группы на сайте.</string>
+    <string name="stop_handing_title">Перестать передавать ключ администратору %1$s?</string>
     <string name="stop_handing_text">При следующем входе он не получит ключ группы. Телефон, который уже открыл ключ, сохранит его, пока ключ группы не сменят.</string>
     <string name="action_stop">Прекратить</string>
     <string name="member_you">%1$s (вы)</string>
@@ -465,7 +465,7 @@
     <string name="action_hand_key">Передать ключ</string>
     <string name="action_sealing">Запечатываем…</string>
     <string name="error_set_up_group_key">Не удалось создать ключ группы.</string>
-    <string name="notice_group_key_set_up">Ключ группы создан. Передайте его остальным участникам, чтобы они тоже могли читать письма.</string>
+    <string name="notice_group_key_set_up">Ключ группы создан, и вы — администратор-владелец группы. Передайте его остальным администраторам, чтобы они тоже могли читать письма.</string>
     <string name="notice_key_handed">%1$s теперь может читать письма группы — со следующего входа или обновления.</string>
     <string name="notice_key_stopped">%1$s больше не будет получать ключ группы.</string>
     <string name="error_did_not_work">Не получилось. Попробуйте ещё раз.</string>
@@ -493,7 +493,7 @@
     <string name="claim_created_for_you_by">Этот аккаунт (%1$s) создала для вас группа «%2$s». Выберите имя пользователя и пароль, чтобы самостоятельно управлять своей перепиской.</string>
     <string name="claim_token_expires">Этот код действует до %1$s.</string>
     <string name="claim_warning_e2e">Пароль защищает ваш ключ шифрования. Без него никто — ни этот сервис, ни ваша группа — не сможет прочитать ваши письма. После этого шага вы получите код восстановления: это единственный способ вернуть доступ, если вы забудете пароль.</string>
-    <string name="claim_warning_server">Ссылки для сброса пароля по почте не существует. Храните пароль в надёжном месте; если вы его потеряете, помочь сможет только администратор сети.</string>
+    <string name="claim_warning_server">Ссылки для сброса пароля по почте не существует. Храните пароль в надёжном месте; если вы его потеряете, помочь сможет только суперадминистратор.</string>
     <string name="help_username_length">От 3 до 16 символов</string>
     <string name="help_password_length">Не менее 10 символов. Несколько несвязанных слов через пробел дают надёжный и легко запоминающийся пароль.</string>
     <string name="label_confirm_password">Повторите пароль</string>
@@ -519,9 +519,9 @@
     <string name="label_confirm_new_password">Повторите новый пароль</string>
     <string name="action_set_new_password">Задать новый пароль</string>
     <string name="action_recovering">Восстанавливаем…</string>
-    <string name="recover_lost_code_too">Код тоже потерян? Тогда письма этого аккаунта не сможет восстановить никто. Администратор сети поможет вам завести новый аккаунт.</string>
+    <string name="recover_lost_code_too">Код тоже потерян? Тогда письма этого аккаунта не сможет восстановить никто. Суперадминистратор поможет вам завести новый аккаунт.</string>
     <string name="recover_section_own">Если это ваш собственный аккаунт</string>
-    <string name="recover_own_explained">Свяжитесь с администратором сети через группу, с которой вы пишете. Он подтвердит вашу личность и задаст вам новый пароль.</string>
+    <string name="recover_own_explained">Свяжитесь с суперадминистратором через группу, с которой вы пишете. Он подтвердит вашу личность и задаст вам новый пароль.</string>
     <string name="recover_section_unclaimed">Если аккаунт создала группа поддержки и вы его ещё не активировали</string>
     <string name="recover_unclaimed_explained">Попросите у группы новый код активации. Код срабатывает один раз и действует до даты, которую вам назовут вместе с ним; группа может создать другой в любое время.</string>
     <string name="recover_lockout_hint">После слишком многих неудачных попыток вход для имени пользователя блокируется на 15 минут. Иногда достаточно просто подождать.</string>
@@ -537,9 +537,9 @@
     <string name="title_account">Аккаунт</string>
     <string name="account_signed_out">Вы не вошли. Каталог можно смотреть без аккаунта; чтобы писать письма, он нужен.</string>
     <string name="username_at">@%1$s</string>
-    <string name="role_member_of_group">Участник группы поддержки (группа %1$d)</string>
-    <string name="role_member_no_group">Участник группы поддержки (группа пока не назначена)</string>
-    <string name="role_admin">Администратор сети</string>
+    <string name="role_member_of_group">Администратор группы (группа %1$d)</string>
+    <string name="role_member_no_group">Администратор группы (группа пока не назначена)</string>
+    <string name="role_admin">Суперадминистратор</string>
     <string name="role_writer">Автор писем</string>
     <string name="action_change_password">Сменить пароль</string>
     <string name="action_sign_out">Выйти</string>
@@ -601,13 +601,13 @@
     <string name="error_relay_no_key">Эта группа пересылки ещё не настроила шифрование и не может получать письма. Выберите другую группу или попросите их завершить настройку.</string>
     <string name="error_partner_no_key">Эта группа ещё не настроила шифрование, поэтому передать ей письмо нельзя.</string>
     <string name="error_group_key_not_set_up">Ваша группа ещё не создала ключ шифрования. Откройте «Письма» и выберите «Создать ключ группы».</string>
-    <string name="error_group_key_not_held">Вам ещё не передали ключ группы. Попросите участника, у которого он есть, передать его вам из раздела «Письма».</string>
-    <string name="error_not_in_group">Этот аккаунт не состоит в группе.</string>
+    <string name="error_group_key_not_held">Вам ещё не передали ключ группы. Передать его вам может только администратор-владелец группы, из раздела «Письма».</string>
+    <string name="error_not_in_group">Этот аккаунт не является администратором ни одной группы.</string>
     <string name="error_writer_not_managed">Этот автор больше не под опекой вашей группы.</string>
     <string name="error_writer_key_not_held">Ключа этого автора у вашей группы нет, поэтому создать для него код нельзя.</string>
     <string name="error_writer_key_old_group_key">Ключ этого автора запечатан прежним ключом группы, и открыть его нельзя. Чтобы исправить это, смените ключ группы на сайте.</string>
-    <string name="member_numbered">Участник %1$d</string>
-    <string name="error_member_no_key">У этого участника пока нет собственного ключа. Он появится при первом входе; после этого передайте ему ключ группы.</string>
+    <string name="member_numbered">Администратор %1$d</string>
+    <string name="error_member_no_key">У этого администратора пока нет собственного ключа. Он появится при первом входе; после этого передайте ему ключ группы.</string>
     <string name="outbox_file_unreadable">Не удалось прочитать файл %1$s, сохранённый на этом телефоне.</string>
     <string name="outbox_sent_but_file_refused">Письмо отправлено, но прикрепить %1$s не удалось: %2$s</string>
     <string name="outbox_refused_no_reason">Сервер отклонил это письмо, не объяснив причину.</string>
@@ -664,7 +664,7 @@
     <string name="channel_progress">Движение писем</string>
     <string name="channel_progress_description">Ваше письмо напечатано или отправлено, либо по предложенному вами изменению принято решение. Без звука.</string>
     <string name="channel_queue">Письма к печати</string>
-    <string name="channel_queue_description">Для участников групп: письмо ждёт, пока ваша группа его напечатает.</string>
+    <string name="channel_queue_description">Для администраторов групп: письмо ждёт, пока ваша группа его напечатает.</string>
     <string name="action_view">Открыть</string>
 
     <!-- Deleting one's account (API PR #104). The page has to say in words what goes, and that it cannot be undone -->
@@ -675,7 +675,7 @@
     <string name="action_deleting">Удаление…</string>
     <string name="action_keep_account">Оставить аккаунт</string>
     <string name="error_delete_only_admin">Это единственный аккаунт администратора. Сначала назначьте администратором кого-то ещё, иначе сайтом некому будет управлять. Ничего не удалено.</string>
-    <string name="error_delete_last_key_holder">Вы последний, у кого есть ключ вашей группы. Сначала передайте его другому участнику («Ключ группы» на странице группы), иначе группа больше не сможет читать свои письма. Ничего не удалено.</string>
+    <string name="error_delete_last_key_holder">Вы последний, у кого есть ключ вашей группы. Сначала передайте его другому администратору («Ключ группы» на странице группы), иначе группа больше не сможет читать свои письма. Ничего не удалено.</string>
     <string name="error_delete_refused">Сервер не станет удалять этот аккаунт в нынешнем положении. Ничего не удалено.</string>
     <string name="error_delete_generic">Не удалось удалить аккаунт. Ничего не удалено.</string>
 
@@ -717,7 +717,7 @@
     <string name="action_close">Закрыть</string>
 
     <!-- Deleting one's account, second pass: worded as the iOS app words it, so both say the same thing -->
-    <string name="delete_banner">Это нельзя отменить. Никто, ни ваша группа, ни администратор сети, не сможет ничего вернуть.</string>
+    <string name="delete_banner">Это нельзя отменить. Никто, ни ваша группа, ни суперадминистратор, не сможет ничего вернуть.</string>
     <plurals name="delete_goes_threads">
         <item quantity="one">Ваша %d переписка, со всеми письмами, которые вы в ней написали, в любом состоянии, и всеми ответами, записанными для вас.</item>
         <item quantity="few">Ваши %d переписки, со всеми письмами, которые вы в них написали, в любом состоянии, и всеми ответами, записанными для вас.</item>
@@ -739,8 +739,8 @@
     <string name="delete_cannot_paper">Это не отзывает письмо, которое уже напечатано или отправлено почтой. Заключённый всё равно его получит. Если он ответит, не будет аккаунта, в который группа могла бы записать ответ.</string>
     <string name="delete_cannot_group">То, что вы сделали для группы, остаётся, но без вашего имени: письма, которые вы отметили напечатанными или отправленными, приглашения, предложенные вами изменения справочника. Письма авторов, которых ведёт ваша группа, принадлежат группе и остаются.</string>
     <string name="delete_not_yet_heading">Пока нельзя</string>
-    <string name="delete_last_holder_notice">Вы единственный участник, у которого есть ключ группы. Если этот аккаунт исчезнет сейчас, никто больше не сможет читать письма группы, поэтому сервер откажет. Сначала передайте ключ другому участнику.</string>
-    <string name="delete_nobody_to_hand">Никто из других участников ещё не входил, поэтому передать ключ некому. Пригласите второго участника или дождитесь его, затем возвращайтесь.</string>
+    <string name="delete_last_holder_notice">Вы единственный администратор, у которого есть ключ группы. Если этот аккаунт исчезнет сейчас, никто больше не сможет читать письма группы, поэтому сервер откажет. Сначала передайте ключ другому администратору.</string>
+    <string name="delete_nobody_to_hand">Никто из других администраторов ещё не входил, поэтому передать ключ некому. Пригласите второго администратора или дождитесь его, затем возвращайтесь.</string>
     <string name="delete_could_hand">Ключ уже можно передать: %s.</string>
     <string name="action_open_group_key">Открыть экран ключа группы</string>
     <string name="delete_sure_heading">Если вы уверены</string>
@@ -846,7 +846,7 @@
 
     <!-- API changes of 19 to 21 September: a group that may not act yet, a rotated key, and one feed entry for several letters (PR #111) -->
     <string name="group_not_active_title">Ваша группа пока не активна</string>
-    <string name="group_not_active_text">Ваша группа ждёт одобрения сети или приостановлена. Пока она не активна, у неё не может быть ключа, она не может печатать письма и вести авторов. Активирует её администратор; на этом телефоне ничего делать не нужно.</string>
+    <string name="group_not_active_text">Ваша группа ждёт одобрения сети или приостановлена. Пока она не активна, у неё не может быть ключа, она не может печатать письма и вести авторов. Активирует её суперадминистратор; на этом телефоне ничего делать не нужно.</string>
     <string name="error_group_key_rotated">Ваша группа только что сменила ключ. Новый уже получен; попробуйте ещё раз.</string>
     <plurals name="activity_printed_many">
         <item quantity="one">Напечатано %d ваше письмо.</item>
@@ -935,4 +935,28 @@
     <string name="strength_label">Надёжность: %s. Примерная оценка; здесь нельзя узнать, утёк ли пароль.</string>
     <string name="error_scheme_downgrade">Этот телефон входил в аккаунт %s, не отправляя пароль, а теперь сервер запрашивает сам пароль. Этот аккаунт работает иначе, поэтому ничего не отправлено. Попробуйте позже; если это повторяется, сообщите своей группе.</string>
     <string name="error_scheme_refused">Сервер не принял этот пароль в том виде, в каком его отправляет приложение. Возможно, приложение нужно обновить.</string>
+
+    <!-- Group roles (API PR #115): one group-owner admin per group, who alone hands the key out; every group admin told of every change -->
+    <string name="owner_is_you">Вы — администратор-владелец группы: только вы можете передавать ключ группы, забирать его и передавать эту роль.</string>
+    <string name="owner_is">%s — администратор-владелец группы. Только этот человек может передавать ключ группы и забирать его.</string>
+    <string name="owner_none">У этой группы пока нет администратора-владельца. Им станет первый администратор, создавший ключ.</string>
+    <string name="key_warning">Любой, у кого есть ключ группы, может читать все письма, которые группа отправляет, и все ответы, которые она записывает. Передавайте его только тем, кому группа это доверяет.</string>
+    <string name="member_owner_badge">Администратор-владелец</string>
+    <string name="member_waiting">%s ждёт ключ группы</string>
+    <string name="action_make_owner">Сделать владельцем</string>
+    <string name="make_owner_title">Сделать %s администратором-владельцем группы?</string>
+    <string name="make_owner_text">Вы перестанете быть владельцем: с этого момента только этот человек сможет передавать ключ группы, забирать его и передавать роль. При необходимости суперадминистратор может передать её снова.</string>
+    <string name="action_make_owner_confirm">Сделать владельцем</string>
+    <string name="notice_owner_made">%s теперь администратор-владелец группы.</string>
+    <string name="activity_group_key_set">У вашей группы теперь есть ключ шифрования.</string>
+    <string name="activity_group_key_handed_you">Вам передали ключ группы. Письма откроются после следующего обновления.</string>
+    <string name="activity_group_key_handed">Ключ группы передан другому администратору.</string>
+    <string name="activity_group_key_removed_you">Ваша копия ключа группы отозвана.</string>
+    <string name="activity_group_key_removed">Копия ключа группы у одного из администраторов отозвана.</string>
+    <string name="activity_group_key_rotated">Ключ вашей группы заменён. Тот, кому новый ключ не передан, больше не сможет открывать её письма.</string>
+    <string name="activity_group_owner_you">Теперь вы — администратор-владелец вашей группы.</string>
+    <string name="activity_group_owner">У вашей группы новый администратор-владелец.</string>
+    <string name="activity_group_waiting">Один из администраторов ждёт, когда ему передадут ключ группы.</string>
+    <string name="error_delete_owner">Вы — администратор-владелец вашей группы, а в группе есть другие администраторы. Сначала сделайте владельцем одного из них («Ключ группы» на странице группы). Ничего не удалено.</string>
+    <string name="delete_owner_notice">Вы — администратор-владелец, а в вашей группе есть другие администраторы. Сначала сделайте владельцем одного из них, иначе сервер откажет.</string>
 </resources>

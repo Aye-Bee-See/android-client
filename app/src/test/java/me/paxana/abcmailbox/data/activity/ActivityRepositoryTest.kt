@@ -39,6 +39,7 @@ class ActivityRepositoryTest {
   private val sessions = FakeSessionRepository()
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
   private val shown = mutableListOf<List<Activity>>(); private var cleared = 0
+  private val keyring = me.paxana.abcmailbox.data.crypto.FakeKeyring()
   private lateinit var repo: DefaultActivityRepository
 
   @Before
@@ -46,7 +47,7 @@ class ActivityRepositoryTest {
     server.start()
     val api = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(NotificationsApi::class.java)
     val store = PreferenceDataStoreFactory.create(scope = scope) { File(tmp.root, "test.preferences_pb") }
-    repo = DefaultActivityRepository(api, sessions, store, object : ActivityNotifier { override fun show(fresh: List<Activity>) { shown += fresh }; override fun clear() { cleared++ } }, json)
+    repo = DefaultActivityRepository(api, sessions, store, object : ActivityNotifier { override fun show(fresh: List<Activity>) { shown += fresh }; override fun clear() { cleared++ } }, json, keyring)
     sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
   }
 
@@ -135,6 +136,33 @@ class ActivityRepositoryTest {
     assertEquals("5 de tus cartas ya están en el correo.", fresh[1].sentence(TestStrings("es")))
     // One letter is exactly what it always was.
     assertEquals("One of your letters has been printed.", Activity(5, Activity.Kind.PRINTED, 41, 50).sentence(TestStrings()))
+  }
+
+  @Test
+  fun `the group's three events are told apart, and news about this very account reads as such`() = runTest {
+    // Recorded from the API on 23 Sep 2026 (PR #115); user1 is account 2 here.
+    server.enqueue(feed(
+      """{"id":40,"event":"group.waiting","chat":null,"message":null,"submission":null,"detail":{"member":9},"readAt":null,"createdAt":"2026-09-23T10:00:00.000Z"}""",
+      """{"id":39,"event":"group.owner","chat":null,"message":null,"submission":null,"detail":{"owner":2,"previous":7,"by":"superadmin"},"readAt":null,"createdAt":"2026-09-23T09:59:00.000Z"}""",
+      """{"id":38,"event":"group.owner","chat":null,"message":null,"submission":null,"detail":{"owner":9,"previous":2,"by":"owner"},"readAt":null,"createdAt":"2026-09-23T09:58:00.000Z"}""",
+      """{"id":37,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"removed","member":2},"readAt":null,"createdAt":"2026-09-23T09:57:00.000Z"}""",
+      """{"id":36,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"handed","member":9},"readAt":null,"createdAt":"2026-09-23T09:56:00.000Z"}""",
+      """{"id":35,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"rotated","keyVersion":2},"readAt":null,"createdAt":"2026-09-23T09:55:00.000Z"}""",
+      """{"id":34,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"set"},"readAt":null,"createdAt":"2026-09-23T09:54:00.000Z"}""",
+      """{"id":33,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"vanished"},"readAt":null,"createdAt":"2026-09-23T09:53:00.000Z"}""",
+    ))
+    val fresh = repo.sync()
+    assertEquals(listOf(Activity.Kind.GROUP_WAITING, Activity.Kind.GROUP_OWNER, Activity.Kind.GROUP_OWNER, Activity.Kind.GROUP_KEY_REMOVED, Activity.Kind.GROUP_KEY_HANDED, Activity.Kind.GROUP_KEY_ROTATED, Activity.Kind.GROUP_KEY_SET, Activity.Kind.OTHER), fresh.map { it.kind })
+    assertEquals(listOf(false, true, false, true, false, false, false, false), fresh.map { it.aboutMe })
+    val s = TestStrings()
+    assertEquals("A group admin is waiting to be handed the group key.", fresh[0].sentence(s))
+    assertEquals("You are now your group’s group-owner admin.", fresh[1].sentence(s))
+    assertEquals("Your group has a new group-owner admin.", fresh[2].sentence(s))
+    assertEquals("Your copy of the group key has been withdrawn.", fresh[3].sentence(s))
+    assertEquals("The group key was handed to another group admin.", fresh[4].sentence(s))
+    assertEquals("Ключ вашей группы заменён. Тот, кому новый ключ не передан, больше не сможет открывать её письма.", fresh[5].sentence(TestStrings("ru")))
+    assertEquals("an action this version has never heard of still rings, with the cautious sentence", "There is something new in your account.", fresh[7].sentence(s))
+    assertEquals("the key changed hands, so what this phone holds is loaded again", 1, keyring.forced)
   }
 
   @Test

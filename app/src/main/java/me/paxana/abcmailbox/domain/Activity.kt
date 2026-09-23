@@ -17,8 +17,13 @@ data class Activity(
    * (API PR #111): `messageId` is then null, and `chatId` is set only if the letters share a conversation.
    */
   val count: Int = 1,
+  /** Group events (API PR #115): whether this entry is about this very account (its copy of the key, its new role). */
+  val aboutMe: Boolean = false,
 ) {
-  enum class Kind { REPLY, PRINTED, MAILED, RETURNED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, OTHER }
+  enum class Kind { REPLY, PRINTED, MAILED, RETURNED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, GROUP_KEY_SET, GROUP_KEY_HANDED, GROUP_KEY_REMOVED, GROUP_KEY_ROTATED, GROUP_OWNER, GROUP_WAITING, OTHER }
+
+  /** The group's key changed hands or was replaced: what this phone holds may be stale. */
+  val touchesGroupKey: Boolean get() = kind == Kind.GROUP_KEY_SET || kind == Kind.GROUP_KEY_HANDED || kind == Kind.GROUP_KEY_REMOVED || kind == Kind.GROUP_KEY_ROTATED
 
   /** Something the person has to do, not only know. These share the replies' channel: a letter that waits for its writer goes nowhere until they look. */
   val needsThem: Boolean get() = kind == Kind.RETURNED || ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0)
@@ -46,13 +51,22 @@ data class Activity(
       Kind.QUEUED_FOR_GROUP -> R.string.activity_queued
       Kind.CHANGE_APPROVED -> R.string.activity_change_approved
       Kind.CHANGE_REJECTED -> R.string.activity_change_rejected
+      Kind.GROUP_KEY_SET -> R.string.activity_group_key_set
+      Kind.GROUP_KEY_HANDED -> if (aboutMe) R.string.activity_group_key_handed_you else R.string.activity_group_key_handed
+      Kind.GROUP_KEY_REMOVED -> if (aboutMe) R.string.activity_group_key_removed_you else R.string.activity_group_key_removed
+      Kind.GROUP_KEY_ROTATED -> R.string.activity_group_key_rotated
+      Kind.GROUP_OWNER -> if (aboutMe) R.string.activity_group_owner_you else R.string.activity_group_owner
+      Kind.GROUP_WAITING -> R.string.activity_group_waiting
       // An event this version has never heard of still deserves a ring: the app will show whatever it is.
       Kind.OTHER -> R.string.activity_other
     }
   )
 
   companion object {
-    fun kindOf(event: String, status: String?): Kind = when (event) {
+    fun kindOf(event: String, status: String?, action: String? = null): Kind = when (event) {
+      "group.key" -> when (action) { "set" -> Kind.GROUP_KEY_SET; "handed" -> Kind.GROUP_KEY_HANDED; "removed" -> Kind.GROUP_KEY_REMOVED; "rotated" -> Kind.GROUP_KEY_ROTATED; else -> Kind.OTHER }
+      "group.owner" -> Kind.GROUP_OWNER
+      "group.waiting" -> Kind.GROUP_WAITING
       "letter.reply" -> Kind.REPLY
       "letter.status" -> when (status) { "printed" -> Kind.PRINTED; "mailed" -> Kind.MAILED; "returned" -> Kind.RETURNED; else -> Kind.OTHER }
       "prisoner.moved" -> Kind.MOVED

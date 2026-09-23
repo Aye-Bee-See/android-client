@@ -37,6 +37,8 @@ data class DeletionPreview(
   val isLastKeyHolder: Boolean = false,
   /** Members who have a key of their own and could be handed the group's first. */
   val membersWhoCouldHoldTheKey: List<String> = emptyList(),
+  /** The group-owner admin of a chapter with other group admins cannot leave until one of them is made owner (API PR #115). */
+  val isOwnerWithOthers: Boolean = false,
 )
 
 /**
@@ -84,9 +86,10 @@ class DefaultAccountEraser @Inject constructor(
       unsentOnPhone = outbox.items().first().size,
       endToEnd = endToEnd,
     )
-    if (endToEnd && user.role == Role.CHAPTER) {
+    if (user.role == Role.CHAPTER) {
       val members = (group.members() as? ApiResult.Success)?.value.orEmpty()
-      if (members.any { it.isMe && it.holdsGroupKey }) preview = preview.copy(
+      preview = preview.copy(isOwnerWithOthers = members.any { it.isMe && it.isOwner } && members.size > 1)
+      if (endToEnd && members.any { it.isMe && it.holdsGroupKey }) preview = preview.copy(
         isLastKeyHolder = members.none { !it.isMe && it.holdsGroupKey },
         membersWhoCouldHoldTheKey = members.filter { !it.isMe && it.hasOwnKey && !it.holdsGroupKey }.map { it.name },
       )
