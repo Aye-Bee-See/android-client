@@ -76,41 +76,44 @@ object InviteSlipsPdf {
   private fun drawSlip(canvas: Canvas, box: RectF, code: String, issued: IssuedInvites, strings: Strings) {
     val border = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 0.6f; color = Color.rgb(150, 150, 150) }
     canvas.drawRoundRect(box, 6f, 6f, border)
-    val pad = 12f
-    val qrSide = box.height() - 2 * pad
-    val qrLeft = box.right - pad - qrSide
-    val textRight = qrLeft - pad
-    val textWidth = (textRight - box.left - pad).toInt()
+    val pad = 11f
+    val left = box.left + pad
+    val width = (box.width() - 2 * pad).toInt()
 
-    // Text column: who is inviting, the code, the date, the how-to.
+    // Stacked: who is inviting, then the code across the slip's width, then the date and the how-to beside the QR.
     var y = box.top + pad
-    y = drawText(canvas, strings.get(R.string.slip_inviting, issued.groupName), box.left + pad, y, textWidth, 10f, bold = true)
-    y += 6f
-    val codePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD); textSize = 17f; color = Color.BLACK }
-    canvas.drawText(InviteCode.pretty(code), box.left + pad, y + 15f, codePaint)
-    y += 24f
-    issued.expiresAt?.let { y = drawText(canvas, strings.get(R.string.invite_batch_use_by, it.longDate()), box.left + pad, y, textWidth, 9.5f, bold = false) }
+    y = drawText(canvas, strings.get(R.string.slip_inviting, issued.groupName), left, y, width, 9.5f, bold = true, maxLines = 2)
     y += 5f
-    drawText(canvas, strings.get(R.string.slip_how), box.left + pad, y, textWidth, 7.5f, bold = false, color = Color.rgb(70, 70, 70))
+    val codePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD); textSize = 17f; color = Color.BLACK }
+    canvas.drawText(InviteCode.pretty(code), left, y + 15f, codePaint)
+    y += 24f
 
-    // The QR code: the join link with the code, black on the page's white, with the link written under it in words.
+    // The QR code, bottom right: the join link with the code, black on the page's white, the link in words under it.
+    val qrSide = (box.bottom - pad - 9f - y).coerceAtMost(88f)
+    val qrLeft = box.right - pad - qrSide
     val matrix = QrCodes.matrix(InviteCode.link(code))
-    val qrInner = qrSide - 12f
-    val cell = qrInner / matrix.size
+    val cell = qrSide / matrix.size
     val dark = Paint().apply { color = Color.BLACK; style = Paint.Style.FILL }
-    val qrTop = box.top + pad
     for (row in matrix.indices) for (col in matrix[row].indices) if (matrix[row][col]) {
-      val x = qrLeft + col * cell; val yy = qrTop + row * cell
+      val x = qrLeft + col * cell; val yy = y + row * cell
       canvas.drawRect(x, yy, x + cell + 0.3f, yy + cell + 0.3f, dark)
     }
     val linkPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 6.5f; color = Color.rgb(70, 70, 70); textAlign = Paint.Align.CENTER }
-    canvas.drawText(InviteCode.LINK_HOST + InviteCode.LINK_PATH, qrLeft + qrInner / 2, box.bottom - pad + 2f, linkPaint)
+    canvas.drawText(InviteCode.LINK_HOST + InviteCode.LINK_PATH, qrLeft + qrSide / 2, y + qrSide + 8f, linkPaint)
+
+    // Beside it: the date, and what to do with the slip, cut to the room there is.
+    val textWidth = (qrLeft - 8f - left).toInt()
+    issued.expiresAt?.let { y = drawText(canvas, strings.get(R.string.invite_batch_use_by, it.longDate()), left, y, textWidth, 9f, bold = false, maxLines = 2) }
+    y += 4f
+    val room = ((box.bottom - pad - y) / (7.5f * 1.15f)).toInt().coerceAtLeast(1)
+    drawText(canvas, strings.get(R.string.slip_how), left, y, textWidth, 7.5f, bold = false, color = Color.rgb(70, 70, 70), maxLines = room)
   }
 
   /** Wrapped text from ([x], [top]); answers the y just below it. */
-  private fun drawText(canvas: Canvas, text: String, x: Float, top: Float, width: Int, size: Float, bold: Boolean, color: Int = Color.BLACK): Float {
+  private fun drawText(canvas: Canvas, text: String, x: Float, top: Float, width: Int, size: Float, bold: Boolean, color: Int = Color.BLACK, maxLines: Int = Int.MAX_VALUE): Float {
     val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; this.color = color; typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT }
-    val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, width.coerceAtLeast(10)).setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0f, 1.1f).build()
+    val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, width.coerceAtLeast(10)).setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0f, 1.15f)
+      .setMaxLines(maxLines).setEllipsize(android.text.TextUtils.TruncateAt.END).build()
     canvas.withTranslation(x, top) { layout.draw(this) }
     return top + layout.height
   }

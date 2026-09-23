@@ -213,9 +213,11 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
     viewModel.expired.collect { snackbar.showSnackbar(sessionEnded) }
   }
 
-  // A recovery code was just created (first sign-in on an end-to-end server, or a claim):
-  // it takes over the screen until the writer confirms they saved it.
-  LaunchedEffect(pendingCode) {
+  // A recovery code was just created (first sign-in on an end-to-end server, a claim, a join): it takes over the
+  // screen until the writer confirms they saved it. Keyed on the destination too: the screen that made the account
+  // leaves for the Inbox in the same frame, popping to the start destination, which took this screen with it (seen
+  // on the emulator, 23 Sep 2026, joining with an invite code). Now the code is put back on top wherever it lands.
+  LaunchedEffect(pendingCode, destination) {
     if (pendingCode != null && destination?.hasRoute(RecoveryCodeRoute::class) != true) navController.navigate(RecoveryCodeRoute) { launchSingleTop = true }
   }
 

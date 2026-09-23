@@ -166,3 +166,11 @@ A refusal that can be known in advance is shown in advance: in end-to-end mode t
 **Consequences.** JNA adds a small native dependency of its own (also 16 KB aligned in current releases; verify when bumping). The library's API is a Kotlin `LibsodiumInterface`; wrap it behind our own `Sodium` interface so a future swap (for example an NDK build with a thin JNI layer, the fallback) touches one file.
 
 **Rejected.** lazysodium-android (alignment, no release since 2022). Building libsodium with the NDK ourselves (a day of work, and a build to maintain, for no gain while a maintained binding exists). BouncyCastle (has X25519 and ChaCha20-Poly1305 but no XChaCha20 or sealed boxes, so we would be assembling primitives by hand).
+
+## 2026-09-23: QR codes on invite-code slips with ZXing `core`; the slips as one PDF drawn with `PdfDocument`
+
+**Context.** API PR #116: a group issues invite codes that the server says once, and the brief asks for slips with the code, the group's name, the date, and a QR code that opens `letters.support/join?code=…`, with print or share-as-PDF right there. The app already prints letters through a WebView and the print framework.
+
+**Decision.** `com.google.zxing:core` (3.5.3, Apache 2.0, plain Java, about 500 KB, no camera or Android dependency) encodes the link to a grid of modules; the drawing is ours, on a Compose canvas for the screen and on an A4 page for the file, so both show the same code. The file is written with Android's `PdfDocument` (eight slips a page) into the app cache under a `FileProvider` path; the print dialog prints that file through a small `PrintDocumentAdapter`, and "Share as PDF" sends it, so what a group saves is exactly what it would have printed. A round-trip test decodes the grid with ZXing's reader.
+
+**Rejected.** The server rendering the QR (the codes are said once and slips are made on the phone). A WebView page for the slips as for letters (gives print but no file to share, and the QR would have to be an image anyway). ML Kit or `zxing-android-embedded` (scanning; the app only draws).
