@@ -77,6 +77,7 @@ import me.paxana.abcmailbox.ui.account.ChangePasswordScreen
 import me.paxana.abcmailbox.ui.account.FarewellDialog
 import me.paxana.abcmailbox.ui.account.DeleteAccountScreen
 import me.paxana.abcmailbox.ui.auth.ClaimScreen
+import me.paxana.abcmailbox.ui.auth.JoinScreen
 import me.paxana.abcmailbox.ui.auth.RecoverScreen
 import me.paxana.abcmailbox.ui.auth.RecoveryCodeScreen
 import me.paxana.abcmailbox.ui.auth.LoginScreen
@@ -184,13 +185,14 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val scope = rememberCoroutineScope()
   val backStackEntry by navController.currentBackStackEntryAsState()
   val destination = backStackEntry?.destination
-  val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
+  val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, JoinRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
   val showBars = fullScreen.none { destination?.hasRoute(it) == true }
   // Snackbars are shown from callbacks, where there is no composition to read resources in, so the
   // sentences are resolved here, where there is.
   val sessionEnded = stringResource(R.string.notice_session_ended)
   val passwordChangedElsewhereOut = stringResource(R.string.notice_password_changed_elsewhere_signed_out)
   val accountClaimed = stringResource(R.string.notice_account_claimed)
+  val joined = stringResource(R.string.notice_joined)
   val passwordChangedSignedIn = stringResource(R.string.notice_password_changed_signed_in)
 
   val pendingCode by viewModel.pendingRecoveryCode.collectAsStateWithLifecycle()
@@ -390,9 +392,11 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onChangePassword = { navController.navigate(ChangePasswordRoute) },
           onDeleteAccount = { navController.navigate(DeleteAccountRoute) },
           onGroupNumbers = { navController.navigate(GroupNumbersRoute) },
+          onInviteCodes = { navController.navigate(InviteCodesRoute) },
         )
       }
       composable<GroupNumbersRoute> { me.paxana.abcmailbox.ui.group.GroupNumbersScreen(onBack = { navController.popBackStack() }) }
+      composable<InviteCodesRoute> { me.paxana.abcmailbox.ui.group.InviteCodesScreen(onBack = { navController.popBackStack() }) }
       composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }, onGroupKey = { navController.navigate(GroupKeyRoute) }) }
       composable<ChangePasswordRoute> {
         ChangePasswordScreen(
@@ -409,7 +413,21 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onSignedIn = { navController.popBackStack() },
           onCancel = { navController.popBackStack() },
           onClaim = { navController.navigate(ClaimRoute()) },
+          onJoin = { navController.navigate(JoinRoute()) },
           onForgot = { navController.navigate(RecoverRoute) },
+        )
+      }
+      // The slip's QR code is https://letters.support/join?code=…, which opens here with the code filled in; so does
+      // abcmailbox://join?code=…. The https link is verified (App Links) only once the domain hosts assetlinks.json.
+      composable<JoinRoute>(deepLinks = listOf(navDeepLink<JoinRoute>(basePath = "https://${me.paxana.abcmailbox.domain.InviteCode.LINK_HOST}${me.paxana.abcmailbox.domain.InviteCode.LINK_PATH}"), navDeepLink<JoinRoute>(basePath = "abcmailbox://join"))) {
+        JoinScreen(
+          sessionState = sessionState,
+          mode = mode,
+          onJoined = {
+            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            scope.launch { snackbar.showSnackbar(joined) }
+          },
+          onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
         )
       }
       // abcmailbox://claim?token=… opens this screen with the token filled in. The https

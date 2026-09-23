@@ -53,6 +53,7 @@ fun LoginScreen(
   onSignedIn: () -> Unit,
   onCancel: () -> Unit,
   onClaim: () -> Unit,
+  onJoin: () -> Unit = {},
   onForgot: () -> Unit,
   viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -132,6 +133,7 @@ fun LoginScreen(
       Checkbox(checked = ui.olderAccount, onCheckedChange = null, enabled = !ui.submitting)
       Text(stringResource(R.string.older_account_toggle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+    TextButton(onClick = onJoin, modifier = Modifier.align(Alignment.Start).testTag("have-invite")) { Text(stringResource(R.string.action_have_invite)) }
     TextButton(onClick = onClaim, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_have_token)) }
     TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_forgot_password)) }
     TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_back)) }

@@ -96,6 +96,9 @@ abstract class BindingsModule {
   abstract fun groupRepository(impl: DefaultGroupRepository): GroupRepository
 
   @Binds
+  abstract fun inviteRepository(impl: me.paxana.abcmailbox.data.repo.DefaultInviteRepository): me.paxana.abcmailbox.data.repo.InviteRepository
+
+  @Binds
   abstract fun activityRepository(impl: me.paxana.abcmailbox.data.activity.DefaultActivityRepository): me.paxana.abcmailbox.data.activity.ActivityRepository
 
   @Binds

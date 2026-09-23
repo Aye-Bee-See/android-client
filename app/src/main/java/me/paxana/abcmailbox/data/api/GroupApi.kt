@@ -103,7 +103,36 @@ interface GroupApi {
   /** A current reader gives one more permitted reader (a partner relay group) the letter's content key. */
   @POST("messaging/envelope")
   suspend fun addEnvelope(@Body body: AddEnvelopeRequest): ApiEnvelope<JsonElement>
+
+  // Invite codes (API PR #116) ------------------------------------------------------------
+
+  /** A batch of codes, said once in the answer and never again. Over the quota: 409 `InviteQuotaError`. */
+  @POST("auth/invite-codes")
+  suspend fun issueInviteCodes(@Body body: IssueInviteCodesRequest): ApiEnvelope<IssuedInviteCodesDto>
+
+  /** The group's batches with counts, and its quota. Never the codes. `chapter` is for superadmins. */
+  @GET("auth/invite-codes")
+  suspend fun inviteCodes(@Query("chapter") chapter: Int? = null): ApiEnvelope<InviteCodesDto>
+
+  /** Cancels the unused codes of one batch (`batch`) or of every batch (`all`). Used codes, and their accounts, stay. */
+  @HTTP(method = "DELETE", path = "auth/invite-codes", hasBody = true)
+  suspend fun cancelInviteCodes(@Body body: CancelInviteCodesRequest): ApiEnvelope<CancelledInviteCodesDto>
 }
+
+@Serializable data class IssueInviteCodesRequest(val count: Int, val label: String? = null, val days: Int? = null, val chapter: Int? = null)
+@Serializable
+data class IssuedInviteCodesDto(
+  val chapter: Int? = null, val batch: String, val label: String? = null, val expiresAt: String? = null,
+  val codes: List<String> = emptyList(), val outstanding: Int = 0, val limit: Int = 0,
+)
+@Serializable data class InviteCodesDto(val chapter: Int? = null, val outstanding: Int = 0, val limit: Int = 0, val batches: List<InviteBatchDto> = emptyList())
+@Serializable
+data class InviteBatchDto(
+  val batch: String, val label: String? = null, val createdAt: String? = null, val expiresAt: String? = null,
+  val total: Int = 0, val used: Int = 0, val cancelled: Int = 0, val expired: Int = 0, val unused: Int = 0,
+)
+@Serializable data class CancelInviteCodesRequest(val batch: String? = null, val all: Boolean? = null, val chapter: Int? = null)
+@Serializable data class CancelledInviteCodesDto(val chapter: Int? = null, val cancelled: Int = 0, val outstanding: Int = 0)
 
 /**
  * `reason` (required) and `note` go with `returned` only; on any other move they are a 400. `release` is what

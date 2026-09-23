@@ -174,6 +174,7 @@ dependencies {
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.coil.compose)
   implementation(libs.coil.network.okhttp)
+  implementation(libs.zxing.core)
 
   // Unit tests (run on the JVM)
   testImplementation(libs.junit)

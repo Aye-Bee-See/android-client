@@ -475,7 +475,7 @@
     <string name="label_username">Имя пользователя</string>
     <string name="action_hide">Скрыть</string>
     <string name="action_show">Показать</string>
-    <string name="login_no_account">Нет аккаунта? Аккаунты создают организаторы групп поддержки. Попросите группу, через которую вы пишете, создать его для вас.</string>
+    <string name="login_no_account">Нет аккаунта? Группа поддержки может дать вам код приглашения или создать аккаунт для вас и передать его с кодом активации.</string>
     <string name="action_have_token">У меня есть код активации</string>
     <string name="action_forgot_password">Забыли пароль?</string>
     <string name="error_wrong_credentials">Неверное имя пользователя или пароль.</string>
@@ -979,4 +979,94 @@
 
     <!-- Copilot's review of PR #4: a session from before the app recorded which way it signs in -->
     <string name="error_scheme_unknown_session">Сервер не принял этот пароль в том виде, в каком приложение теперь его отправляет, поэтому ничего не изменилось. Возможно, в нём опечатка. Или, если аккаунт создан до того, как приложение перестало отправлять пароли, выйдите и войдите снова с самим паролем.</string>
+
+    <!-- Phase 16: invite codes (API PR #116). The writer joins with one -->
+    <string name="action_have_invite">У меня есть код приглашения</string>
+    <string name="title_join">Вступить по коду приглашения</string>
+    <string name="join_intro">Группа поддержки раздаёт коды приглашения на бумажных талонах: на вечерах писем и людям, за которых ручается. Введите свой здесь или откройте квадратный код с талона камерой.</string>
+    <string name="label_invite_code">Код приглашения</string>
+    <string name="invite_code_help">Двенадцать букв и цифр, группами по четыре. Регистр, дефисы и пробелы не важны.</string>
+    <string name="action_check_code">Проверить код</string>
+    <string name="invite_code_empty">Введите код с талона.</string>
+    <string name="invite_code_bad_character">В кодах не бывает символа %1$s. Проверьте, не похожий ли это символ.</string>
+    <plurals name="invite_code_too_short">
+        <item quantity="one">Это %1$d символ; в коде их %2$d.</item>
+        <item quantity="few">Это %1$d символа; в коде их %2$d.</item>
+        <item quantity="many">Это %1$d символов; в коде их %2$d.</item>
+        <item quantity="other">Это %1$d символа; в коде их %2$d.</item>
+    </plurals>
+    <plurals name="invite_code_too_long">
+        <item quantity="one">Это %1$d символ; в коде их всего %2$d.</item>
+        <item quantity="few">Это %1$d символа; в коде их всего %2$d.</item>
+        <item quantity="many">Это %1$d символов; в коде их всего %2$d.</item>
+        <item quantity="other">Это %1$d символа; в коде их всего %2$d.</item>
+    </plurals>
+    <string name="join_invited_by">%s приглашает вас писать письма.</string>
+    <string name="join_good_until">Код действует до %s.</string>
+    <string name="join_setup_title">Выберите данные для входа</string>
+    <string name="join_privacy">Группа узнает лишь, что один код из этой партии использован: не какой и не кем.</string>
+    <string name="label_name_optional">Ваше имя (необязательно)</string>
+    <string name="help_name_optional">Его увидит группа, через которую вы пишете. Оставьте пустым, чтобы использовать имя пользователя.</string>
+    <string name="action_join">Создать аккаунт</string>
+    <string name="action_joining">Создание…</string>
+    <string name="action_different_code">Ввести другой код</string>
+    <string name="notice_joined">Аккаунт готов. Добро пожаловать.</string>
+    <string name="invite_code_kept">Код не израсходован. Исправьте ошибку и попробуйте снова.</string>
+    <string name="error_invite_unknown">Сервер не знает такого кода. Сверьте его с талоном.</string>
+    <string name="error_invite_used">Этот код приглашения уже использован. Попросите у группы другой.</string>
+    <string name="error_invite_cancelled">Группа отменила этот код приглашения. Попросите у неё другой.</string>
+    <string name="error_invite_expired">Срок действия этого кода приглашения истёк. Попросите у группы другой.</string>
+    <string name="error_invite_inactive">Группа, выдавшая этот код, больше не активна на сайте.</string>
+    <string name="error_invite_gone">Этот код приглашения больше нельзя использовать. Попросите у группы другой.</string>
+
+    <!-- Phase 16: invite codes, the group's side. Slips to print, and the standing list -->
+    <string name="title_invite_codes">Коды приглашения</string>
+    <string name="invite_codes_intro">Код приглашения позволяет человеку самому создать аккаунт, и передавать ничего не нужно. Напечатайте партию, раздайте талоны на вечере писем или тем, за кого ручается группа, а остальное сделает код.</string>
+    <string name="invite_codes_privacy">Группа видит только числа. Сервер не записывает, какой аккаунт создан по коду и каким кодом создан аккаунт.</string>
+    <string name="invite_quota">Использовано %1$d из %2$d кодов.</string>
+    <string name="invite_quota_explained">Использованный код сразу освобождает место. Неиспользованный занимает его, пока не истечёт срок или вы его не отмените.</string>
+    <string name="section_print_invites">Напечатать коды приглашения</string>
+    <string name="label_invite_count">Сколько</string>
+    <string name="help_invite_count">От 1 до 50</string>
+    <string name="label_invite_label">Метка (необязательно)</string>
+    <string name="help_invite_label">Для вашего списка, например «Вечер писем, 2 октября».</string>
+    <string name="label_invite_days">Срок в днях (необязательно)</string>
+    <string name="help_invite_days">Только чтобы они истекли раньше, вместе с событием, для которого выданы. Пусто — обычный срок.</string>
+    <string name="action_issue_invites">Создать коды</string>
+    <string name="action_issuing">Создание…</string>
+    <string name="section_invite_batches">Партии</string>
+    <string name="invite_batches_none">Коды ещё не создавались.</string>
+    <plurals name="invite_batch_unlabelled">
+        <item quantity="one">Партия из %d кода</item>
+        <item quantity="few">Партия из %d кодов</item>
+        <item quantity="many">Партия из %d кодов</item>
+        <item quantity="other">Партия из %d кода</item>
+    </plurals>
+    <string name="invite_batch_made">Создана %s</string>
+    <string name="invite_batch_use_by">Использовать до %s</string>
+    <string name="invite_batch_counts">%1$d использовано, %2$d не использовано, %3$d отменено, %4$d истекло</string>
+    <string name="action_cancel_unused">Отменить неиспользованные</string>
+    <string name="action_cancel_all_unused">Отменить все неиспользованные коды</string>
+    <string name="cancel_invites_title">Отменить неиспользованные коды?</string>
+    <string name="cancel_invites_text">Уже розданные талоны перестанут работать. Аккаунты, созданные по этой партии, останутся.</string>
+    <string name="cancel_all_invites_text">Все неиспользованные коды всех партий перестанут работать. Созданные аккаунты останутся.</string>
+    <string name="action_cancel_codes">Отменить коды</string>
+    <plurals name="notice_invites_cancelled">
+        <item quantity="one">Отменён %d код</item>
+        <item quantity="few">Отменено %d кода</item>
+        <item quantity="many">Отменено %d кодов</item>
+        <item quantity="other">Отменено %d кода</item>
+    </plurals>
+    <string name="invites_shown_once">Эти коды показываются один раз. Напечатайте их или сохраните PDF сейчас; сервер больше их не покажет.</string>
+    <string name="action_print">Печать</string>
+    <string name="action_share_pdf">Поделиться как PDF</string>
+    <string name="action_finished_with_codes">Я их напечатал(а) или сохранил(а)</string>
+    <string name="invites_leave_title">Уйти с этой страницы?</string>
+    <string name="invites_leave_text">Коды больше не будут показаны. Вы их напечатали или сохранили?</string>
+    <string name="action_leave_anyway">Всё равно уйти</string>
+    <string name="action_stay">Остаться</string>
+    <string name="slip_inviting">%s приглашает вас написать заключённому.</string>
+    <string name="slip_how">Установите приложение Aye Bee See, выберите «У меня есть код приглашения» и введите этот код, или наведите камеру на квадрат.</string>
+    <string name="slip_shared_name">Коды приглашения, %s</string>
+    <string name="error_invites_pdf">Не удалось создать PDF. Коды по-прежнему на этом экране.</string>
 </resources>

@@ -494,7 +494,7 @@
     <string name="label_username">Username</string>
     <string name="action_hide">Hide</string>
     <string name="action_show">Show</string>
-    <string name="login_no_account">Don\'t have an account? Accounts are created by support group organizers. Ask the group you write through to set one up for you.</string>
+    <string name="login_no_account">Don\'t have an account? A support group can give you an invite code, or set an account up for you and hand it over with a claim token.</string>
     <string name="action_have_token">I have a claim token</string>
     <string name="action_forgot_password">Forgot your password?</string>
     <string name="error_wrong_credentials">Incorrect username or password.</string>
@@ -962,4 +962,86 @@
 
     <!-- Copilot's review of PR #4: a session from before the app recorded which way it signs in -->
     <string name="error_scheme_unknown_session">The server did not accept that password the way the app now sends it, so nothing was changed. It may be mistyped. Or, if your account is from before the app stopped sending passwords, sign out and sign in again with the password itself.</string>
+
+    <!-- Phase 16: invite codes (API PR #116). The writer joins with one -->
+    <string name="action_have_invite">I have an invite code</string>
+    <string name="title_join">Join with an invite code</string>
+    <string name="join_intro">A support group hands out invite codes on slips of paper: at letter-writing nights, and to people it vouches for. Type yours here, or open the slip’s square code with your camera.</string>
+    <string name="label_invite_code">Invite code</string>
+    <string name="invite_code_help">Twelve letters and digits, in groups of four. Capitals, dashes and spaces do not matter.</string>
+    <string name="action_check_code">Check the code</string>
+    <string name="invite_code_empty">Enter the code on your slip.</string>
+    <string name="invite_code_bad_character">Codes never contain the character %1$s. Check for a look-alike.</string>
+    <plurals name="invite_code_too_short">
+        <item quantity="one">That is %1$d character; a code has %2$d.</item>
+        <item quantity="other">That is %1$d characters; a code has %2$d.</item>
+    </plurals>
+    <plurals name="invite_code_too_long">
+        <item quantity="one">That is %1$d character; a code has only %2$d.</item>
+        <item quantity="other">That is %1$d characters; a code has only %2$d.</item>
+    </plurals>
+    <string name="join_invited_by">%s is inviting you to write.</string>
+    <string name="join_good_until">The code is good until %s.</string>
+    <string name="join_setup_title">Choose your sign-in</string>
+    <string name="join_privacy">The group will know that a code of this batch was used, and nothing else: not which one, and not by whom.</string>
+    <string name="label_name_optional">Your name (optional)</string>
+    <string name="help_name_optional">Shown to the group you write through. Leave it empty to go by your username.</string>
+    <string name="action_join">Create my account</string>
+    <string name="action_joining">Creating…</string>
+    <string name="action_different_code">Use a different code</string>
+    <string name="notice_joined">Your account is ready. Welcome.</string>
+    <string name="invite_code_kept">The code was not used up. Fix what is wrong and try again.</string>
+    <string name="error_invite_unknown">That is not a code the server knows. Check it against the slip.</string>
+    <string name="error_invite_used">This invite code has already been used. Ask the group for another.</string>
+    <string name="error_invite_cancelled">The group cancelled this invite code. Ask them for another.</string>
+    <string name="error_invite_expired">This invite code has expired. Ask the group for another.</string>
+    <string name="error_invite_inactive">The group that issued this code is not active on the site any more.</string>
+    <string name="error_invite_gone">This invite code can no longer be used. Ask the group for another.</string>
+
+    <!-- Phase 16: invite codes, the group's side. Slips to print, and the standing list -->
+    <string name="title_invite_codes">Invite codes</string>
+    <string name="invite_codes_intro">An invite code lets someone make an account of their own, with nothing to hand over. Print a batch, give the slips out at a letter night or to anyone your group vouches for, and the code does the rest.</string>
+    <string name="invite_codes_privacy">Your group sees counts only. The server never records which account a code made, or which code made an account.</string>
+    <string name="invite_quota" tools:ignore="PluralsCandidate">%1$d of %2$d codes in use.</string>
+    <string name="invite_quota_explained">A used code frees its place at once. An unused one counts until it expires or you cancel it.</string>
+    <string name="section_print_invites">Print invite codes</string>
+    <string name="label_invite_count">How many</string>
+    <string name="help_invite_count">1 to 50</string>
+    <string name="label_invite_label">Label (optional)</string>
+    <string name="help_invite_label">For your list, for example “Letter night, 2 October”.</string>
+    <string name="label_invite_days">Days they last (optional)</string>
+    <string name="help_invite_days">Only to make them die sooner, with the event they are for. Empty means the usual life.</string>
+    <string name="action_issue_invites">Make the codes</string>
+    <string name="action_issuing">Making…</string>
+    <string name="section_invite_batches">Batches</string>
+    <string name="invite_batches_none">No codes have been made yet.</string>
+    <plurals name="invite_batch_unlabelled">
+        <item quantity="one">A batch of %d code</item>
+        <item quantity="other">A batch of %d codes</item>
+    </plurals>
+    <string name="invite_batch_made">Made %s</string>
+    <string name="invite_batch_use_by">Use by %s</string>
+    <string name="invite_batch_counts" tools:ignore="PluralsCandidate">%1$d used, %2$d unused, %3$d cancelled, %4$d expired</string>
+    <string name="action_cancel_unused">Cancel unused</string>
+    <string name="action_cancel_all_unused">Cancel every unused code</string>
+    <string name="cancel_invites_title">Cancel the unused codes?</string>
+    <string name="cancel_invites_text">Slips already handed out will stop working. Accounts already made with this batch stay.</string>
+    <string name="cancel_all_invites_text">Every unused code of every batch stops working. Accounts already made stay.</string>
+    <string name="action_cancel_codes">Cancel the codes</string>
+    <plurals name="notice_invites_cancelled">
+        <item quantity="one">%d code cancelled</item>
+        <item quantity="other">%d codes cancelled</item>
+    </plurals>
+    <string name="invites_shown_once">These codes are shown once. Print them or save the PDF now; the server will not say them again.</string>
+    <string name="action_print">Print</string>
+    <string name="action_share_pdf">Share as PDF</string>
+    <string name="action_finished_with_codes">I have printed or saved them</string>
+    <string name="invites_leave_title">Leave the codes?</string>
+    <string name="invites_leave_text">They will not be shown again. Have you printed or saved them?</string>
+    <string name="action_leave_anyway">Leave anyway</string>
+    <string name="action_stay">Stay</string>
+    <string name="slip_inviting">%s invites you to write to a prisoner.</string>
+    <string name="slip_how">Get the Aye Bee See app, choose “I have an invite code” and type this code, or point your camera at the square.</string>
+    <string name="slip_shared_name">Invite codes, %s</string>
+    <string name="error_invites_pdf">The PDF could not be written. The codes are still on this screen.</string>
 </resources>
