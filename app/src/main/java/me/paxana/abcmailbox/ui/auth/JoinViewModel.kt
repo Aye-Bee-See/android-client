@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.R
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
+import me.paxana.abcmailbox.data.repo.PenNameRepository
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.InviteCode
@@ -37,10 +38,12 @@ data class JoinUiState(
   val codeDead: Boolean = false,
   /** The account was made and signed in from this screen: the session that follows is the new one, and the screen may leave. */
   val joined: Boolean = false,
+  /** The pen name as typed and checked (API PR #120); optional, so an empty one never blocks. */
+  val penName: PenNameState = PenNameState(),
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && code.isNotBlank()
-  val canJoin: Boolean get() = !busy && invitation != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch
+  val canJoin: Boolean get() = !busy && invitation != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && !penName.blocks
 }
 
 /**
@@ -54,21 +57,26 @@ class JoinViewModel(
   private val sessions: SessionRepository,
   route: JoinRoute,
   private val strings: Strings,
+  penNames: PenNameRepository,
 ) : ViewModel() {
 
   @Inject
-  constructor(sessions: SessionRepository, strings: Strings, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<JoinRoute>(), strings)
+  constructor(sessions: SessionRepository, strings: Strings, penNames: PenNameRepository, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<JoinRoute>(), strings, penNames)
 
   private val _ui = MutableStateFlow(JoinUiState(code = route.code?.let { InviteCode.pretty(it) }.orEmpty()))
   val ui: StateFlow<JoinUiState> = _ui.asStateFlow()
+  private val penName = PenNameChecker(viewModelScope, penNames, strings)
 
   /** Signed in already: an invite code makes a new account, which must not replace the session unasked. */
   private val signedInAs: String? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.username
 
   init {
+    viewModelScope.launch { penName.state.collect { st -> _ui.update { it.copy(penName = st) } } }
     // Arrived by the slip's link: check the code straight away, unless somebody is signed in (the screen says so instead).
     if (route.code != null && InviteCode.isWellFormed(route.code) && signedInAs == null) check()
   }
+
+  fun onPenNameChange(v: String) { penName.onChange(v); _ui.update { it.copy(error = null) } }
 
   fun signOut() { viewModelScope.launch { sessions.logout() } }
 
@@ -99,7 +107,7 @@ class JoinViewModel(
     if (!s.canJoin) return
     _ui.update { it.copy(busy = true, error = null) }
     viewModelScope.launch {
-      when (val r = sessions.join(InviteCode.normalise(s.code), s.username, s.password, s.email, s.name)) {
+      when (val r = sessions.join(InviteCode.normalise(s.code), s.username, s.password, s.email, s.name, s.penName.value.ifBlank { null })) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", joined = true) }
         is ApiResult.Failure -> _ui.update { it.copy(busy = false, codeDead = r.error.isDeadCode, error = r.error.toJoinMessage(strings)) }

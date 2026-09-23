@@ -322,15 +322,19 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
             onGroupLetter = { writerId, writerName -> navController.navigate(PickPrisonerRoute(writerId, writerName)) },
             onHandoff = { navController.navigate(HandoffRoute(it.id, it.name)) },
             onGroupKey = { navController.navigate(GroupKeyRoute) },
+            onReplyArrived = { navController.navigate(RecordReplyRoute) },
             onEditQueued = { q -> navController.navigate(ComposeRoute(q.payload.prisonerId, writerId = q.payload.asWriterId.takeIf { !q.payload.fromPrisoner }, writerName = q.payload.writingAs, replyForUserId = q.payload.asWriterId.takeIf { q.payload.fromPrisoner }, outboxId = q.id)) },
           )
         }
         composable<PickPrisonerRoute> { entry ->
           val pick = entry.toRoute<PickPrisonerRoute>()
           PrisonersScreen(
-            title = pick.writerName?.let { stringResource(R.string.title_write_as_to, it) } ?: stringResource(R.string.title_write_to),
+            title = if (pick.replyFor) stringResource(R.string.title_record_reply) else pick.writerName?.let { stringResource(R.string.title_write_as_to, it) } ?: stringResource(R.string.title_write_to),
             onBack = { navController.popBackStack() },
-            onPrisoner = { navController.navigate(ComposeRoute(it, writerId = pick.writerId, writerName = pick.writerName)) { popUpTo<PickPrisonerRoute> { inclusive = true } } },
+            onPrisoner = {
+              val route = if (pick.replyFor) ComposeRoute(it, replyForUserId = pick.writerId, writerName = pick.writerName) else ComposeRoute(it, writerId = pick.writerId, writerName = pick.writerName)
+              navController.navigate(route) { popUpTo<PickPrisonerRoute> { inclusive = true } }
+            },
           )
         }
         composable<LetterWorkRoute> {
@@ -347,6 +351,15 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           )
         }
         composable<HandoffRoute> { HandoffScreen(onBack = { navController.popBackStack() }) }
+        // A reply came in the post (API PR #120): by its number, or by the writer's name.
+        composable<RecordReplyRoute> {
+          me.paxana.abcmailbox.ui.group.RecordReplyScreen(
+            onBack = { navController.popBackStack() },
+            onRecord = { prisonerId, writerId, reference -> navController.navigate(ComposeRoute(prisonerId, replyForUserId = writerId, reference = reference)) { popUpTo<RecordReplyRoute> { inclusive = true } } },
+            onThread = { navController.navigate(ThreadRoute(it)) },
+            onWriter = { writerId, name -> navController.navigate(PickPrisonerRoute(writerId, name, replyFor = true)) },
+          )
+        }
         composable<GroupKeyRoute> { me.paxana.abcmailbox.ui.group.GroupKeyScreen(onBack = { navController.popBackStack() }) }
       }
       // Reachable from both tabs, so they live outside either graph.
@@ -395,8 +408,10 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onDeleteAccount = { navController.navigate(DeleteAccountRoute) },
           onGroupNumbers = { navController.navigate(GroupNumbersRoute) },
           onInviteCodes = { navController.navigate(InviteCodesRoute) },
+          onPenName = { navController.navigate(PenNameRoute) },
         )
       }
+      composable<PenNameRoute> { me.paxana.abcmailbox.ui.account.PenNameScreen(onBack = { navController.popBackStack() }) }
       composable<GroupNumbersRoute> { me.paxana.abcmailbox.ui.group.GroupNumbersScreen(onBack = { navController.popBackStack() }) }
       composable<InviteCodesRoute> { me.paxana.abcmailbox.ui.group.InviteCodesScreen(onBack = { navController.popBackStack() }) }
       composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }, onGroupKey = { navController.navigate(GroupKeyRoute) }) }

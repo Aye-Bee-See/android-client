@@ -5,6 +5,7 @@ import me.paxana.abcmailbox.ui.common.ReloadOnNews
 import me.paxana.abcmailbox.text.rememberStrings
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import me.paxana.abcmailbox.ui.common.asHeading
 import me.paxana.abcmailbox.ui.common.ErrorText
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +56,8 @@ fun InboxScreen(
   onAddWriter: () -> Unit = {},
   onGroupLetter: (writerId: Int?, writerName: String?) -> Unit = { _, _ -> },
   onHandoff: (me.paxana.abcmailbox.domain.ManagedWriter) -> Unit = {},
+  /** A group admin holding an envelope that came in the post (API PR #120). */
+  onReplyArrived: () -> Unit = {},
   onGroupKey: () -> Unit = {},
   onEditQueued: (me.paxana.abcmailbox.data.repo.OutboxItem) -> Unit = {},
 ) {
@@ -73,7 +76,13 @@ fun InboxScreen(
         keysLocked -> UnlockPrompt()
         // Group members get the queue, the conversations they can see, and their writers.
         sessionState.session.user.isStaff -> me.paxana.abcmailbox.ui.group.GroupInbox(
-          conversations = { SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter = null) },
+          conversations = {
+            androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
+              // The way in for a reply that came in the post: by its number first, so that the writer's name is not needed.
+              androidx.compose.material3.TextButton(onClick = onReplyArrived, modifier = Modifier.padding(horizontal = 12.dp).testTag("reply-arrived")) { Text(stringResource(R.string.action_reply_arrived)) }
+              androidx.compose.foundation.layout.Box(Modifier.weight(1f)) { SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter = null) }
+            }
+          },
           onLetter = onQueueLetter, onAddWriter = onAddWriter, onNewLetter = onGroupLetter, onHandoff = onHandoff, onGroupKey = onGroupKey,
         )
         else -> SignedInInbox(sessionState.session.user.displayName, onThread, onNewLetter)

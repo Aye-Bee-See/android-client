@@ -227,7 +227,17 @@ class ComposeViewModelTest {
     assertTrue(vm.ui.value.canSend)
     vm.send(); dispatcher.scheduler.advanceUntilIdle()
     val sent = letters.sent.single()
-    assertTrue(sent.fromPrisoner); assertEquals(4, sent.asWriterId); assertNull(sent.relayChapter)
+    assertTrue(sent.fromPrisoner); assertEquals(4, sent.asWriterId); assertNull(sent.relayChapter); assertNull(sent.reference)
+  }
+
+  @Test
+  fun `a reply filed by its reference carries the number, so the server names the letter it answers`() = runTest {
+    val letters = FakeLetters()
+    val vm = vm(Routing.RELAY_ONLY, emptyList(), letters, route = ComposeRoute(3, replyForUserId = 4, reference = "4827-1935-6"), session = FakeSession(role = "chapter", chapterId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    vm.onBodyChange("Dear friend, thank you."); vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    val sent = letters.sent.single()
+    assertTrue(sent.fromPrisoner); assertEquals(4, sent.asWriterId); assertEquals("4827-1935-6", sent.reference)
   }
 
   @Test
@@ -333,9 +343,9 @@ class ComposeViewModelTest {
     override suspend fun logout(everywhere: Boolean) = ApiResult.Success(Unit)
     override val expired = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     override suspend fun claimInfo(token: String) = ApiResult.Failure(AppError.NotFound(null))
-    override suspend fun claim(token: String, username: String, password: String, email: String?) = ApiResult.Failure(AppError.NotFound(null))
+    override suspend fun claim(token: String, username: String, password: String, email: String?, penName: String?) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun joinInfo(code: String) = ApiResult.Failure(AppError.NotFound(null))
-    override suspend fun join(code: String, username: String, password: String, email: String?, name: String?) = ApiResult.Failure(AppError.NotFound(null))
+    override suspend fun join(code: String, username: String, password: String, email: String?, name: String?, penName: String?) = ApiResult.Failure(AppError.NotFound(null))
     override suspend fun changePassword(current: String, new: String) = ApiResult.Success(Unit)
     override suspend fun deleteAccount(password: String, wipe: suspend (userId: Int) -> Unit): ApiResult<me.paxana.abcmailbox.data.api.DeletionReportDto> = error("not used")
     override val pendingRecoveryCode = MutableStateFlow<String?>(null)

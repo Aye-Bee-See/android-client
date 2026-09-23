@@ -45,6 +45,7 @@ fun AccountScreen(
   onDeleteAccount: () -> Unit = {},
   onGroupNumbers: () -> Unit = {},
   onInviteCodes: () -> Unit = {},
+  onPenName: () -> Unit = {},
   viewModel: AccountViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.uiState.collectAsStateWithLifecycle()
@@ -79,6 +80,11 @@ fun AccountScreen(
           },
           style = MaterialTheme.typography.bodyMedium,
         )
+        // A writer's pen name (API PR #120): what the letters are signed with, and what a prisoner writes back to.
+        if (user.role == Role.USER) {
+          Text(user.penName?.let { stringResource(R.string.account_pen_name, it) } ?: stringResource(R.string.account_pen_name_none), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("account-pen-name"))
+          TextButton(onClick = onPenName, modifier = Modifier.testTag("pen-name-open")) { Text(stringResource(R.string.title_pen_name)) }
+        }
         HorizontalDivider()
         // For members of a group: the group's public numbers, and the one of them that a person types.
         if (user.role == Role.CHAPTER && user.chapterId != null) {

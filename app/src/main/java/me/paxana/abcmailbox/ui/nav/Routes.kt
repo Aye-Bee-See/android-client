@@ -38,8 +38,14 @@ import kotlinx.serialization.Serializable
   val resendOf: Int? = null,
   /** Sending again a held letter that must be sealed for another group: compose starts from its text, and the old one is removed once the new one is sent. */
   val replacesHeld: Int? = null,
+  /** Recording a reply by the number the prisoner copied (API PR #120): sent with the reply, so the server files it and names the letter answered. */
+  val reference: String? = null,
 )
-@Serializable data class PickPrisonerRoute(val writerId: Int? = null, val writerName: String? = null)
+/** `replyFor`: the prisoner picked is who wrote back to this writer, and compose records a reply (API PR #120, a reply filed by name). */
+@Serializable data class PickPrisonerRoute(val writerId: Int? = null, val writerName: String? = null, val replyFor: Boolean = false)
+/** A reply filed by its reference (API PR #120), or nothing. */
+@Serializable data object RecordReplyRoute
+@Serializable data object PenNameRoute
 
 // Group member screens
 @Serializable data class LetterWorkRoute(val messageId: Int)

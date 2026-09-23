@@ -8,6 +8,7 @@ import me.paxana.abcmailbox.data.api.StatusHistoryDto
 import me.paxana.abcmailbox.domain.Attachment
 import me.paxana.abcmailbox.domain.LastMessage
 import me.paxana.abcmailbox.domain.Letter
+import me.paxana.abcmailbox.domain.ReplyReference
 import me.paxana.abcmailbox.domain.LetterStatus
 import me.paxana.abcmailbox.domain.Resent
 import me.paxana.abcmailbox.domain.HeldReason
@@ -49,6 +50,10 @@ fun MessageDto.toDomain(): Letter = Letter(
   resentAs = resentAs.orEmpty().map { Resent(it.id, LetterStatus.fromKey(it.status), it.createdAt.toInstantOrNull()) },
   returnNoteOnLetter = returnNote.takeIf { it != ReturnNoteField.ABSENT && it != ReturnNoteField.NONE },
   returnNoteKnown = returnNote != ReturnNoteField.ABSENT,
+  // The API says the nine digits bare on the message; they are shown as they are printed, four, four and the check digit.
+  replyReference = replyReference?.takeIf { it.isNotBlank() }?.let(ReplyReference::pretty),
+  repliesToId = repliesTo,
+  footer = footer?.let { me.paxana.abcmailbox.domain.LetterFooter(it.name, it.anonymous, it.careOf?.id, it.careOf?.name, it.reference?.let(ReplyReference::pretty), it.replySheetAllowed) },
 )
 
 /** `letter` and `preview` let the caller decrypt in end-to-end mode; the defaults are the server-mode pass-through. */

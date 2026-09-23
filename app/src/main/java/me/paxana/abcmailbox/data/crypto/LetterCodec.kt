@@ -69,7 +69,7 @@ class LetterCodec @Inject constructor(
           messageText = letter.body, prisoner = letter.prisonerId, sender = sender, user = letter.asWriterId,
           // A reply is not relayed anywhere, so it carries no relay group or note.
           relayChapter = letter.relayChapter.takeIf { !letter.fromPrisoner }, relayNote = letter.relayNote?.takeIf { it.isNotBlank() && !letter.fromPrisoner },
-          resendOf = letter.resendOf,
+          resendOf = letter.resendOf, reference = letter.reference,
         ) to null
       )
     }
@@ -117,6 +117,7 @@ class LetterCodec @Inject constructor(
       user = letter.asWriterId,
       relayChapter = letter.relayChapter.takeIf { !letter.fromPrisoner },
       resendOf = letter.resendOf,
+      reference = letter.reference,
       ciphertext = enc.body.ciphertext,
       nonce = enc.body.nonce,
       relayNoteCiphertext = enc.relayNote?.ciphertext,

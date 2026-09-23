@@ -7,8 +7,8 @@ package me.paxana.abcmailbox.data.api
  * exactly why, so it is shown verbatim.
  */
 sealed class AppError : Exception() {
-  /** The server rejected the input; each entry is a complete sentence. */
-  data class Validation(val errors: List<String>) : AppError()
+  /** The server rejected the input; each entry is a complete sentence. [condition] is a code beside them where the API has one (`checksum` on a reply reference). */
+  data class Validation(val errors: List<String>, val condition: String? = null) : AppError()
 
   /** No token, a bad token, or (on login) wrong credentials. */
   data class Unauthorized(val info: String?) : AppError()
@@ -16,7 +16,8 @@ sealed class AppError : Exception() {
   /** The caller is known but not allowed; `info` explains what to do. */
   data class Forbidden(val info: String) : AppError()
 
-  data class NotFound(val info: String?) : AppError()
+  /** [condition] where the API has a code (`unknown` on a reply reference: not this group's, or never issued). */
+  data class NotFound(val info: String?, val condition: String? = null) : AppError()
 
   /** A lifecycle or state conflict (409), for example moving a letter backwards. */
   /** [name] is the API's error name (`KeyVersionError`, `LetterStatusError`, `IdempotencyError`), for the few callers that must tell them apart. */

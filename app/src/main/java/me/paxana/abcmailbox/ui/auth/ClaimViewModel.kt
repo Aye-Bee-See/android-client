@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
+import me.paxana.abcmailbox.data.repo.PenNameRepository
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.ClaimInfo
@@ -37,10 +38,12 @@ data class ClaimUiState(
   val tokenDead: Boolean = false,
   /** The account was claimed and signed in from this screen: the session that follows is the new one, and the screen may leave. */
   val claimed: Boolean = false,
+  /** The pen name as typed and checked (API PR #120); optional, so an empty one never blocks. */
+  val penName: PenNameState = PenNameState(),
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && token.isNotBlank()
-  val canClaim: Boolean get() = !busy && info != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && understood
+  val canClaim: Boolean get() = !busy && info != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && understood && !penName.blocks
 }
 
 /**
@@ -53,21 +56,26 @@ class ClaimViewModel(
   private val sessions: SessionRepository,
   route: ClaimRoute,
   private val strings: Strings,
+  penNames: PenNameRepository,
 ) : ViewModel() {
 
   @Inject
-  constructor(sessions: SessionRepository, strings: Strings, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<ClaimRoute>(), strings)
+  constructor(sessions: SessionRepository, strings: Strings, penNames: PenNameRepository, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<ClaimRoute>(), strings, penNames)
 
   private val _ui = MutableStateFlow(ClaimUiState(token = route.token?.let { ClaimToken.pretty(it) }.orEmpty()))
   val ui: StateFlow<ClaimUiState> = _ui.asStateFlow()
+  private val penName = PenNameChecker(viewModelScope, penNames, strings)
 
   /** Signed in already: a claim takes over another account, which must not replace the session unasked. */
   private val signedInAs: String? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.username
 
   init {
+    viewModelScope.launch { penName.state.collect { st -> _ui.update { it.copy(penName = st) } } }
     // Arrived by link with a token: check it straight away, unless somebody is signed in (the screen says so instead).
     if (route.token != null && ClaimToken.isWellFormed(route.token) && signedInAs == null) check()
   }
+
+  fun onPenNameChange(v: String) { penName.onChange(v); _ui.update { it.copy(error = null) } }
 
   fun signOut() { viewModelScope.launch { sessions.logout() } }
 
@@ -98,7 +106,7 @@ class ClaimViewModel(
     if (!s.canClaim) return
     _ui.update { it.copy(busy = true, error = null) }
     viewModelScope.launch {
-      when (val r = sessions.claim(ClaimToken.normalise(s.token), s.username, s.password, s.email)) {
+      when (val r = sessions.claim(ClaimToken.normalise(s.token), s.username, s.password, s.email, s.penName.value.ifBlank { null })) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", claimed = true) }
         is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage(strings)) }

@@ -49,6 +49,7 @@ import me.paxana.abcmailbox.data.api.map
 import me.paxana.abcmailbox.di.ApplicationScope
 import me.paxana.abcmailbox.domain.ClaimInfo
 import me.paxana.abcmailbox.domain.Invitation
+import me.paxana.abcmailbox.domain.PenName
 import me.paxana.abcmailbox.data.api.JoinRequest
 import java.time.Instant
 import javax.inject.Inject
@@ -76,13 +77,13 @@ interface SessionRepository {
   suspend fun claimInfo(token: String): ApiResult<ClaimInfo>
 
   /** Claims the account, then signs in with the new credentials. */
-  suspend fun claim(token: String, username: String, password: String, email: String?): ApiResult<Session>
+  suspend fun claim(token: String, username: String, password: String, email: String?, penName: String? = null): ApiResult<Session>
 
   /** Who is vouching for an invite code (API PR #116), before a username is asked for. The code must already be normalised. */
   suspend fun joinInfo(code: String): ApiResult<Invitation>
 
   /** Makes an account with an invite code, with keys made here as on a claim, then signs in with it. */
-  suspend fun join(code: String, username: String, password: String, email: String?, name: String?): ApiResult<Session>
+  suspend fun join(code: String, username: String, password: String, email: String?, name: String?, penName: String? = null): ApiResult<Session>
 
   /** Verifies `current` by signing in with it, changes the password, and adopts the fresh token. */
   suspend fun changePassword(current: String, new: String): ApiResult<Unit>
@@ -305,9 +306,9 @@ class DefaultSessionRepository @Inject constructor(
       )
     }
 
-  override suspend fun claim(token: String, username: String, password: String, email: String?): ApiResult<Session> {
+  override suspend fun claim(token: String, username: String, password: String, email: String?, penName: String?): ApiResult<Session> {
     (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.claim_signed_in, it.session.user.username))) }
-    var request = ClaimRequest(token, username.trim(), password, email?.trim()?.ifBlank { null })
+    var request = ClaimRequest(token, username.trim(), password, email?.trim()?.ifBlank { null }, penName = penName?.let(PenName::normalise)?.ifBlank { null })
     var recoveryCode: String? = null
     // Every new account is split where the server knows the scheme (API PR #114).
     val split = when (val r = splitSupported(username.trim())) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
@@ -352,11 +353,11 @@ class DefaultSessionRepository @Inject constructor(
    * made here, as for any new account: split wherever the server knows the scheme, with a keypair in end-to-end
    * mode and a salt and recipe alone in server mode. Then the ordinary sign-in, which the code has no part in.
    */
-  override suspend fun join(code: String, username: String, password: String, email: String?, name: String?): ApiResult<Session> {
+  override suspend fun join(code: String, username: String, password: String, email: String?, name: String?, penName: String?): ApiResult<Session> {
     // A new account must not replace a session unasked (a slip's link opened while signed in); the screen says so first.
     (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.join_signed_in, it.session.user.username))) }
     val user = username.trim()
-    var request = JoinRequest(code, user, password, email?.trim()?.ifBlank { null }, name?.trim()?.ifBlank { null })
+    var request = JoinRequest(code, user, password, email?.trim()?.ifBlank { null }, name?.trim()?.ifBlank { null }, penName = penName?.let(PenName::normalise)?.ifBlank { null })
     var recoveryCode: String? = null
     val split = when (val r = splitSupported(user)) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
     if (modes.current() == EncryptionMode.E2E) {

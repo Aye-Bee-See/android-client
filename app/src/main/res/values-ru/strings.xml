@@ -1066,11 +1066,78 @@
     <string name="action_leave_anyway">Всё равно уйти</string>
     <string name="action_stay">Остаться</string>
     <string name="slip_inviting">%s приглашает вас написать заключённому.</string>
-    <string name="slip_how">Установите приложение Aye Bee See, выберите «У меня есть код приглашения» и введите этот код, или наведите камеру на квадрат.</string>
+    <string name="slip_how">Установите приложение letters.support, выберите «У меня есть код приглашения» и введите этот код, или наведите камеру на квадрат.</string>
     <string name="slip_shared_name">Коды приглашения, %s</string>
     <string name="error_invites_pdf">Не удалось создать PDF. Коды по-прежнему на этом экране.</string>
 
     <!-- Copilot's review of PR #5: a slip's link, or a claim link, opened while signed in -->
     <string name="join_signed_in">Вы вошли как @%s. Код приглашения создаёт новый аккаунт, поэтому сначала выйдите.</string>
     <string name="claim_signed_in">Вы вошли как @%s. Код активации переводит на вас другой аккаунт, поэтому сначала выйдите.</string>
+
+    <!-- Phase 17: pen names (API PR #120) -->
+    <string name="label_pen_name">Псевдоним</string>
+    <string name="help_pen_name">Имя, которым подписаны ваши письма и на которое отвечает заключённый. Две части читаются как настоящее имя в почтовой комнате. Пока необязательно; его можно задать или сменить позже, а старые имена остаются вашими.</string>
+    <string name="pen_name_rules">От 3 до 40 символов, начиная с буквы: буквы, цифры, пробелы, дефисы, апострофы и точки.</string>
+    <string name="pen_name_too_short">В псевдониме не меньше 3 символов.</string>
+    <string name="pen_name_too_long">В псевдониме не больше 40 символов.</string>
+    <string name="pen_name_must_start_with_letter">Псевдоним начинается с буквы.</string>
+    <string name="pen_name_bad_character">%s не может быть в псевдониме.</string>
+    <string name="pen_name_available">%s свободно.</string>
+    <string name="pen_name_two_parts_nudge">%s свободно. Две части, как у настоящего имени, лучше читаются в почтовой комнате.</string>
+    <string name="pen_name_taken">Это имя занято.</string>
+    <string name="pen_name_check_failed">Сейчас не удалось проверить имя; оно будет проверено, когда вы продолжите.</string>
+    <string name="title_pen_name">Ваш псевдоним</string>
+    <string name="pen_name_intro">Ваши письма подписаны псевдонимом, и заключённые отвечают на него. Каждое имя, которое вы использовали, остаётся вашим навсегда и никому больше не даётся, поэтому ответ на старое имя всё равно найдёт вас.</string>
+    <string name="pen_name_none_yet">Псевдонима пока нет. Ваши письма подписаны вашим именем: %s.</string>
+    <string name="pen_name_current">Ваш псевдоним: %s.</string>
+    <string name="label_new_pen_name">Новый псевдоним</string>
+    <string name="section_former_names">Использованные имена</string>
+    <string name="pen_name_since">%1$s, с %2$s</string>
+    <string name="pen_name_current_tag">текущий</string>
+    <string name="notice_pen_name_saved">Теперь ваш псевдоним: %s.</string>
+    <string name="account_pen_name">Псевдоним: %s</string>
+    <string name="account_pen_name_none">Псевдоним: пока нет</string>
+
+    <!-- Phase 17: the reply reference (API PR #120), on the letter and on the printed page -->
+    <string name="letter_reference">Номер %s</string>
+    <string name="reply_answers_letter">Ответ на письмо от %s</string>
+    <string name="reply_answers_gone_letter">Ответ на письмо, которого здесь больше нет</string>
+    <string name="footer_write_back">Пишите в ответ %1$s через %2$s.</string>
+    <string name="footer_write_back_anonymous">Пишите в ответ через %s.</string>
+    <string name="footer_reference">Номер %s: пожалуйста, напишите его вверху ответа.</string>
+    <string name="footer_heading">Внизу напечатанной страницы</string>
+    <string name="footer_no_reference">Это учреждение не принимает необъяснённые числа, поэтому на странице нет номера. Ответ будет найден по имени автора.</string>
+
+    <!-- Phase 17: recording a reply by its number -->
+    <string name="title_reply_arrived">Пришёл ответ</string>
+    <string name="action_reply_arrived">Пришёл ответ по почте…</string>
+    <string name="reply_lookup_intro">Заключённого просили написать номер вверху ответа. Введите его, и ответ попадёт в нужную переписку, кто бы ни писал и под каким бы именем.</string>
+    <string name="label_reply_reference">Номер</string>
+    <string name="help_reply_reference">Девять цифр. Дефисы и пробелы не важны.</string>
+    <string name="action_look_up">Найти</string>
+    <string name="reference_empty">Введите номер с начала ответа.</string>
+    <string name="reference_bad_character">В номере только цифры; %s — не цифра.</string>
+    <plurals name="reference_wrong_length">
+        <item quantity="one">Это %1$d цифра; в номере их %2$d.</item>
+        <item quantity="few">Это %1$d цифры; в номере их %2$d.</item>
+        <item quantity="many">Это %1$d цифр; в номере их %2$d.</item>
+        <item quantity="other">Это %1$d цифры; в номере их %2$d.</item>
+    </plurals>
+    <string name="error_reference_checksum">В этом номере ошибка. Сверьте его с письмом.</string>
+    <string name="error_reference_unknown">Это не номер письма, которое отправляла эта группа. Сверьте его с письмом.</string>
+    <string name="reference_found_from">От %s</string>
+    <string name="reference_found_anonymous">От анонимного автора группы</string>
+    <string name="reference_found_to">Написано для %s</string>
+    <string name="reference_found_mailed">Отправлено %s</string>
+    <string name="reference_letter_gone">Само письмо удалено; ответ всё равно попадёт к его автору.</string>
+    <string name="action_record_this_reply">Записать ответ</string>
+    <string name="reply_no_number">На ответе нет номера?</string>
+    <string name="reply_by_name_help">Найдите автора, для которого группа отправляла письма, по любому из его имён.</string>
+    <string name="label_writer_name">Имя автора</string>
+    <string name="writer_formerly">%1$s (ранее %2$s)</string>
+    <string name="writers_none_found">Никого с таким именем.</string>
+
+    <!-- Mail rules that came with API PR #120 (labels for Spanish and Russian; English comes from the server) -->
+    <string name="rule_no_reference_numbers">Без номеров</string>
+    <string name="rule_reply_sheet_allowed">Разрешён лист для ответа</string>
 </resources>

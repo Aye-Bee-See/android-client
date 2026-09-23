@@ -68,6 +68,14 @@ interface AuthApi {
   @POST("auth/join")
   suspend fun join(@Body body: JoinRequest): ApiEnvelope<JsonElement>
 
+  /** Public, rate limited (API PR #120): is a pen name free, and why not. A signed-in caller's own old name is free to them. */
+  @GET("auth/pen-name-available")
+  suspend fun penNameAvailable(@Query("name") name: String): ApiEnvelope<PenNameCheckDto>
+
+  /** The caller's pen names, current first (API PR #120). */
+  @GET("auth/pen-name")
+  suspend fun penNames(): ApiEnvelope<PenNamesDto>
+
   /** The caller's key bundle: wrapped private key, salt, KDF parameters, and the group key when a member. */
   @GET("auth/keys")
   suspend fun keys(): ApiEnvelope<KeyBundleDto>
@@ -110,6 +118,9 @@ data class ClaimInfoDto(
 data class NamedRef(val id: Int, val name: String? = null)
 
 @Serializable data class JoinInfoDto(val chapter: NamedRef, val expiresAt: String? = null)
+@Serializable data class PenNameCheckDto(val available: Boolean = false, val name: String? = null, val reason: String? = null, val twoParts: Boolean = true)
+@Serializable data class PenNamesDto(val penName: String? = null, val names: List<PenNameRowDto> = emptyList())
+@Serializable data class PenNameRowDto(val name: String, val current: Boolean = false, val since: String? = null)
 
 @Serializable
 data class JoinRequest(
@@ -118,6 +129,8 @@ data class JoinRequest(
   val password: String,
   val email: String? = null,
   val name: String? = null,
+  /** The name the letters are signed with (API PR #120); unique across the site, checked first with `GET /auth/pen-name-available`. */
+  val penName: String? = null,
   /** `"split"`: `password` is the auth key, derived with `kdfSalt`/`kdfParams` (API PR #114). Absent means plain. */
   val authScheme: String? = null,
   // End-to-end mode: a keypair made here, wrapped under the password and under a new recovery code.
@@ -136,6 +149,7 @@ data class ClaimRequest(
   val username: String,
   val password: String,
   val email: String? = null,
+  val penName: String? = null,
   // End-to-end mode: the same private key, re-wrapped under the new password and a new recovery code.
   val wrappedPrivateKey: String? = null,
   val kdfSalt: String? = null,
@@ -154,6 +168,8 @@ data class UpdateUserRequest(
   val name: String? = null,
   val email: String? = null,
   val bio: String? = null,
+  /** A new pen name (API PR #120); the old one stays the account's, never anyone else's. */
+  val penName: String? = null,
   // End-to-end mode: a password change must carry the private key re-wrapped under the new password.
   val wrappedPrivateKey: String? = null,
   val kdfSalt: String? = null,
@@ -280,4 +296,5 @@ data class UserDto(
   val publicKey: String? = null,
   val createdAt: String? = null,
   val updatedAt: String? = null,
+  val penName: String? = null,
 )

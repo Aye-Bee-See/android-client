@@ -106,7 +106,7 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
           onAdvance = { if (s.value.letter.status == LetterStatus.PRINTED) confirmMailed = true else viewModel.advance() },
           onRelease = { confirmRelease = true },
           onCameBack = { recordReturn = true },
-          onPrint = { PrintLetter.print(context, strings.get(R.string.print_job_name, s.value.prisoner?.name ?: strings.get(R.string.print_job_prisoner)), s.value.letter.body) },
+          onPrint = { PrintLetter.print(context, strings.get(R.string.print_job_name, s.value.prisoner?.name ?: strings.get(R.string.print_job_prisoner)), s.value.letter.body, s.value.letter.footer?.sentence(strings)) },
           onOpen = viewModel::open,
           onThread = { s.value.letter.threadId?.let(onThread) },
           canShare = ui.partners.isNotEmpty() && !s.value.letter.locked,
@@ -194,6 +194,13 @@ private fun LetterWorkBody(
 
     letter.attachments.forEach { a -> AttachmentRow(a.name, a.sizeLabel, onOpen = { onOpen(a) }) }
 
+    // API PR #120: what the printed page says at its foot, so a volunteer reading a strict facility's rules can see it,
+    // and so that a letter written by hand can carry the number too. Nothing machine-readable goes inside a prison.
+    letter.footer?.let { footer ->
+      SectionTitle(stringResource(R.string.footer_heading))
+      Text(footer.sentence(me.paxana.abcmailbox.text.rememberStrings()), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("letter-footer"))
+      if (footer.reference == null) Text(stringResource(R.string.footer_no_reference), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     if (!letter.locked && letter.body.isNotBlank()) OutlinedButton(onClick = onPrint, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_print_letter)) }
     when (letter.status) {
       // Printing a held letter is a decision, never an oversight: the API wants it said, and so does this screen.
