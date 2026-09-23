@@ -461,7 +461,7 @@
     <string name="group_key_open">End-to-end encrypted · group key open (version %1$d)</string>
     <string name="action_members">Members</string>
     <string name="group_key_none_title">Your group has no encryption key yet</string>
-    <string name="group_key_none_text">Letters on this server are encrypted so that only the writer and the relay group can read them. Your group needs a key of its own before anyone can send it a letter. It is made on this phone, once, and you then hand it to the other members.</string>
+    <string name="group_key_none_text">Letters on this server are encrypted so that only the writer and the relay group can read them. Your group needs a key of its own before anyone can send it a letter. It is made on this phone, once; whoever makes it becomes the group-owner admin and hands it to the other group admins.</string>
     <string name="action_set_up_group_key">Set up the group key</string>
     <string name="action_setting_up">Setting up…</string>
     <string name="group_key_not_held_title">You have not been given the group key yet</string>

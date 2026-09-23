@@ -83,8 +83,8 @@ class DefaultActivityRepository @Inject constructor(
     if (userId != user) return emptyList() // signed out, or someone else signed in, while the request was in flight
     val entries = envelope.data.orEmpty()
     _unread.value = envelope.unread ?: entries.size
-    val fresh = entries.filter { it.readAt == null }.map { e ->
-      Activity(
+    val all = entries.map { e ->
+      e to Activity(
         e.id, Activity.kindOf(e.event, e.detailText("status"), e.detailText("action")), e.chat, e.message,
         held = e.detailInt("held") ?: 0,
         count = (e.detailInt("count") ?: 1).coerceAtLeast(1),
@@ -93,13 +93,16 @@ class DefaultActivityRepository @Inject constructor(
         ownerless = e.event == "group.owner" && e.detail?.containsKey("owner") == true && e.detailInt("owner") == null,
       )
     }
+    val fresh = all.filter { (e, _) -> e.readAt == null }.map { it.second }
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }
     if (announce && fresh.isNotEmpty()) {
       // A banner over the app you are already using is noise, and it would leave the screen underneath stale.
       if (_arrivals.subscriptionCount.value > 0) _arrivals.emit(fresh) else notifier.show(fresh)
     }
-    // The group's key changed hands or was replaced: what this phone holds may be stale, so it is loaded again.
-    if (fresh.any { it.touchesGroupKey }) runCatching { keyring.load(force = true) }
+    // The group's key changed hands or was replaced: what this phone holds may be stale, so it is loaded again. Every
+    // fetched entry counts, read or not. (An event another device read before this phone asked is not fetched at all,
+    // the query being for unread entries; a key stale that way heals on use, when the server answers KeyVersionError.)
+    if (all.any { it.second.touchesGroupKey }) runCatching { keyring.load(force = true) }
     return fresh
   }
 

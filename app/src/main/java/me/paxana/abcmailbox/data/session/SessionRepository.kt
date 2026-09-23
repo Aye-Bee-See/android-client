@@ -219,6 +219,20 @@ class DefaultSessionRepository @Inject constructor(
     return when (val attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }) {
       is ApiResult.Failure -> { cred.wipe(); attempt }
       is ApiResult.Success -> ApiResult.Success(Proof(cred, checkNotNull(attempt.value.data) { "login response had no data" }))
+  private suspend fun prove(name: String, password: String): ApiResult<Proof> {
+    val cred = when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+    var used = cred
+    var attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }
+    if (attempt is ApiResult.Failure && attempt.error is AppError.Unauthorized && cred.isSplit && !schemes.isKnownSplit(name)) {
+      cred.wipe()
+      used = Credential(password, null, null, null)
+      attempt = apiCall(json) { api.login(LoginRequest(name, password)) }
+    }
+    return when (attempt) {
+      is ApiResult.Failure -> { used.wipe(); attempt }
+      // A success with no body is a malformed answer, not a session: say so, with the wrap key wiped like any other failure.
+      is ApiResult.Success -> attempt.value.data?.let { ApiResult.Success(Proof(used, it)) }
+        ?: run { used.wipe(); ApiResult.Failure(AppError.Unexpected(IllegalStateException("login response had no data"))) }
     }
   }
 
