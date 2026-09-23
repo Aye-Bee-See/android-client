@@ -202,11 +202,8 @@ class DefaultSessionRepository @Inject constructor(
 
   /**
    * Proves a password to the server, the one way every proof goes: signing in, then deleting an account, then
-   * confirming the current password before a change. Once REQUIRE_SPLIT_AUTH is on, the server says "split" for
-   * every name so as to say nothing about any of them, and an account made before the scheme can only sign in
-   * with the password itself. So a refused auth key is followed, once, by the password, but only for a name this
-   * phone has never known as split: for a known one the refusal stands, and the password stays here. (A mistyped
-   * password on a new phone does reach the server this way; PLAN.md, ask 23.) Nothing is stored here.
+   * confirming the current password before a change. Nothing is stored here. A refused auth key is the end of it:
+   * the password itself goes only by [olderAccount], the person's explicit choice for an account from before.
    */
   private suspend fun prove(name: String, password: String, olderAccount: Boolean): ApiResult<Proof> {
     // The API decided (its brief, item 23): accounts are moved to split before the flag goes on, and a client never
@@ -218,21 +215,9 @@ class DefaultSessionRepository @Inject constructor(
     } else when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
     return when (val attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }) {
       is ApiResult.Failure -> { cred.wipe(); attempt }
-      is ApiResult.Success -> ApiResult.Success(Proof(cred, checkNotNull(attempt.value.data) { "login response had no data" }))
-  private suspend fun prove(name: String, password: String): ApiResult<Proof> {
-    val cred = when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
-    var used = cred
-    var attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }
-    if (attempt is ApiResult.Failure && attempt.error is AppError.Unauthorized && cred.isSplit && !schemes.isKnownSplit(name)) {
-      cred.wipe()
-      used = Credential(password, null, null, null)
-      attempt = apiCall(json) { api.login(LoginRequest(name, password)) }
-    }
-    return when (attempt) {
-      is ApiResult.Failure -> { used.wipe(); attempt }
       // A success with no body is a malformed answer, not a session: say so, with the wrap key wiped like any other failure.
-      is ApiResult.Success -> attempt.value.data?.let { ApiResult.Success(Proof(used, it)) }
-        ?: run { used.wipe(); ApiResult.Failure(AppError.Unexpected(IllegalStateException("login response had no data"))) }
+      is ApiResult.Success -> attempt.value.data?.let { ApiResult.Success(Proof(cred, it)) }
+        ?: run { cred.wipe(); ApiResult.Failure(AppError.Unexpected(IllegalStateException("login response had no data"))) }
     }
   }
 
