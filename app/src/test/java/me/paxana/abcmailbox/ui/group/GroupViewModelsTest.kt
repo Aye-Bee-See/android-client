@@ -60,7 +60,9 @@ class GroupViewModelsTest {
     val savedBefore = mutableListOf<Int>()
     override suspend fun numbers() = ApiResult.Success(numbers)
     override suspend fun setLettersSentBefore(count: Int): ApiResult<Unit> { refuse?.let { return ApiResult.Failure(it) }; savedBefore += count; numbers = numbers?.copy(before = count, published = (count + 1).takeIf { it >= 20 }?.toString()); return ApiResult.Success(Unit) }
-    override suspend fun queueItem(messageId: Int): ApiResult<QueueItem> { looks++; return ApiResult.Success(QueueItem(letter(), null)) }
+    /** With a full read the letter carries its footer and reference (API PR #120); a status answer does not. */
+    val footer = me.paxana.abcmailbox.domain.LetterFooter("Sam Hollow", false, 1, "Test Chapter", "5476-3594-6", false)
+    override suspend fun queueItem(messageId: Int): ApiResult<QueueItem> { looks++; return ApiResult.Success(QueueItem(letter().copy(footer = footer, replyReference = "5476-3594-6"), null)) }
     /** What came with each move: how it came back, and whether a hold was knowingly released. */
     val returnedAs = mutableListOf<me.paxana.abcmailbox.data.repo.ReturnedAs?>(); val releases = mutableListOf<Boolean>()
     /** Set to make the letter held, as the server would after someone is freed. */
@@ -137,7 +139,9 @@ class GroupViewModelsTest {
     vm.advance(); dispatcher.scheduler.advanceUntilIdle()
     vm.advance(); dispatcher.scheduler.advanceUntilIdle() // already mailed: nothing happens
     assertEquals(listOf(LetterStatus.PRINTED, LetterStatus.MAILED), group.moves)
-    assertEquals(LetterStatus.MAILED, (vm.ui.value.item as Loadable.Loaded).value.letter.status)
+    val after = (vm.ui.value.item as Loadable.Loaded).value.letter
+    assertEquals(LetterStatus.MAILED, after.status)
+    assertEquals("the footer came with the full read and outlives the status answers, which do not carry it", group.footer, after.footer); assertEquals("5476-3594-6", after.replyReference)
     assertEquals("Marked as mailed.", vm.ui.value.notice)
   }
 

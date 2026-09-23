@@ -58,7 +58,8 @@ data class PenNameUiState(
   val error: String? = null,
   val saved: String? = null,
 ) {
-  val canSave: Boolean get() = !busy && typed.value.isNotBlank() && !typed.blocks && typed.check?.available == true
+  /** A name of the right shape that the server said is free, or that it could not be asked about: then the save itself is the check. Not while the check is still coming. */
+  val canSave: Boolean get() = !busy && typed.value.isNotBlank() && !typed.blocks && (typed.check?.available == true || typed.checkFailed)
 }
 
 /** The account's pen name (API PR #120): the current one, a new one checked as it is typed, and every name used before. */

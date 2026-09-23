@@ -55,6 +55,7 @@ class PenNameViewModelTest {
     assertEquals("A pen name starts with a letter.", vm.ui.value.typed.problem); assertTrue(repo.checks.isEmpty()); assertFalse(vm.ui.value.canSave)
     repo.checkError = me.paxana.abcmailbox.data.api.AppError.Network(java.io.IOException())
     vm.onChange("Anna Hollow"); dispatcher.scheduler.advanceTimeBy(PenNameChecker.DEBOUNCE_MS + 1); dispatcher.scheduler.advanceUntilIdle()
-    assertTrue(vm.ui.value.typed.checkFailed); assertFalse("the form may go on; the server checks on save", vm.ui.value.typed.blocks)
+    assertTrue(vm.ui.value.typed.checkFailed); assertFalse("the form may go on; the server checks on save", vm.ui.value.typed.blocks); assertTrue(vm.ui.value.canSave)
+    vm.onChange("Anna Hollow B"); dispatcher.scheduler.runCurrent(); assertFalse("not while the check is still coming", vm.ui.value.canSave)
   }
 }

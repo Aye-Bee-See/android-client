@@ -323,7 +323,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
             onHandoff = { navController.navigate(HandoffRoute(it.id, it.name)) },
             onGroupKey = { navController.navigate(GroupKeyRoute) },
             onReplyArrived = { navController.navigate(RecordReplyRoute) },
-            onEditQueued = { q -> navController.navigate(ComposeRoute(q.payload.prisonerId, writerId = q.payload.asWriterId.takeIf { !q.payload.fromPrisoner }, writerName = q.payload.writingAs, replyForUserId = q.payload.asWriterId.takeIf { q.payload.fromPrisoner }, outboxId = q.id)) },
+            onEditQueued = { q -> navController.navigate(ComposeRoute(q.payload.prisonerId, writerId = q.payload.asWriterId.takeIf { !q.payload.fromPrisoner }, writerName = q.payload.writingAs, replyForUserId = q.payload.asWriterId.takeIf { q.payload.fromPrisoner }, outboxId = q.id, reference = q.payload.reference)) },
           )
         }
         composable<PickPrisonerRoute> { entry ->
