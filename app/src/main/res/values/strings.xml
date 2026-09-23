@@ -946,4 +946,5 @@
     <string name="activity_group_waiting">A group admin is waiting to be handed the group key.</string>
     <string name="error_delete_owner">You are your group’s group-owner admin and the group has other group admins. Make one of them the owner first (Group key, on the Group page). Nothing was deleted.</string>
     <string name="delete_owner_notice">You are the group-owner admin and your group has other group admins. Make one of them the owner first, or the server will refuse.</string>
+    <string name="activity_group_ownerless">Your group has no group-owner admin at the moment; a superadmin names a new one.</string>
 </resources>

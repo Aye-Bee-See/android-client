@@ -922,4 +922,5 @@
     <string name="activity_group_waiting">Un administrador está esperando a que le entreguen la clave del grupo.</string>
     <string name="error_delete_owner">Eres el administrador propietario de tu grupo y el grupo tiene otros administradores. Haz antes propietario a uno de ellos (Clave del grupo, en la página del grupo). No se ha eliminado nada.</string>
     <string name="delete_owner_notice">Eres el administrador propietario y tu grupo tiene otros administradores. Haz antes propietario a uno de ellos, o el servidor se negará.</string>
+    <string name="activity_group_ownerless">Tu grupo no tiene administrador propietario por ahora; un superadministrador nombrará uno nuevo.</string>
 </resources>

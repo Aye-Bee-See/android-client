@@ -90,6 +90,7 @@ class DefaultActivityRepository @Inject constructor(
         count = (e.detailInt("count") ?: 1).coerceAtLeast(1),
         // "Your copy was withdrawn" and "you are the owner now" read differently from the same news about somebody else.
         aboutMe = (e.detailInt("member") ?: e.detailInt("owner"))?.let { it == user } == true,
+        ownerless = e.event == "group.owner" && e.detail?.containsKey("owner") == true && e.detailInt("owner") == null,
       )
     }
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }

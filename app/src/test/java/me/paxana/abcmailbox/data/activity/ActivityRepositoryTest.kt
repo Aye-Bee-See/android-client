@@ -23,6 +23,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -150,10 +151,11 @@ class ActivityRepositoryTest {
       """{"id":35,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"rotated","keyVersion":2},"readAt":null,"createdAt":"2026-09-23T09:55:00.000Z"}""",
       """{"id":34,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"set"},"readAt":null,"createdAt":"2026-09-23T09:54:00.000Z"}""",
       """{"id":33,"event":"group.key","chat":null,"message":null,"submission":null,"detail":{"action":"vanished"},"readAt":null,"createdAt":"2026-09-23T09:53:00.000Z"}""",
+      """{"id":32,"event":"group.owner","chat":null,"message":null,"submission":null,"detail":{"owner":null,"previous":2,"by":"superadmin"},"readAt":null,"createdAt":"2026-09-23T09:52:00.000Z"}""",
     ))
     val fresh = repo.sync()
-    assertEquals(listOf(Activity.Kind.GROUP_WAITING, Activity.Kind.GROUP_OWNER, Activity.Kind.GROUP_OWNER, Activity.Kind.GROUP_KEY_REMOVED, Activity.Kind.GROUP_KEY_HANDED, Activity.Kind.GROUP_KEY_ROTATED, Activity.Kind.GROUP_KEY_SET, Activity.Kind.OTHER), fresh.map { it.kind })
-    assertEquals(listOf(false, true, false, true, false, false, false, false), fresh.map { it.aboutMe })
+    assertEquals(listOf(Activity.Kind.GROUP_WAITING, Activity.Kind.GROUP_OWNER, Activity.Kind.GROUP_OWNER, Activity.Kind.GROUP_KEY_REMOVED, Activity.Kind.GROUP_KEY_HANDED, Activity.Kind.GROUP_KEY_ROTATED, Activity.Kind.GROUP_KEY_SET, Activity.Kind.OTHER, Activity.Kind.GROUP_OWNER), fresh.map { it.kind })
+    assertEquals(listOf(false, true, false, true, false, false, false, false, false), fresh.map { it.aboutMe })
     val s = TestStrings()
     assertEquals("A group admin is waiting to be handed the group key.", fresh[0].sentence(s))
     assertEquals("You are now your group’s group-owner admin.", fresh[1].sentence(s))
@@ -162,6 +164,7 @@ class ActivityRepositoryTest {
     assertEquals("The group key was handed to another group admin.", fresh[4].sentence(s))
     assertEquals("Ключ вашей группы заменён. Тот, кому новый ключ не передан, больше не сможет открывать её письма.", fresh[5].sentence(TestStrings("ru")))
     assertEquals("an action this version has never heard of still rings, with the cautious sentence", "There is something new in your account.", fresh[7].sentence(s))
+    assertEquals("owner: null is not a new owner (the brief's review note)", "Your group has no group-owner admin at the moment; a superadmin names a new one.", fresh[8].sentence(s)); assertFalse(fresh[8].aboutMe)
     assertEquals("the key changed hands, so what this phone holds is loaded again", 1, keyring.forced)
   }
 

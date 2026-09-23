@@ -19,6 +19,8 @@ data class Activity(
   val count: Int = 1,
   /** Group events (API PR #115): whether this entry is about this very account (its copy of the key, its new role). */
   val aboutMe: Boolean = false,
+  /** `group.owner` with `owner: null`: the owner left the group or was demoted, and a superadmin has to name a new one. */
+  val ownerless: Boolean = false,
 ) {
   enum class Kind { REPLY, PRINTED, MAILED, RETURNED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, GROUP_KEY_SET, GROUP_KEY_HANDED, GROUP_KEY_REMOVED, GROUP_KEY_ROTATED, GROUP_OWNER, GROUP_WAITING, OTHER }
 
@@ -55,7 +57,7 @@ data class Activity(
       Kind.GROUP_KEY_HANDED -> if (aboutMe) R.string.activity_group_key_handed_you else R.string.activity_group_key_handed
       Kind.GROUP_KEY_REMOVED -> if (aboutMe) R.string.activity_group_key_removed_you else R.string.activity_group_key_removed
       Kind.GROUP_KEY_ROTATED -> R.string.activity_group_key_rotated
-      Kind.GROUP_OWNER -> if (aboutMe) R.string.activity_group_owner_you else R.string.activity_group_owner
+      Kind.GROUP_OWNER -> if (ownerless) R.string.activity_group_ownerless else if (aboutMe) R.string.activity_group_owner_you else R.string.activity_group_owner
       Kind.GROUP_WAITING -> R.string.activity_group_waiting
       // An event this version has never heard of still deserves a ring: the app will show whatever it is.
       Kind.OTHER -> R.string.activity_other
