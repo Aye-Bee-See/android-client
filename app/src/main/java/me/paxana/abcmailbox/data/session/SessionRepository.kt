@@ -27,6 +27,7 @@ import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.crypto.AccountKeyFields
+import me.paxana.abcmailbox.crypto.Sodium
 import me.paxana.abcmailbox.data.api.ClaimInfoDto
 import me.paxana.abcmailbox.data.api.ClaimRequest
 import me.paxana.abcmailbox.data.api.KeyBundleDto
@@ -334,14 +335,23 @@ class DefaultSessionRepository @Inject constructor(
   override suspend fun changePassword(current: String, new: String): ApiResult<Unit> {
     val session = (state.value as? SessionState.SignedIn)?.session
       ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
-    // The API does not ask for the current password, so confirm it by signing in with it (in whichever scheme the account uses).
-    when (val check = login(session.user.username, current, olderAccount = session.olderAccount)) {
+    // A session from before the app recorded its way learns it from its key first (see [settle]); nothing is sent for that.
+    val settled = when (val s = settle(session, current)) {
+      is ApiResult.Failure -> return s
+      is ApiResult.Success -> s.value ?: return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_current_password_wrong))))
+    }
+    // The API does not ask for the current password, so confirm it by signing in with it, the session's own way. That
+    // sign-in stores the session again, with a fresh token and the way it went, so what it answers is built on below.
+    val proven = when (val check = login(session.user.username, current, olderAccount = settled.olderAccount ?: false)) {
       is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) {
-        ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_current_password_wrong))))
+        // Still unknown (a server-mode account has no key to tell by): the refusal may be a mistyped password, or an
+        // account from before that the old release signed in by its own fallback. Say both, and what to do.
+        val why = if (settled.olderAccount == null) R.string.error_scheme_unknown_session else R.string.error_current_password_wrong
+        ApiResult.Failure(AppError.Validation(listOf(strings.get(why))))
       } else {
         check
       }
-      is ApiResult.Success -> Unit
+      is ApiResult.Success -> check.value
     }
     // The new password goes split wherever the server knows the scheme: this is how an account made before it moves.
     val split = when (val r = splitSupported(session.user.username)) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
@@ -365,8 +375,11 @@ class DefaultSessionRepository @Inject constructor(
       is ApiResult.Failure -> r
       is ApiResult.Success -> {
         if (split) schemes.rememberSplit(session.user.username)
-        // Every older token (including the one just used) is dead now; keep this device signed in.
-        r.value.data?.token?.let { store.save(session.copy(token = it.token, expiresAtMillis = it.expires)) }
+        // The account is split from here on wherever the server knows the scheme: an account signed in as one from
+        // before proves the auth key from now, not the password. Every older token (including the one just used) is
+        // dead now; keep this device signed in.
+        val moved = proven.copy(olderAccount = if (split) false else proven.olderAccount)
+        store.save(r.value.data?.token?.let { moved.copy(token = it.token, expiresAtMillis = it.expires) } ?: moved)
         ApiResult.Success(Unit)
       }
     }
@@ -379,10 +392,18 @@ class DefaultSessionRepository @Inject constructor(
     // ignores the password on this endpoint and deletes anyway (seen for real: a server that had not been
     // restarted since the merge). Signing in with it first means a wrong password can never delete anything,
     // whatever is on the other end. The token that sign-in issues is never stored; it goes with the account.
-    // The same proof as signing in, with its one-time fallback: an account from before, under the flag, must not be
-    // told its right password is wrong. What the server accepted is what it is asked to delete with.
-    val accepted = when (val p = prove(session.user.username, password, session.olderAccount)) {
-      is ApiResult.Failure -> return if (p.error is AppError.Unauthorized) ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_delete_wrong_password))) else p
+    // The same proof as signing in, the session's own way: an account signed in as one from before proves the
+    // password itself, every other proves the auth key, and a refusal is the end of it. What the server accepted is
+    // what it is asked to delete with. A session from before the app recorded its way learns it from its key first.
+    val settled = when (val s = settle(session, password)) {
+      is ApiResult.Failure -> return s
+      is ApiResult.Success -> s.value ?: return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_delete_wrong_password)))
+    }
+    val accepted = when (val p = prove(session.user.username, password, settled.olderAccount ?: false)) {
+      is ApiResult.Failure -> return if (p.error is AppError.Unauthorized) {
+        val why = if (settled.olderAccount == null) R.string.error_scheme_unknown_session else R.string.error_delete_wrong_password
+        ApiResult.Failure(AppError.Forbidden(strings.get(why)))
+      } else p
       is ApiResult.Success -> p.value.cred.also { it.wipe() }.serverPassword // only what the server checks is needed here
     }
     return when (val r = apiCall(json) { api.deleteUser(DeleteAccountRequest(session.user.id, accepted)) }) {
@@ -401,23 +422,73 @@ class DefaultSessionRepository @Inject constructor(
 
   override suspend fun unlock(password: String): ApiResult<Unit> {
     val session = (state.value as? SessionState.SignedIn)?.session ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
-    val bundle = when (val r = apiCall(json) { api.keys() }) {
-      is ApiResult.Failure -> return r
-      is ApiResult.Success -> r.value.data
+    val bundle = when (val b = fetchKeys()) {
+      is ApiResult.Failure -> return b
+      is ApiResult.Success -> b.value ?: return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_no_keys_yet))))
     }
-    if (bundle?.hasKeys != true) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_no_keys_yet))))
-    // The session's own way decides: an account signed in as one from before has its key wrapped under the password itself.
-    val cred = if (session.olderAccount) Credential(password, null, null, null) else when (val c = credential(session.user.username, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
-    return try {
-      val keyPair = cred.split?.let { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, it.wrapKey) }
-        ?: engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!)
-      vault.store(session.user.id, keyPair)
-      ApiResult.Success(Unit)
-    } catch (e: Exception) {
-      ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open))))
-    } finally {
-      cred.wipe()
+    val (keyPair, older) = when (val o = openKeys(session, bundle, password)) {
+      is ApiResult.Failure -> return o
+      is ApiResult.Success -> o.value ?: return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open))))
     }
+    vault.store(session.user.id, keyPair)
+    // A session from before the app recorded its way now knows it, from the key that opened.
+    if (session.olderAccount == null) store.save(session.copy(olderAccount = older))
+    return ApiResult.Success(Unit)
+  }
+
+  /** The account's key bundle, or null when it has no keys (server mode, or none made yet). */
+  private suspend fun fetchKeys(): ApiResult<KeyBundleDto?> = when (val r = apiCall(json) { api.keys() }) {
+    is ApiResult.Failure -> r
+    is ApiResult.Success -> ApiResult.Success(r.value.data?.takeIf { it.hasKeys })
+  }
+
+  /**
+   * Opens the private key with the password, the session's own way: the wrap key for a split account, the password
+   * itself for one signed in as from before. A session that does not know its way ([Session.olderAccount] null,
+   * saved by a release from before it was recorded) is tried both ways, the wrap key first, here on the phone: a wrong
+   * guess sends nothing, and a name this phone knows as split is never tried the older way. Answers the key and the
+   * way that opened it, or null when the password opens it no way it may be tried.
+   */
+  private suspend fun openKeys(session: Session, bundle: KeyBundleDto, password: String): ApiResult<Pair<Sodium.KeyPair, Boolean>?> {
+    val name = session.user.username
+    val ways = when (session.olderAccount) {
+      true -> listOf(true)
+      false -> listOf(false)
+      null -> if (schemes.isKnownSplit(name)) listOf(false) else listOf(false, true)
+    }
+    for (older in ways) {
+      val cred = if (older) Credential(password, null, null, null)
+        else when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+      try {
+        val keyPair = cred.split?.let { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, it.wrapKey) }
+          ?: engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!)
+        return ApiResult.Success(keyPair to older)
+      } catch (e: Exception) {
+        if (!cred.isSplit) break // the password itself was just tried, and there is no other way left
+      } finally {
+        cred.wipe()
+      }
+    }
+    return ApiResult.Success(null)
+  }
+
+  /**
+   * A session from before the app recorded which way it signs in (Copilot's review of PR #4, 23 Sep 2026: DataStore
+   * keeps sessions across updates, and the release before this one signed accounts from before in by a fallback of
+   * its own) learns its way now, before a proof that would otherwise go the wrong way: the key bundle is fetched and
+   * opened here, and the way that opened it is saved, with the key kept as an unlock keeps it. Nothing is sent. A
+   * session that knows its way, a server-mode phone, and an account with no key have nothing to settle and pass
+   * through as they are. Null when the password opens the key no way at all.
+   */
+  private suspend fun settle(session: Session, password: String): ApiResult<Session?> {
+    if (session.olderAccount != null || modes.current() != EncryptionMode.E2E) return ApiResult.Success(session)
+    val bundle = when (val b = fetchKeys()) { is ApiResult.Failure -> return b; is ApiResult.Success -> b.value ?: return ApiResult.Success(session) }
+    val (keyPair, older) = when (val o = openKeys(session, bundle, password)) {
+      is ApiResult.Failure -> return o
+      is ApiResult.Success -> o.value ?: return ApiResult.Success(null)
+    }
+    vault.store(session.user.id, keyPair)
+    return ApiResult.Success(session.copy(olderAccount = older).also { store.save(it) })
   }
 
   override suspend fun recover(username: String, recoveryCode: String, newPassword: String): ApiResult<Session> {

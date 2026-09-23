@@ -9,8 +9,14 @@ data class Session(
   val token: String,
   val expiresAtMillis: Long,
   val user: SessionUser,
-  /** Signed in the way accounts from before the split scheme sign in, by the person's explicit choice: every later proof of the password in this session goes the same way. */
-  val olderAccount: Boolean = false,
+  /**
+   * How this session proves its password from now on. `true`: signed in the way accounts from before the split
+   * scheme sign in, by the person's explicit choice, and every later proof goes the same way. `false`: the way the
+   * server names for the account. `null`: saved by a release from before this field existed, so which way it signed
+   * in was not recorded (DataStore keeps sessions across updates); the repository settles it the first time it
+   * matters, from the account's own key and without sending anything. A sign-in always writes `true` or `false`.
+   */
+  val olderAccount: Boolean? = null,
 )
 
 @Serializable

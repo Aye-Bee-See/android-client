@@ -959,4 +959,7 @@
         <item quantity="other">%d letters on hold</item>
     </plurals>
     <string name="notice_changed_meanwhile">Somebody else got there first; the list has been refreshed.</string>
+
+    <!-- Copilot's review of PR #4: a session from before the app recorded which way it signs in -->
+    <string name="error_scheme_unknown_session">The server did not accept that password the way the app now sends it, so nothing was changed. It may be mistyped. Or, if your account is from before the app stopped sending passwords, sign out and sign in again with the password itself.</string>
 </resources>

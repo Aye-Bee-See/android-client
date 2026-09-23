@@ -132,7 +132,7 @@ class SplitSignInTest {
     server.queue(MockResponse().setBody(login("""{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under(carolpass)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null}""")))
     assertTrue(repo.login("carol", "carolpass", olderAccount = true) is ApiResult.Success)
     assertEquals("carolpass", field(body(), "password")); assertNotNull(vault.keyPair(7))
-    assertTrue(store.flow.value!!.olderAccount); assertFalse("not remembered as split", memory.isKnownSplit("carol"))
+    assertEquals(true, store.flow.value!!.olderAccount); assertFalse("not remembered as split", memory.isKnownSplit("carol"))
 
     // Even that choice cannot send the password of a name this phone knows as split.
     memory.split += "dave"
@@ -267,5 +267,76 @@ class SplitSignInTest {
     assertTrue(repo.deleteAccount("afterrecovery7") is ApiResult.Success)
     assertEquals("auth(afterrecovery7)with(salt-1)", field(body(), "password"))
     assertEquals("""{"id":7,"password":"auth(afterrecovery7)with(salt-1)"}""", server.next().body.readUtf8())
+  }
+
+  /** Keys as the release before this one left an account from before: wrapped under the password itself. */
+  private val plainKeysBody = """{"data":{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under(carolpass)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null},"success":true,"status":200}"""
+  private val deleted = """{"data":{"deleted":1,"letters":0,"replies":0,"attachments":0,"threads":0},"success":true,"status":200}"""
+
+  @Test
+  fun `a session saved before the app recorded its way is unknown, and learns it from its own key without sending anything`() = runTest {
+    build()
+    // The previous release's JSON has no olderAccount field at all; that must not read as "split" (Copilot's review of PR #4).
+    val fromBefore = json.decodeFromString<Session>("""{"token":"jwt-1","expiresAtMillis":0,"user":{"id":7,"username":"carol","name":null,"email":null,"role":"user","chapterId":null}}""")
+    assertNull(fromBefore.olderAccount)
+
+    // The server calls every name split, and the key is under the password itself: the wrap key fails here on the phone, the password opens it.
+    store.save(fromBefore)
+    server.queue(MockResponse().setBody(plainKeysBody))
+    assertTrue(repo.unlock("carolpass") is ApiResult.Success); assertNotNull(vault.keyPair(7))
+    assertEquals("an account from before, from now on", true, store.flow.value!!.olderAccount)
+    assertEquals("only the bundle was fetched: no sign-in, so no password went out", 1, server.apiRequestCount)
+
+    // A split account's key from such a session: the wrap key opens it, and the session is split from now on.
+    vault.clear(); store.save(fromBefore)
+    server.queue(MockResponse().setBody("""{"data":${splitKeys("carolpass")},"success":true,"status":200}"""))
+    assertTrue(repo.unlock("carolpass") is ApiResult.Success); assertNotNull(vault.keyPair(7))
+    assertEquals(false, store.flow.value!!.olderAccount)
+
+    // A wrong password opens it neither way, nothing is sent, and the session stays unknown.
+    vault.clear(); store.save(fromBefore)
+    server.queue(MockResponse().setBody(plainKeysBody))
+    assertTrue(repo.unlock("not-it") is ApiResult.Failure); assertNull(vault.keyPair(7)); assertNull(store.flow.value!!.olderAccount)
+    assertEquals(3, server.apiRequestCount)
+  }
+
+  @Test
+  fun `deleting from an unknown session settles the way by the key first, and with no key to tell by a refusal says what to do`() = runTest {
+    build()
+    val fromBefore = Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null), olderAccount = null)
+    store.save(fromBefore)
+    server.queue(MockResponse().setBody(plainKeysBody)) // the key, under the password itself: the way is settled here
+    server.queue(MockResponse().setBody(login(noKeys))) // so the proof sends the password, as that way does
+    server.queue(MockResponse().setBody(deleted))
+    assertTrue(repo.deleteAccount("carolpass") is ApiResult.Success)
+    assertEquals("/auth/keys", server.next().path)
+    assertEquals("carolpass", field(body(), "password"))
+    assertEquals("""{"id":7,"password":"carolpass"}""", server.next().body.readUtf8())
+    assertNull(store.flow.value)
+
+    // Server mode: no key, so nothing to tell by. The auth key goes, once; a refusal is not called a wrong password outright.
+    build(EncryptionMode.SERVER); store.save(fromBefore)
+    server.queue(MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}"""))
+    val r = repo.deleteAccount("carolpass") as ApiResult.Failure
+    assertEquals("auth(carolpass)with(SALT)", field(body(), "password")); assertEquals(4, server.apiRequestCount)
+    assertTrue(r.error is AppError.Forbidden); assertTrue(r.error.userMessage!!, r.error.userMessage!!.contains("sign out"))
+    assertNotNull("nothing was deleted", store.flow.value); assertNull(store.flow.value!!.olderAccount)
+  }
+
+  @Test
+  fun `a password change moves an account signed in as one from before to split, and the session says so`() = runTest {
+    build()
+    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null), olderAccount = true))
+    server.queue(MockResponse().setBody(login("""{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under(carolpass)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null}"""))) // the check, the session's way
+    server.queue(MockResponse().setBody("""{"data":{"updatedRows":[1],"token":{"token":"jwt-2","expires":2}},"success":true,"status":200}"""))
+    assertTrue(repo.changePassword("carolpass", "brandnew7777") is ApiResult.Success)
+    assertEquals("the check went the older way, as the session was signed in", "carolpass", field(body(), "password"))
+    val put = body(); assertEquals("split", field(put, "authScheme")); assertEquals("auth(brandnew7777)with(salt-1)", field(put, "password"))
+    assertEquals("split from here on", false, store.flow.value!!.olderAccount); assertEquals("jwt-2", store.flow.value!!.token)
+
+    // So the next proof is the auth key, never the password: deleting sends what the server now holds.
+    server.queue(MockResponse().setBody(login(noKeys))); server.queue(MockResponse().setBody(deleted))
+    assertTrue(repo.deleteAccount("brandnew7777") is ApiResult.Success)
+    assertEquals("auth(brandnew7777)with(SALT)", field(body(), "password"))
   }
 }

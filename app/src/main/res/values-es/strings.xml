@@ -937,4 +937,7 @@
         <item quantity="other">%d cartas retenidas</item>
     </plurals>
     <string name="notice_changed_meanwhile">Alguien se adelantó; la lista se ha actualizado.</string>
+
+    <!-- Copilot's review of PR #4: a session from before the app recorded which way it signs in -->
+    <string name="error_scheme_unknown_session">El servidor no ha aceptado esa contraseña en la forma en que la app la envía ahora, así que no se ha cambiado nada. Puede estar mal escrita. O, si tu cuenta es de antes de que la app dejara de enviar contraseñas, cierra sesión y vuelve a iniciarla con la contraseña en sí.</string>
 </resources>

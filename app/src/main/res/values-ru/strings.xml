@@ -976,4 +976,7 @@
         <item quantity="other">%d письма задержаны</item>
     </plurals>
     <string name="notice_changed_meanwhile">Кто-то успел раньше; список обновлён.</string>
+
+    <!-- Copilot's review of PR #4: a session from before the app recorded which way it signs in -->
+    <string name="error_scheme_unknown_session">Сервер не принял этот пароль в том виде, в каком приложение теперь его отправляет, поэтому ничего не изменилось. Возможно, в нём опечатка. Или, если аккаунт создан до того, как приложение перестало отправлять пароли, выйдите и войдите снова с самим паролем.</string>
 </resources>
