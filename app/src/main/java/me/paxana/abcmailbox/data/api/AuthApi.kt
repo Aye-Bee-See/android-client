@@ -140,6 +140,9 @@ data class LoginRequest(val username: String, val password: String)
 @Serializable
 data class LoginParamsDto(val scheme: String? = null, val kdfSalt: String? = null, val kdfParams: JsonElement? = null) {
   val isSplit: Boolean get() = scheme == "split" && kdfSalt != null && kdfParams != null
+  val isPlain: Boolean get() = scheme == "plain"
+  /** Anything else ("split" without its salt, a scheme this app does not know) must not be mistaken for plain: the password would go out. */
+  val isWellFormed: Boolean get() = isSplit || isPlain
 }
 
 @Serializable

@@ -139,6 +139,44 @@ class SplitSignInTest {
   }
 
   @Test
+  fun `a handshake that is neither a proper plain nor a proper split answer sends nothing at all`() = runTest {
+    build()
+    val salted = """{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}"""
+    for (answer in listOf(
+      """{"data":{"scheme":"split"},"success":true,"status":200}""", // split without its salt
+      """{"data":{"scheme":"split","kdfSalt":"SALT"},"success":true,"status":200}""", // or without its recipe
+      """{"data":{"scheme":"pake2","kdfSalt":"SALT","kdfParams":$salted},"success":true,"status":200}""", // a scheme this app does not know
+      """{"data":{},"success":true,"status":200}""", // nothing
+    )) {
+      server.dispatcher = SchemeDispatcher(MockResponse().setBody(answer))
+      val r = repo.login("carol", "carolpass") as ApiResult.Failure
+      assertEquals(answer, "The server would not accept this password in the form the app sends it. The app may need updating.", r.error.userMessage)
+    }
+    // Every request the server saw was a handshake (each answer had its own dispatcher, so apiRequestCount cannot say).
+    val seen = generateSequence { server.takeRequest(200, java.util.concurrent.TimeUnit.MILLISECONDS) }.map { it.path!! }.toList()
+    assertEquals(4, seen.size); assertTrue("the password went out for none of them: $seen", seen.all { it.startsWith("/auth/login-params") })
+  }
+
+  @Test
+  fun `unlocking the keys after a restart follows the same rules as signing in, and sends no password`() = runTest {
+    build()
+    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null)))
+    // An account from before, under the flag: the handshake says split, the key is wrapped under the password itself.
+    val plainKeys = """{"data":{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)under(carolpass)","kdfSalt":"s","kdfParams":{"kdf":"argon2id"},"hasRecovery":true,"orgKey":null},"success":true,"status":200}"""
+    server.queue(MockResponse().setBody(plainKeys))
+    assertTrue(repo.unlock("carolpass") is ApiResult.Success); assertNotNull(vault.keyPair(7))
+    assertEquals("only the key bundle was fetched", 1, server.apiRequestCount)
+
+    // A split account: its wrap key opens the key, and a wrong password opens nothing and is tried no other way.
+    vault.clear(); memory.split += "carol"
+    server.queue(MockResponse().setBody("""{"data":${splitKeys("carolpass")},"success":true,"status":200}"""))
+    assertTrue(repo.unlock("carolpass") is ApiResult.Success); assertNotNull(vault.keyPair(7))
+    vault.clear()
+    server.queue(MockResponse().setBody("""{"data":${splitKeys("carolpass")},"success":true,"status":200}"""))
+    assertTrue(repo.unlock("not-it") is ApiResult.Failure); assertNull(vault.keyPair(7))
+  }
+
+  @Test
   fun `claiming an account makes it split, with the key re-wrapped beside the auth key`() = runTest {
     build()
     server.queue(MockResponse().setBody("""{"data":{"writer":{"id":7,"name":"Carol"},"chapter":{"id":1,"name":"Test Chapter"},"expiresAt":"2026-10-05T00:00:00.000Z","publicKey":"PUB-CAROL","claimWrappedPrivateKey":"wrapped(PUB-CAROL)under(TOKEN24)","claimSalt":"cs","claimKdfParams":{"kdf":"argon2id"}},"success":true,"status":200}"""))

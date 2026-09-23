@@ -103,9 +103,9 @@ interface SessionRepository {
  * an application-wide coroutine scope, because sign-in state must outlive any
  * one screen.
  */
-@Singleton
 private const val SPLIT = "split"
 
+@Singleton
 class DefaultSessionRepository @Inject constructor(
   private val store: SessionStore,
   private val api: AuthApi,
@@ -174,6 +174,9 @@ class DefaultSessionRepository @Inject constructor(
       val keys = engine.deriveSplit(password, params.kdfSalt!!, params.kdfParams!!)
       return ApiResult.Success(Credential(keys.authKey, keys, params.kdfSalt, params.kdfParams))
     }
+    // Fail closed: "split" without its salt, or a scheme this app has never heard of, is not "plain". Only a
+    // well-formed plain answer (or no handshake at all, an older API) may send the password itself.
+    if (params != null && !params.isWellFormed) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_scheme_refused))))
     // This phone has signed in to this name without sending the password. A server that now asks for the password
     // itself is not the server this account was made on, or has been tampered with. Nothing is sent.
     if (schemes.isKnownSplit(username)) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_scheme_downgrade, username)))
@@ -387,8 +390,14 @@ class DefaultSessionRepository @Inject constructor(
     if (bundle?.hasKeys != true) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_no_keys_yet))))
     val cred = when (val c = credential(session.user.username, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
     return try {
-      vault.store(session.user.id, cred.split?.let { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, it.wrapKey) }
-        ?: engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!))
+      suspend fun plain() = engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!)
+      // Under the flag the handshake calls every account "split"; an account from before has its key wrapped
+      // under the password itself. The same one-time fallback as sign-in, and the password goes nowhere here.
+      val mayFallBack = !schemes.isKnownSplit(session.user.username)
+      val keyPair = cred.split?.let { split ->
+        runCatching { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, split.wrapKey) }.getOrElse { e -> if (mayFallBack) plain() else throw e }
+      } ?: plain()
+      vault.store(session.user.id, keyPair)
       ApiResult.Success(Unit)
     } catch (e: Exception) {
       ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open))))
