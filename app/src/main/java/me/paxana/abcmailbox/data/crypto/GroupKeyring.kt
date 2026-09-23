@@ -23,7 +23,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** The group's opened keypair. `publicKey` is base64, as it travels; `version` goes on everything sealed to it. */
-class GroupKey(val groupId: Int, val keyPair: Sodium.KeyPair, val publicKey: String, val version: Int)
+class GroupKey(val groupId: Int, val keyPair: Sodium.KeyPair, val publicKey: String, val version: Int, /** This account is the chapter's group-owner admin. */ val isOwner: Boolean = false)
 
 /** Where a group member stands with their group's key. Screens explain each case; none is an error to hide. */
 sealed interface GroupKeyState {
@@ -95,10 +95,19 @@ class DefaultGroupKeyring @Inject constructor(
   override fun writerKey(writerId: Int): Sodium.KeyPair? = writers[writerId]?.takeIf { loadedFor == member?.id }
   override fun remember(writerId: Int, keyPair: Sodium.KeyPair) { if (groupKey() != null) writers[writerId] = keyPair }
 
-  override fun forget() {
-    writers.values.forEach { it.privateKey.fill(0) }
+  /** Signing out: what is held is zeroed as well as dropped. */
+  override fun forget() = reset(zero = true)
+
+  /**
+   * [zero]: overwrite the private keys, not only drop them. Only signing out does that. A reload (a key event arrived,
+   * a hand-over was refused as stale) must not: a caller may be holding the old `GroupKey` across a network call, about
+   * to seal it (`handKeyTo`), and zeroing it under them would hand somebody a sealed copy of nothing. Replaced keys
+   * stay whole until they are garbage, which is the same in-memory lifetime they had before they were replaced.
+   */
+  private fun reset(zero: Boolean) {
+    if (zero) writers.values.forEach { it.privateKey.fill(0) }
     writers.clear()
-    (_state.value as? GroupKeyState.Ready)?.key?.keyPair?.privateKey?.fill(0)
+    if (zero) (_state.value as? GroupKeyState.Ready)?.key?.keyPair?.privateKey?.fill(0)
     loadedFor = null
     _state.value = GroupKeyState.NotNeeded
   }
@@ -106,12 +115,12 @@ class DefaultGroupKeyring @Inject constructor(
   override suspend fun load(force: Boolean): GroupKeyState = lock.withLock {
     val me = member
     if (me == null || modes.current() != EncryptionMode.E2E) {
-      if (loadedFor != null) forget()
+      if (loadedFor != null) reset(zero = false)
       return@withLock GroupKeyState.NotNeeded
     }
     // Only a loaded key is final; every other state is worth asking about again (someone may have handed the key over).
     if (!force && loadedFor == me.id && _state.value is GroupKeyState.Ready) return@withLock _state.value
-    forget()
+    reset(zero = false)
     val mine = vault.keyPair(me.id) ?: return@withLock set(GroupKeyState.Locked)
 
     val org = when (val r = apiCall(json) { authApi.keys() }) {
@@ -131,7 +140,7 @@ class DefaultGroupKeyring @Inject constructor(
       return@withLock set(GroupKeyState.NotHeld(groupId))
     }
     loadedFor = me.id
-    set(GroupKeyState.Ready(GroupKey(groupId, groupPair, publicKey, org.keyVersion ?: 1)))
+    set(GroupKeyState.Ready(GroupKey(groupId, groupPair, publicKey, org.keyVersion ?: 1, org.isOwner)))
 
     // Custody keys. A failure here leaves those writers' own envelopes closed; the group's envelopes still open.
     (apiCall(json) { groupApi.writers() } as? ApiResult.Success)?.value?.data.orEmpty().forEach { w ->

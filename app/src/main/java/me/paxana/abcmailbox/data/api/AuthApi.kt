@@ -183,6 +183,9 @@ data class OrgKeyDto(
   val chapterPublicKey: String? = null,
   val wrappedOrgPrivateKey: String? = null,
   val keyVersion: Int? = null,
+  /** The chapter's group-owner admin (API PR #115): the one account that hands the key out, takes it back, rotates it, or passes the role on. */
+  val owner: Int? = null,
+  val isOwner: Boolean = false,
 )
 
 @Serializable

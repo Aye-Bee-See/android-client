@@ -84,6 +84,10 @@ interface GroupApi {
   @PUT("auth/member-key")
   suspend fun handKey(@Body body: MemberKeyRequest): ApiEnvelope<JsonElement>
 
+  /** Makes another group admin the chapter's group-owner admin; the caller stops being it (API PR #115). Superadmins may too. */
+  @PUT("auth/chapter-owner")
+  suspend fun transferOwner(@Body body: MemberRef): ApiEnvelope<OwnerChangeDto>
+
   /** Stops handing the key out. It cannot take back a key already opened; that needs a rotation. */
   @HTTP(method = "DELETE", path = "auth/member-key", hasBody = true)
   suspend fun takeKey(@Body body: MemberRef): ApiEnvelope<JsonElement>
@@ -140,7 +144,16 @@ data class MissingEnvelopeDto(val message: Int, val readerType: String = "user",
 @Serializable data class AddEnvelopeRequest(val message: Int, val readerType: String, val readerId: Int, val wrappedKey: String, val keyVersion: Int? = null)
 
 @Serializable
-data class MemberKeysDto(val chapter: Int? = null, val publicKey: String? = null, val keyVersion: Int? = null, val members: List<MemberDto> = emptyList())
+data class MemberKeysDto(
+  val chapter: Int? = null, val publicKey: String? = null, val keyVersion: Int? = null, val members: List<MemberDto> = emptyList(),
+  /** API PR #115. `waiting`: group admins who have keys of their own and are still to be handed the chapter's. Read loosely: ids today, maybe objects one day. */
+  val owner: Int? = null, val waiting: List<kotlinx.serialization.json.JsonElement> = emptyList(),
+) {
+  val waitingIds: Set<Int> get() = waiting.mapNotNull { e -> (e as? kotlinx.serialization.json.JsonPrimitive)?.let { runCatching { it.content.toInt() }.getOrNull() } ?: (e as? kotlinx.serialization.json.JsonObject)?.get("id")?.let { runCatching { (it as kotlinx.serialization.json.JsonPrimitive).content.toInt() }.getOrNull() } }.toSet()
+}
+
+/** What `PUT /auth/chapter-owner` answers: `holdsGroupKey` says whether the new owner still has to be handed the key. */
+@Serializable data class OwnerChangeDto(val chapter: Int? = null, val owner: Int? = null, val previous: Int? = null, val holdsGroupKey: Boolean = false)
 
 @Serializable
 data class MemberDto(val id: Int, val username: String? = null, val name: String? = null, val publicKey: String? = null, val holdsGroupKey: Boolean = false)

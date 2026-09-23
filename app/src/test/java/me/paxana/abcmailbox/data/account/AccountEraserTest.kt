@@ -84,6 +84,17 @@ class AccountEraserTest {
   }
 
   @Test
+  fun `the group-owner admin of a group with other admins is told to pass the role on first, in either mode`() = runTest {
+    sessions.signInAs(SessionUser(5, "member1", null, null, "chapter", 1))
+    members = listOf(GroupMember(5, "Mem One", hasOwnKey = true, holdsGroupKey = true, isMe = true, isOwner = true), GroupMember(6, "River", hasOwnKey = true, holdsGroupKey = true, isMe = false))
+    assertTrue(eraser(EncryptionMode.SERVER).preview().isOwnerWithOthers)
+    members = members.take(1)
+    assertFalse("alone in the group: the role dies with the account, and the server allows it", eraser(EncryptionMode.SERVER).preview().isOwnerWithOthers)
+    members = listOf(GroupMember(5, "Mem One", hasOwnKey = true, holdsGroupKey = false, isMe = true), GroupMember(6, "River", hasOwnKey = true, holdsGroupKey = true, isMe = false, isOwner = true))
+    assertFalse("not the owner", eraser(EncryptionMode.E2E).preview().isOwnerWithOthers)
+  }
+
+  @Test
   fun `the only holder of a group's key is told before they type anything, and who could take it`() = runTest {
     sessions.signInAs(SessionUser(5, "member1", null, null, "chapter", 1))
     members = listOf(GroupMember(5, "Mem One", hasOwnKey = true, holdsGroupKey = true, isMe = true), GroupMember(6, "River", hasOwnKey = true, holdsGroupKey = false, isMe = false), GroupMember(7, "Not yet signed in", hasOwnKey = false, holdsGroupKey = false, isMe = false))

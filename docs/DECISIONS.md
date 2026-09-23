@@ -2,6 +2,16 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-23: "Make owner" is offered only to a holder of the key
+
+**Context.** API PR #115 gives each group one group-owner admin, the only account that hands the key out, takes it back, rotates it, or passes the role on. `PUT /auth/chapter-owner` lets the role go to any group admin of the chapter, holder of the key or not, and answers `holdsGroupKey` so the client knows which.
+
+**Decision.** The page offers "Make owner" only beside a group admin who already holds the key. A group admin who does not is handed the key first (the button they get), and then can be made owner.
+
+**Rejected.** Offering the transfer to everyone and warning: after such a transfer nobody can hand the key to the new owner. The old owner has lost the right, and the new one has nothing to seal it from. Only a superadmin moving the role again gets out of it, and there may be no superadmin to hand at a letter night. A hand-and-transfer in one tap: two requests, and the second may fail after the first succeeded; the same trap, one step later.
+
+**Consequences.** Two taps where the API allows one. The trap itself is reported as PLAN.md ask 27. The controls are gated on the members list's `owner`, not on the loaded key's `isOwner`, because the page has the list in hand and the list is what it shows.
+
 ## 2026-09-22: the split scheme, with a one-time fallback to the password, and a memory per phone
 
 **Context.** API PR #114: the password never reaches the server. The phone derives a wrap key and an auth key from the password; the auth key is sent as the password. With `REQUIRE_SPLIT_AUTH` on, the handshake calls every account "split", and an account made before the scheme can only sign in with its password.

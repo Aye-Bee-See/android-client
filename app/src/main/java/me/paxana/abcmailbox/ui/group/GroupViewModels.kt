@@ -324,6 +324,8 @@ class GroupKeyViewModel @Inject constructor(private val group: GroupRepository, 
 
   fun hand(member: GroupMember) = change(member, strings.get(R.string.notice_key_handed, member.name)) { group.handKeyTo(member.id) }
   fun stop(member: GroupMember) = change(member, strings.get(R.string.notice_key_stopped, member.name)) { group.stopHandingKeyTo(member.id) }
+  /** Only offered for a member who holds the key: an owner who did not could hand it to nobody, not even themselves. */
+  fun makeOwner(member: GroupMember) = change(member, strings.get(R.string.notice_owner_made, member.name)) { when (val r = group.makeOwner(member.id)) { is ApiResult.Success -> ApiResult.Success(Unit); is ApiResult.Failure -> r } }
 
   private fun change(member: GroupMember, done: String, call: suspend () -> ApiResult<Unit>) {
     if (_ui.value.busyMemberId != null) return

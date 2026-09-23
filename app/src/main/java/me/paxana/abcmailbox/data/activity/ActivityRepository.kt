@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.activity
 
+import me.paxana.abcmailbox.data.crypto.GroupKeyring
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -16,6 +17,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import me.paxana.abcmailbox.data.api.ApiResult
+import me.paxana.abcmailbox.data.api.NotificationDto
 import me.paxana.abcmailbox.data.api.NotificationsApi
 import me.paxana.abcmailbox.data.api.apiCall
 import me.paxana.abcmailbox.data.session.SessionRepository
@@ -59,6 +61,7 @@ class DefaultActivityRepository @Inject constructor(
   private val dataStore: DataStore<Preferences>,
   private val notifier: ActivityNotifier,
   private val json: Json,
+  private val keyring: GroupKeyring,
 ) : ActivityRepository {
 
   private val _unread = MutableStateFlow(0)
@@ -80,20 +83,31 @@ class DefaultActivityRepository @Inject constructor(
     if (userId != user) return emptyList() // signed out, or someone else signed in, while the request was in flight
     val entries = envelope.data.orEmpty()
     _unread.value = envelope.unread ?: entries.size
-    val fresh = entries.filter { it.readAt == null }.map { e ->
-      Activity(
-        e.id, Activity.kindOf(e.event, runCatching { e.detail?.get("status")?.jsonPrimitive?.contentOrNull }.getOrNull()), e.chat, e.message,
-        held = runCatching { e.detail?.get("held")?.jsonPrimitive?.intOrNull }.getOrNull() ?: 0,
-        count = (runCatching { e.detail?.get("count")?.jsonPrimitive?.intOrNull }.getOrNull() ?: 1).coerceAtLeast(1),
+    val all = entries.map { e ->
+      e to Activity(
+        e.id, Activity.kindOf(e.event, e.detailText("status"), e.detailText("action")), e.chat, e.message,
+        held = e.detailInt("held") ?: 0,
+        count = (e.detailInt("count") ?: 1).coerceAtLeast(1),
+        // "Your copy was withdrawn" and "you are the owner now" read differently from the same news about somebody else.
+        aboutMe = (e.detailInt("member") ?: e.detailInt("owner"))?.let { it == user } == true,
+        ownerless = e.event == "group.owner" && e.detail?.containsKey("owner") == true && e.detailInt("owner") == null,
       )
     }
+    val fresh = all.filter { (e, _) -> e.readAt == null }.map { it.second }
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }
     if (announce && fresh.isNotEmpty()) {
       // A banner over the app you are already using is noise, and it would leave the screen underneath stale.
       if (_arrivals.subscriptionCount.value > 0) _arrivals.emit(fresh) else notifier.show(fresh)
     }
+    // The group's key changed hands or was replaced: what this phone holds may be stale, so it is loaded again. Every
+    // fetched entry counts, read or not. (An event another device read before this phone asked is not fetched at all,
+    // the query being for unread entries; a key stale that way heals on use, when the server answers KeyVersionError.)
+    if (all.any { it.second.touchesGroupKey }) runCatching { keyring.load(force = true) }
     return fresh
   }
+
+  private fun NotificationDto.detailText(key: String): String? = runCatching { detail?.get(key)?.jsonPrimitive?.contentOrNull }.getOrNull()
+  private fun NotificationDto.detailInt(key: String): Int? = runCatching { detail?.get(key)?.jsonPrimitive?.intOrNull }.getOrNull()
 
   override suspend fun forget(userId: Int) {
     dataStore.edit { it.remove(lastSeenKey(userId)) }

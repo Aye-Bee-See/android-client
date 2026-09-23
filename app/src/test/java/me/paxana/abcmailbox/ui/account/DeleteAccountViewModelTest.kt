@@ -106,6 +106,8 @@ class DeleteAccountViewModelTest {
     assertTrue(messageFor(member(), "member1")!!.startsWith("You are the last person holding your group’s key."))
     assertFalse("the server's sentence names an endpoint; people never see it", messageFor(member(), "member1")!!.contains("PUT"))
     assertTrue(messageFor(admin, "admin")!!.startsWith("This is the only admin account."))
+    val ownerRefusal = ApiResult.Failure(AppError.Conflict("This account is the group-owner admin of Test Chapter, which has other group admins. Make one of them the owner first (PUT /auth/chapter-owner).", "AccountDeleteError"))
+    run { val vm = vm(FakeEraser(ownerRefusal), member()); vm.fillIn(username = "member1"); vm.submit(); dispatcher.scheduler.advanceUntilIdle(); assertTrue(vm.ui.value.error!!.startsWith("You are your group’s group-owner admin")) }
     assertEquals("The server will not delete this account as things stand. Nothing was deleted.", messageFor(writer(), "user1"))
     assertTrue(messageFor(member(), "member1", "ru")!!.startsWith("Вы последний, у кого есть ключ вашей группы."))
     assertTrue(messageFor(member(), "member1", "es")!!.endsWith("No se ha eliminado nada."))

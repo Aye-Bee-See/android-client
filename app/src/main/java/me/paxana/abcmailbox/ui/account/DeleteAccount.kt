@@ -86,7 +86,8 @@ data class DeleteAccountUiState(
    */
   val usernameMatches: Boolean get() = username.isNotEmpty() && typedUsername.trim().equals(username, ignoreCase = true)
   val blockedByGroupKey: Boolean get() = preview?.isLastKeyHolder == true
-  val canSubmit: Boolean get() = !busy && usernameMatches && password.isNotEmpty() && acknowledged && !blockedByGroupKey
+  val blockedByOwnership: Boolean get() = preview?.isOwnerWithOthers == true
+  val canSubmit: Boolean get() = !busy && usernameMatches && password.isNotEmpty() && acknowledged && !blockedByGroupKey && !blockedByOwnership
 }
 
 /**
@@ -143,6 +144,8 @@ class DeleteAccountViewModel @Inject constructor(
               is AppError.Conflict -> strings.get(when {
                 e.name != "AccountDeleteError" -> R.string.error_delete_generic
                 role == AccountRole.ADMIN -> R.string.error_delete_only_admin
+                // Two refusals for a group admin, told apart by the server's sentence until it sends a reason code (PLAN.md, ask 16).
+                s.inGroup && e.info?.contains("owner", ignoreCase = true) == true -> R.string.error_delete_owner
                 s.inGroup -> R.string.error_delete_last_key_holder
                 else -> R.string.error_delete_refused
               })
@@ -185,7 +188,9 @@ fun DeleteAccountScreen(onBack: () -> Unit, onGroupKey: () -> Unit = {}, viewMod
       Bullet(stringResource(R.string.delete_cannot_paper))
       if (ui.inGroup) Bullet(stringResource(R.string.delete_cannot_group))
 
-      if (p != null && p.isLastKeyHolder) LastKeyHolderNotice(p, onGroupKey) else Form(ui, viewModel, onAsk = { confirming = true }, onBack = onBack)
+      if (p != null && p.isLastKeyHolder) LastKeyHolderNotice(p, onGroupKey)
+      else if (p != null && p.isOwnerWithOthers) OwnerNotice(onGroupKey)
+      else Form(ui, viewModel, onAsk = { confirming = true }, onBack = onBack)
     }
   }
 
@@ -200,6 +205,14 @@ fun DeleteAccountScreen(onBack: () -> Unit, onGroupKey: () -> Unit = {}, viewMod
     },
     dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.action_keep_account)) } },
   )
+}
+
+/** The group-owner admin of a chapter with other group admins: pass the role on first (API PR #115). */
+@Composable
+private fun OwnerNotice(onGroupKey: () -> Unit) {
+  SectionTitle(stringResource(R.string.delete_not_yet_heading))
+  AlertBanner(stringResource(R.string.delete_owner_notice))
+  Button(onClick = onGroupKey, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_open_group_key)) }
 }
 
 /** In place of the form: there is no point asking for a password the server is certain to turn down. */

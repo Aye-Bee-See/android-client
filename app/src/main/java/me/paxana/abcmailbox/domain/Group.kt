@@ -25,7 +25,14 @@ data class GroupMember(
   val hasOwnKey: Boolean,
   val holdsGroupKey: Boolean,
   val isMe: Boolean,
+  /** The chapter's group-owner admin: the one who hands the key out, takes it back and passes the role on (API PR #115). */
+  val isOwner: Boolean = false,
+  /** Has keys of their own and is still to be handed the chapter's. */
+  val isWaiting: Boolean = false,
 )
+
+/** What a transfer of ownership answered. */
+data class OwnerChange(val newOwnerId: Int, val holdsGroupKey: Boolean)
 
 data class IssuedToken(val token: String, val expiresAt: Instant?)
 
