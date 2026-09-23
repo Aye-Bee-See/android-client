@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.crypto
 
+import me.paxana.abcmailbox.data.crypto.SplitKeys
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonElement
@@ -40,6 +41,22 @@ class FakeCryptoEngine : CryptoEngine {
   override suspend fun createAccountKeys(password: String) = keyPairFor("PUB-NEW").let { NewAccountKeys(it, fields(it, password, "NEWCODE"), "NEWCODE") }
   override suspend fun rewrapAll(keyPair: Sodium.KeyPair, password: String) = NewAccountKeys(keyPair, fields(keyPair, password, "REWRAPCODE"), "REWRAPCODE")
   override suspend fun wrapForPassword(keyPair: Sodium.KeyPair, password: String) = wrap(keyPair, password)
+
+  // The split scheme, see-through: the "auth key" names the password and salt it came from, and the "wrap key" is a
+  // byte string the fake can recognise. Tests read what was sent and check it is never the password itself.
+  override suspend fun deriveSplit(password: String, salt: String, params: JsonElement) = SplitKeys("wrap($password)with($salt)".toByteArray(), "auth($password)with($salt)")
+  var salts = 0
+  override fun newSalt() = "salt-${++salts}"
+  override fun defaultParams() = KdfParams()
+  private fun splitWrap(kp: Sodium.KeyPair, password: String, salt: String) = WrappedKey("wrapped(${pub(kp)})underwrap($password)with($salt)", salt, KdfParams())
+  override suspend fun createAccountKeysSplit(password: String) = keyPairFor("PUB-NEW").let { kp -> val salt = newSalt(); NewAccountKeys(kp, AccountKeyFields(pub(kp), splitWrap(kp, password, salt), wrap(kp, "NEWCODE")), "NEWCODE", "auth($password)with($salt)") }
+  override suspend fun createAccountKeysUnderWrapKey(wrapKey: ByteArray, salt: String, params: JsonElement) = keyPairFor("PUB-NEW").let { kp -> NewAccountKeys(kp, AccountKeyFields(pub(kp), WrappedKey("wrapped(${pub(kp)})under${String(wrapKey)}", salt, KdfParams()), wrap(kp, "NEWCODE")), "NEWCODE") }
+  override suspend fun rewrapAllSplit(keyPair: Sodium.KeyPair, password: String) = newSalt().let { salt -> NewAccountKeys(keyPair, AccountKeyFields(pub(keyPair), splitWrap(keyPair, password, salt), wrap(keyPair, "REWRAPCODE")), "REWRAPCODE", "auth($password)with($salt)") }
+  override suspend fun wrapForSplitPassword(keyPair: Sodium.KeyPair, password: String) = newSalt().let { salt -> splitWrap(keyPair, password, salt) to "auth($password)with($salt)" }
+  override fun unlockWithWrapKey(publicKey: String, wrapped: String, wrapKey: ByteArray): Sodium.KeyPair {
+    if (wrapped != "wrapped($publicKey)under${String(wrapKey)}") throw IllegalStateException("wrong wrap key")
+    return keyPairFor(publicKey)
+  }
 
   private fun unwrap(publicKey: String, wrapped: String, secret: String): Sodium.KeyPair {
     if (wrapped != "wrapped($publicKey)under($secret)") throw IllegalStateException("wrong secret")

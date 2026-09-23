@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.ui.common.PasswordStrengthMeter
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.asHeading
@@ -101,6 +102,7 @@ fun ClaimScreen(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
         trailingIcon = { TextButton(onClick = viewModel::onToggleShowPassword) { Text(stringResource(if (ui.showPassword) R.string.action_hide else R.string.action_show)) } },
         modifier = Modifier.fillMaxWidth().testTag("claim-password"))
+      PasswordStrengthMeter(ui.password)
       OutlinedTextField(ui.confirm, viewModel::onConfirmChange, label = { Text(stringResource(R.string.label_confirm_password)) }, singleLine = true, enabled = !ui.busy,
         isError = ui.confirm.isNotEmpty() && !ui.passwordsMatch,
         supportingText = { if (ui.confirm.isNotEmpty() && !ui.passwordsMatch) Text(stringResource(R.string.error_passwords_differ)) },

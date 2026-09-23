@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.data.session
 
+import me.paxana.abcmailbox.apiRequestCount
+import me.paxana.abcmailbox.SchemeDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +18,7 @@ import me.paxana.abcmailbox.data.crypto.FakeCryptoEngine
 import me.paxana.abcmailbox.data.crypto.FixedMode
 import me.paxana.abcmailbox.data.crypto.InMemoryVault
 import me.paxana.abcmailbox.next
+import me.paxana.abcmailbox.queue
 import me.paxana.abcmailbox.text.TestStrings
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.mockwebserver.MockResponse
@@ -47,8 +50,9 @@ class DeleteAccountTest {
   @Before
   fun setUp() = runTest {
     server.start()
+    server.dispatcher = SchemeDispatcher()
     val api = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(AuthApi::class.java)
-    repo = DefaultSessionRepository(store, api, SessionCache(), json, FixedMode(EncryptionMode.SERVER), FakeCryptoEngine(), vault, TestScope(UnconfinedTestDispatcher()), TestStrings())
+    repo = DefaultSessionRepository(store, api, SessionCache(), json, FixedMode(EncryptionMode.SERVER), FakeCryptoEngine(), vault, TestScope(UnconfinedTestDispatcher()), TestStrings(), FakeSchemeMemory())
     store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null)))
     vault.store(7, Sodium.KeyPair("PUB".toByteArray(), "PRIV".toByteArray()))
   }
@@ -56,12 +60,12 @@ class DeleteAccountTest {
   @After fun tearDown() = server.shutdown()
 
   /** The sign-in that proves the password, which now comes before every delete request. */
-  private fun passwordAccepted() = server.enqueue(MockResponse().setBody("""{"data":{"user":{"id":7,"username":"carol","role":"user"},"token":{"token":"jwt-2","expires":1}},"success":true,"status":200}"""))
+  private fun passwordAccepted() = server.queue(MockResponse().setBody("""{"data":{"user":{"id":7,"username":"carol","role":"user"},"token":{"token":"jwt-2","expires":1}},"success":true,"status":200}"""))
 
   @Test
   fun `the right password deletes the account, then the phone's share, then the session, in that order`() = runTest {
     passwordAccepted()
-    server.enqueue(MockResponse().setBody("""{"data":{"deleted":1,"letters":3,"replies":1,"attachments":1,"threads":2},"info":"Successfully deleted user.","success":true,"status":200,"name":"user remove"}"""))
+    server.queue(MockResponse().setBody("""{"data":{"deleted":1,"letters":3,"replies":1,"attachments":1,"threads":2},"info":"Successfully deleted user.","success":true,"status":200,"name":"user remove"}"""))
     var wipedFor: Int? = null
     val result = repo.deleteAccount("password1") { id ->
       wipedFor = id
@@ -80,12 +84,12 @@ class DeleteAccountTest {
   @Test
   fun `a wrong password is caught by the phone, and no delete request is ever sent`() = runTest {
     // What the API answers a failed sign-in with. An old server would have deleted the account had it been asked.
-    server.enqueue(MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}"""))
+    server.queue(MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}"""))
     var wiped = false
     val result = repo.deleteAccount("not-it") { wiped = true }
     assertTrue((result as ApiResult.Failure).error is AppError.Forbidden)
     assertEquals("/auth/login", server.next().path)
-    assertEquals("the sign-in was the only request", 1, server.requestCount)
+    assertEquals("the sign-in was the only request", 1, server.apiRequestCount)
     assertTrue("nothing local was touched", !wiped)
     assertNotNull(store.flow.value); assertNotNull(vault.keyPair(7))
   }
@@ -93,7 +97,7 @@ class DeleteAccountTest {
   @Test
   fun `a server that checks the password itself and says no is believed too`() = runTest {
     passwordAccepted()
-    server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"The password is wrong; nothing was deleted.","status":403}"""))
+    server.queue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"The password is wrong; nothing was deleted.","status":403}"""))
     assertTrue((repo.deleteAccount("password1") as ApiResult.Failure).error is AppError.Forbidden)
     assertNotNull(store.flow.value)
   }
@@ -101,7 +105,7 @@ class DeleteAccountTest {
   @Test
   fun `a refusal arrives with its name, and changes nothing`() = runTest {
     passwordAccepted()
-    server.enqueue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"AccountDeleteError","error":"This is the only admin account. Make another admin first, or nobody could run the site.","status":409}"""))
+    server.queue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"AccountDeleteError","error":"This is the only admin account. Make another admin first, or nobody could run the site.","status":409}"""))
     val error = (repo.deleteAccount("password1") as ApiResult.Failure).error
     assertEquals("AccountDeleteError", (error as AppError.Conflict).name)
     assertNotNull(store.flow.value)
@@ -110,7 +114,7 @@ class DeleteAccountTest {
   @Test
   fun `a phone failing to tidy up does not leave the person signed in to an account that is gone`() = runTest {
     passwordAccepted()
-    server.enqueue(MockResponse().setBody("""{"data":{"deleted":1,"letters":0,"replies":0,"attachments":0,"threads":0},"success":true,"status":200,"name":"user remove"}"""))
+    server.queue(MockResponse().setBody("""{"data":{"deleted":1,"letters":0,"replies":0,"attachments":0,"threads":0},"success":true,"status":200,"name":"user remove"}"""))
     val result = repo.deleteAccount("password1") { error("disk full") }
     assertTrue(result is ApiResult.Success)
     assertNull(store.flow.value)

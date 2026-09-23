@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.ui.common.PasswordStrengthMeter
+import me.paxana.abcmailbox.domain.PasswordRules
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -63,7 +65,7 @@ data class RecoverUiState(
   val error: String? = null,
 ) {
   val matches: Boolean get() = password == confirm
-  val canSubmit: Boolean get() = !busy && username.isNotBlank() && code.isNotBlank() && password.length >= 7 && matches
+  val canSubmit: Boolean get() = !busy && username.isNotBlank() && code.isNotBlank() && password.length >= PasswordRules.MIN_LENGTH && matches
 }
 
 @HiltViewModel
@@ -138,6 +140,7 @@ fun RecoverScreen(sessionState: SessionState, onBack: () -> Unit, onClaim: () ->
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
           trailingIcon = { TextButton(onClick = viewModel::onToggleShow) { Text(stringResource(if (ui.show) R.string.action_hide else R.string.action_show)) } },
           modifier = Modifier.fillMaxWidth().testTag("recover-password"))
+      PasswordStrengthMeter(ui.password)
         OutlinedTextField(ui.confirm, viewModel::onConfirm, label = { Text(stringResource(R.string.label_confirm_new_password)) }, singleLine = true, enabled = !ui.busy, visualTransformation = transform,
           isError = ui.confirm.isNotEmpty() && !ui.matches,
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth().testTag("recover-confirm"))

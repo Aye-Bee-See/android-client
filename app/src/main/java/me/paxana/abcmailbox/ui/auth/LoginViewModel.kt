@@ -63,5 +63,7 @@ internal fun AppError.toLoginMessage(strings: Strings): String = when (this) {
   is AppError.RateLimited -> info ?: retryAfterSeconds?.let { strings.plural(R.plurals.error_rate_limited_minutes, ((it + 59) / 60).toInt()) } ?: strings.get(R.string.error_too_many_sign_ins)
   is AppError.Validation -> errors.joinToString(" ")
   is AppError.Network -> strings.get(R.string.error_network)
+  // The server refused the form the password came in (API PR #114): a scheme this app does not speak, or one it fell behind on.
+  is AppError.Conflict -> if (name == "AuthSchemeError") strings.get(R.string.error_scheme_refused) else userMessage ?: strings.get(R.string.error_generic)
   else -> userMessage ?: strings.get(R.string.error_generic)
 }

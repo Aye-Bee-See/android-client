@@ -19,6 +19,14 @@ import retrofit2.http.Query
  */
 interface AuthApi {
 
+  /**
+   * Step one of signing in (API PR #114): which scheme the account uses and, for the split scheme, the salt and
+   * recipe the device derives its keys with. Public. For an unknown name the answer is a made-up but stable salt,
+   * so it never says whether an account exists. Absent from an older API (404): then everything is `plain`.
+   */
+  @GET("auth/login-params")
+  suspend fun loginParams(@Query("username") username: String): ApiEnvelope<LoginParamsDto>
+
   @POST("auth/login")
   suspend fun login(@Body body: LoginRequest): ApiEnvelope<LoginData>
 
@@ -100,6 +108,8 @@ data class ClaimRequest(
   val recoveryWrappedPrivateKey: String? = null,
   val recoverySalt: String? = null,
   val recoveryKdfParams: KdfParams? = null,
+  /** `"split"`: `password` is the auth key, derived with `kdfSalt`/`kdfParams` (API PR #114). Absent means plain. */
+  val authScheme: String? = null,
 )
 
 @Serializable
@@ -117,6 +127,8 @@ data class UpdateUserRequest(
   val publicKey: String? = null,
   val orgWrappedPrivateKey: String? = null,
   val orgKeyVersion: Int? = null,
+  /** `"split"`: `password` is the auth key, derived with `kdfSalt`/`kdfParams` (API PR #114). Absent means plain. */
+  val authScheme: String? = null,
 )
 
 @Serializable
@@ -124,6 +136,11 @@ data class UpdateUserData(val token: TokenDto? = null)
 
 @Serializable
 data class LoginRequest(val username: String, val password: String)
+
+@Serializable
+data class LoginParamsDto(val scheme: String? = null, val kdfSalt: String? = null, val kdfParams: JsonElement? = null) {
+  val isSplit: Boolean get() = scheme == "split" && kdfSalt != null && kdfParams != null
+}
 
 @Serializable
 data class DeleteAccountRequest(val id: Int, val password: String? = null)
@@ -199,6 +216,8 @@ data class RecoverFinishRequest(
   val recoveryWrappedPrivateKey: String? = null,
   val recoverySalt: String? = null,
   val recoveryKdfParams: KdfParams? = null,
+  /** `"split"`: `password` is the auth key, derived with `kdfSalt`/`kdfParams` (API PR #114). Absent means plain. */
+  val authScheme: String? = null,
 )
 
 @Serializable

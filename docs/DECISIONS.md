@@ -2,6 +2,16 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-22: the split scheme, with a one-time fallback to the password, and a memory per phone
+
+**Context.** API PR #114: the password never reaches the server. The phone derives a wrap key and an auth key from the password; the auth key is sent as the password. With `REQUIRE_SPLIT_AUTH` on, the handshake calls every account "split", and an account made before the scheme can only sign in with its password.
+
+**Decision.** Three rules, in order of precedence. (1) A name this phone has signed in to as split is never signed in to as plain, whatever the server answers: the refusal names the account and sends nothing. (2) Otherwise the phone does what the handshake says; a refused auth key is followed by the password itself, once. (3) An API that does not have the handshake (404) is an older one, and everything on it is plain. Wherever a password is *set*, it is set split when the server knows the scheme, including in server mode with no keys to wrap.
+
+**Rejected.** Sending the password when the handshake says "split" and the account turns out plain, *without* trying the auth key first: the auth key is the only thing a split account accepts, and trying it first costs nothing but a derivation. Never falling back: then no account from before could sign in from a new phone under the flag. Remembering "plain" as well as "split": a plain memory would stop an account moving to split from another device.
+
+**Consequences.** Under the flag, a mistyped password on a phone that does not know the account goes to the server in plain (PLAN.md, ask 23). The password rules are the app's now: `PasswordRules.MIN_LENGTH` and the meter; the server checks only the auth key's shape. `SchemeMemory` is never cleared by signing out or by deleting an account; a factory reset clears it.
+
 ## 2026-09-20: a held letter is shown as "On hold", and sending again is the compose screen
 
 **Context.** API PR #106 holds a queued letter when nothing can be decided for its writer (the person was moved to a facility with several relay groups, or was freed, or, end-to-end, the letter is sealed for a group that no longer serves them). On the server a hold is deliberately not a status: the letter stays `queued`, so the lifecycle and every status filter are untouched. PR #105 lets a returned letter be sent again as a new letter that names it.

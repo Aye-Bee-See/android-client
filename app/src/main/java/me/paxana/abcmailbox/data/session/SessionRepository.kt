@@ -1,5 +1,9 @@
 package me.paxana.abcmailbox.data.session
 
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.JsonElement
+import me.paxana.abcmailbox.crypto.KdfParams
+import me.paxana.abcmailbox.data.crypto.SplitKeys
 import me.paxana.abcmailbox.data.api.DeletionReportDto
 import me.paxana.abcmailbox.data.api.DeleteAccountRequest
 import kotlinx.coroutines.withContext
@@ -100,6 +104,8 @@ interface SessionRepository {
  * one screen.
  */
 @Singleton
+private const val SPLIT = "split"
+
 class DefaultSessionRepository @Inject constructor(
   private val store: SessionStore,
   private val api: AuthApi,
@@ -110,6 +116,7 @@ class DefaultSessionRepository @Inject constructor(
   private val vault: KeyVault,
   @ApplicationScope private val scope: CoroutineScope,
   private val strings: Strings,
+  private val schemes: SchemeMemory,
 ) : SessionRepository {
 
   private val _pendingRecoveryCode = MutableStateFlow<String?>(null)
@@ -147,17 +154,67 @@ class DefaultSessionRepository @Inject constructor(
     }
   }
 
-  override suspend fun login(username: String, password: String): ApiResult<Session> {
-    val response = when (val r = apiCall(json) { api.login(LoginRequest(username.trim(), password)) }) {
-      is ApiResult.Failure -> return r
-      is ApiResult.Success -> checkNotNull(r.value.data) { "login response had no data" }
+  /**
+   * What goes to the server as the password (API PR #114). For a split account it is the auth key, derived here
+   * from the password and the account's salt; the password itself never leaves the phone. For an account made
+   * before the split scheme it is the password, as it always was. The wrap key comes with it, for the private key.
+   */
+  private class Credential(val serverPassword: String, val split: SplitKeys?, val salt: String?, val params: JsonElement?) {
+    val isSplit: Boolean get() = split != null
+    fun wipe() = split?.wipe()
+  }
+
+  private suspend fun credential(username: String, password: String): ApiResult<Credential> {
+    val params = when (val r = apiCall(json) { api.loginParams(username) }) {
+      is ApiResult.Success -> r.value.data
+      // An API from before PR #114 has no such address: every account on it is plain.
+      is ApiResult.Failure -> if (r.error is AppError.NotFound) null else return r
     }
-    val session = response.toSession()
-    // Set the token for the interceptor now; the stored-session flow would only get there a moment later.
-    cache.token = session.token
-    store.save(session)
-    if (modes.current() == EncryptionMode.E2E) prepareKeys(session, response.keys, password)
-    return ApiResult.Success(session)
+    if (params?.isSplit == true) {
+      val keys = engine.deriveSplit(password, params.kdfSalt!!, params.kdfParams!!)
+      return ApiResult.Success(Credential(keys.authKey, keys, params.kdfSalt, params.kdfParams))
+    }
+    // This phone has signed in to this name without sending the password. A server that now asks for the password
+    // itself is not the server this account was made on, or has been tampered with. Nothing is sent.
+    if (schemes.isKnownSplit(username)) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_scheme_downgrade, username)))
+    return ApiResult.Success(Credential(password, null, null, null))
+  }
+
+  /** Whether the server knows the split scheme at all. Null when it could not be asked. */
+  private suspend fun splitSupported(username: String): ApiResult<Boolean> = when (val r = apiCall(json) { api.loginParams(username) }) {
+    is ApiResult.Success -> ApiResult.Success(true)
+    is ApiResult.Failure -> if (r.error is AppError.NotFound) ApiResult.Success(false) else r
+  }
+
+  override suspend fun login(username: String, password: String): ApiResult<Session> {
+    val name = username.trim()
+    val cred = when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+    try {
+      var used = cred
+      var attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }
+      // Once REQUIRE_SPLIT_AUTH is on, the server says "split" for every name so as to say nothing about any of
+      // them, and an account made before the scheme can only sign in with the password itself. So a refused auth
+      // key is followed, once, by the password, but only for a name this phone has never known as split: for a
+      // known one the refusal stands, and the password stays here. (A mistyped password on a new phone does reach
+      // the server this way; PLAN.md, ask 23.)
+      if (attempt is ApiResult.Failure && attempt.error is AppError.Unauthorized && cred.isSplit && !schemes.isKnownSplit(name)) {
+        used = Credential(password, null, null, null)
+        attempt = apiCall(json) { api.login(LoginRequest(name, password)) }
+      }
+      val response = when (attempt) {
+        is ApiResult.Failure -> return attempt
+        is ApiResult.Success -> checkNotNull(attempt.value.data) { "login response had no data" }
+      }
+      val session = response.toSession()
+      // Set the token for the interceptor now; the stored-session flow would only get there a moment later.
+      cache.token = session.token
+      store.save(session)
+      if (used.isSplit) schemes.rememberSplit(name)
+      if (modes.current() == EncryptionMode.E2E) prepareKeys(session, response.keys, password, used)
+      return ApiResult.Success(session)
+    } finally {
+      cred.wipe()
+    }
   }
 
   /**
@@ -168,13 +225,16 @@ class DefaultSessionRepository @Inject constructor(
    * recovery code is then shown once. A failure leaves the account signed in
    * but locked, and the inbox offers to unlock.
    */
-  private suspend fun prepareKeys(session: Session, bundle: KeyBundleDto?, password: String) {
+  private suspend fun prepareKeys(session: Session, bundle: KeyBundleDto?, password: String, cred: Credential) {
     val userId = session.user.id
     runCatching {
       if (bundle?.hasKeys == true) {
-        vault.store(userId, engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!))
+        // Split: the wrap key from this very sign-in opens it. Plain: the password does, as before.
+        vault.store(userId, cred.split?.let { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, it.wrapKey) }
+          ?: engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!))
       } else {
-        val fresh = engine.createAccountKeys(password)
+        // A split account keeps its sign-in salt: the keys are wrapped under the wrap key of that same derivation.
+        val fresh = cred.split?.let { engine.createAccountKeysUnderWrapKey(it.wrapKey, cred.salt!!, cred.params!!) } ?: engine.createAccountKeys(password)
         val sent = apiCall(json) { api.putKeys(fresh.fields.toRequest()) }
         if (sent is ApiResult.Success) {
           vault.store(userId, fresh.keyPair)
@@ -218,6 +278,8 @@ class DefaultSessionRepository @Inject constructor(
   override suspend fun claim(token: String, username: String, password: String, email: String?): ApiResult<Session> {
     var request = ClaimRequest(token, username.trim(), password, email?.trim()?.ifBlank { null })
     var recoveryCode: String? = null
+    // Every new account is split where the server knows the scheme (API PR #114).
+    val split = when (val r = splitSupported(username.trim())) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
     val material = lastClaim?.takeIf { it.first == token }?.second?.takeIf { it.hasKeyMaterial }
     if (material != null) {
       // End-to-end: the group made this keypair. Open it with the token, then re-wrap the very same
@@ -225,16 +287,22 @@ class DefaultSessionRepository @Inject constructor(
       // the keypair does not change; the group's copy is deleted by the server on claim.
       val fresh = try {
         val keyPair = engine.unlockWithCode(material.publicKey!!, material.claimWrappedPrivateKey!!, token, material.claimSalt!!, material.claimKdfParams!!)
-        engine.rewrapAll(keyPair, password)
+        if (split) engine.rewrapAllSplit(keyPair, password) else engine.rewrapAll(keyPair, password)
       } catch (e: Exception) {
         return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_token_wrong_key))))
       }
       recoveryCode = fresh.recoveryCode
       val f = fresh.fields
       request = request.copy(
+        password = fresh.authKey ?: password, authScheme = SPLIT.takeIf { split },
         wrappedPrivateKey = f.password.wrapped, kdfSalt = f.password.salt, kdfParams = f.password.params,
         recoveryWrappedPrivateKey = f.recovery.wrapped, recoverySalt = f.recovery.salt, recoveryKdfParams = f.recovery.params,
       )
+    } else if (split) {
+      // No keys to wrap (server mode), but the password still never leaves the phone: an auth key under a fresh salt.
+      val salt = engine.newSalt(); val params = engine.defaultParams()
+      val keys = engine.deriveSplit(password, salt, json.encodeToJsonElement(KdfParams.serializer(), params))
+      request = request.copy(password = keys.authKey, authScheme = SPLIT, kdfSalt = salt, kdfParams = params).also { keys.wipe() }
     }
     return when (val claimed = apiCall(json) { api.claim(request) }) {
       is ApiResult.Failure -> claimed
@@ -245,8 +313,8 @@ class DefaultSessionRepository @Inject constructor(
   override suspend fun changePassword(current: String, new: String): ApiResult<Unit> {
     val session = (state.value as? SessionState.SignedIn)?.session
       ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
-    // The API does not ask for the current password, so confirm it by signing in with it.
-    when (val check = apiCall(json) { api.login(LoginRequest(session.user.username, current)) }) {
+    // The API does not ask for the current password, so confirm it by signing in with it (in whichever scheme the account uses).
+    when (val check = login(session.user.username, current)) {
       is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) {
         ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_current_password_wrong))))
       } else {
@@ -254,16 +322,28 @@ class DefaultSessionRepository @Inject constructor(
       }
       is ApiResult.Success -> Unit
     }
+    // The new password goes split wherever the server knows the scheme: this is how an account made before it moves.
+    val split = when (val r = splitSupported(session.user.username)) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
     var request = UpdateUserRequest(id = session.user.id, password = new)
     if (modes.current() == EncryptionMode.E2E) {
-      // The private key is wrapped under the password, so a new password means a new wrapping.
+      // The private key is wrapped under the password (or, split, under a key derived beside the auth key), so a new password means a new wrapping.
       val keyPair = vault.keyPair(session.user.id) ?: return ApiResult.Failure(lockedError(strings))
-      val w = engine.wrapForPassword(keyPair, new)
-      request = request.copy(wrappedPrivateKey = w.wrapped, kdfSalt = w.salt, kdfParams = w.params)
+      if (split) {
+        val (w, authKey) = engine.wrapForSplitPassword(keyPair, new)
+        request = request.copy(password = authKey, authScheme = SPLIT, wrappedPrivateKey = w.wrapped, kdfSalt = w.salt, kdfParams = w.params)
+      } else {
+        val w = engine.wrapForPassword(keyPair, new)
+        request = request.copy(wrappedPrivateKey = w.wrapped, kdfSalt = w.salt, kdfParams = w.params)
+      }
+    } else if (split) {
+      val salt = engine.newSalt(); val params = engine.defaultParams()
+      val keys = engine.deriveSplit(new, salt, json.encodeToJsonElement(KdfParams.serializer(), params))
+      request = request.copy(password = keys.authKey, authScheme = SPLIT, kdfSalt = salt, kdfParams = params).also { keys.wipe() }
     }
     return when (val r = apiCall(json) { api.updateUser(request) }) {
       is ApiResult.Failure -> r
       is ApiResult.Success -> {
+        if (split) schemes.rememberSplit(session.user.username)
         // Every older token (including the one just used) is dead now; keep this device signed in.
         r.value.data?.token?.let { store.save(session.copy(token = it.token, expiresAtMillis = it.expires)) }
         ApiResult.Success(Unit)
@@ -278,11 +358,13 @@ class DefaultSessionRepository @Inject constructor(
     // ignores the password on this endpoint and deletes anyway (seen for real: a server that had not been
     // restarted since the merge). Signing in with it first means a wrong password can never delete anything,
     // whatever is on the other end. The token that sign-in issues is never stored; it goes with the account.
-    when (val check = apiCall(json) { api.login(LoginRequest(session.user.username, password)) }) {
+    val cred = when (val c = credential(session.user.username, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
+    cred.wipe() // only what the server checks is needed here
+    when (val check = apiCall(json) { api.login(LoginRequest(session.user.username, cred.serverPassword)) }) {
       is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_delete_wrong_password))) else check
       is ApiResult.Success -> Unit
     }
-    return when (val r = apiCall(json) { api.deleteUser(DeleteAccountRequest(session.user.id, password)) }) {
+    return when (val r = apiCall(json) { api.deleteUser(DeleteAccountRequest(session.user.id, cred.serverPassword)) }) {
       is ApiResult.Failure -> r
       is ApiResult.Success -> withContext(NonCancellable) {
         // NonCancellable: the account is gone whatever happens next. A ViewModel scope cancelled half way
@@ -303,11 +385,15 @@ class DefaultSessionRepository @Inject constructor(
       is ApiResult.Success -> r.value.data
     }
     if (bundle?.hasKeys != true) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_no_keys_yet))))
+    val cred = when (val c = credential(session.user.username, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
     return try {
-      vault.store(session.user.id, engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!))
+      vault.store(session.user.id, cred.split?.let { engine.unlockWithWrapKey(bundle.publicKey!!, bundle.wrappedPrivateKey!!, it.wrapKey) }
+        ?: engine.unlockWithPassword(bundle.publicKey!!, bundle.wrappedPrivateKey!!, password, bundle.kdfSalt!!, bundle.kdfParams!!))
       ApiResult.Success(Unit)
     } catch (e: Exception) {
       ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open))))
+    } finally {
+      cred.wipe()
     }
   }
 
@@ -323,8 +409,15 @@ class DefaultSessionRepository @Inject constructor(
     }
     // Opening the sealed challenge proves to the server that we hold the private key.
     val challenge = engine.openChallenge(start.sealedChallenge, keyPair)
-    val w = engine.wrapForPassword(keyPair, newPassword)
-    val finished = apiCall(json) { api.recoverFinish(RecoverFinishRequest(username.trim(), challenge, newPassword, w.wrapped, w.salt, w.params)) }
+    val split = when (val r = splitSupported(username.trim())) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
+    val finish = if (split) {
+      val (w, authKey) = engine.wrapForSplitPassword(keyPair, newPassword)
+      RecoverFinishRequest(username.trim(), challenge, authKey, w.wrapped, w.salt, w.params, authScheme = SPLIT)
+    } else {
+      val w = engine.wrapForPassword(keyPair, newPassword)
+      RecoverFinishRequest(username.trim(), challenge, newPassword, w.wrapped, w.salt, w.params)
+    }
+    val finished = apiCall(json) { api.recoverFinish(finish) }
     return when (finished) {
       is ApiResult.Failure -> finished
       is ApiResult.Success -> login(username, newPassword)

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.auth
 
+import me.paxana.abcmailbox.domain.PasswordRules
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
@@ -36,7 +37,7 @@ data class ClaimUiState(
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && token.isNotBlank()
-  val canClaim: Boolean get() = !busy && info != null && username.trim().length in 3..16 && password.length >= 7 && passwordsMatch && understood
+  val canClaim: Boolean get() = !busy && info != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && understood
 }
 
 /**
