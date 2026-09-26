@@ -146,7 +146,8 @@ fun ThreadRow(t: Thread, onClick: () -> Unit, showWriter: Boolean = false) {
 private fun UnlockPrompt(viewModel: UnlockViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    Text(stringResource(R.string.unlock_explained))
+    // Only a split account can be promised the password stays here: unlocking one with no key yet signs in again.
+    Text(stringResource(if (ui.passwordStaysOnPhone) R.string.unlock_explained else R.string.unlock_explained_older))
     OutlinedTextField(
       value = ui.password, onValueChange = viewModel::onPassword, label = { Text(stringResource(R.string.label_password)) }, singleLine = true, enabled = !ui.busy,
       visualTransformation = PasswordVisualTransformation(),
