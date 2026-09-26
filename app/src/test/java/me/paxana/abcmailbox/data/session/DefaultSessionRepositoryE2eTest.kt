@@ -65,43 +65,87 @@ class DefaultSessionRepositoryE2eTest {
   private fun body(i: Int = 0) = json.parseToJsonElement(server.next().also { repeat(i) { } }.body.readUtf8()).jsonObject
 
   @Test
-  fun `first sign-in on an end-to-end server creates keys, uploads all seven fields, and queues the recovery code`() = runTest {
+  fun `first sign-in on an end-to-end server makes keys and shows the code, and uploads all seven fields only once it is saved`() = runTest {
     server.queue(MockResponse().setBody(login(noKeys)))
-    server.queue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     assertTrue(repo.login("carol", "carolpass") is ApiResult.Success)
-
     assertEquals("/auth/login", server.next().path)
+    assertEquals("nothing goes up before the code is saved", 1, server.apiRequestCount)
+    assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
+    assertNull("locked until then", vault.keyPair(7))
+
+    server.queue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    assertEquals(ApiResult.Success(0), repo.recoveryCodeSaved())
     val put = server.next()
     assertEquals("PUT", put.method); assertEquals("/auth/keys", put.path)
     val sent = json.parseToJsonElement(put.body.readUtf8()).jsonObject
     assertEquals(setOf("publicKey", "wrappedPrivateKey", "kdfSalt", "kdfParams", "recoveryWrappedPrivateKey", "recoverySalt", "recoveryKdfParams"), sent.keys)
     assertEquals("wrapped(PUB-NEW)under(carolpass)", sent["wrappedPrivateKey"]!!.jsonPrimitive.content)
     assertEquals("""{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864}""", sent["kdfParams"].toString())
-
-    assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
     assertNotNull(vault.keyPair(7))
-    assertEquals(0, repo.lettersCaughtUp.value)
-    repo.recoveryCodeSaved()
     assertNull(repo.pendingRecoveryCode.value)
   }
 
   @Test
-  fun `letters the server sealed to the new key are counted for the recovery code screen, then forgotten with it`() = runTest {
+  fun `letters the server sealed to the new key are counted, and a caughtUp of null counts as none`() = runTest {
     server.queue(MockResponse().setBody(login(noKeys)))
-    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-NEW","caughtUp":{"letters":4,"sealed":3,"dropped":3}},"success":true,"status":200}"""))
     repo.login("carol", "carolpass")
-    assertEquals(3, repo.lettersCaughtUp.value)
-    repo.recoveryCodeSaved()
-    assertEquals(0, repo.lettersCaughtUp.value)
+    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-NEW","caughtUp":{"letters":4,"sealed":3,"dropped":3}},"success":true,"status":200}"""))
+    assertEquals(ApiResult.Success(3), repo.recoveryCodeSaved())
+
+    repo.logout()
+    server.queue(MockResponse().setBody(login(noKeys)))
+    repo.login("carol", "carolpass")
+    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-NEW","caughtUp":null},"success":true,"status":200}"""))
+    assertEquals(ApiResult.Success(0), repo.recoveryCodeSaved())
   }
 
   @Test
-  fun `a caughtUp of null, once the server holds no keys, counts as none`() = runTest {
+  fun `an upload that fails keeps the same code and keys, and the next try sends the very same fields`() = runTest {
     server.queue(MockResponse().setBody(login(noKeys)))
-    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-NEW","caughtUp":null},"success":true,"status":200}"""))
-    repo.login("carol", "carolpass")
+    repo.login("carol", "carolpass"); server.next()
+    server.queue(MockResponse().setResponseCode(503).setBody("""{"success":false,"name":"ServerError","info":"Starting","status":503}"""))
+    assertTrue(repo.recoveryCodeSaved() is ApiResult.Failure)
+    val first = server.next().body.readUtf8()
     assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
-    assertEquals(0, repo.lettersCaughtUp.value)
+    assertNull(vault.keyPair(7))
+
+    server.queue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    assertTrue(repo.recoveryCodeSaved() is ApiResult.Success)
+    assertEquals(first, server.next().body.readUtf8())
+    assertNotNull(vault.keyPair(7))
+  }
+
+  @Test
+  fun `a key set by another device first forgets this code and leaves the account to unlock with its password`() = runTest {
+    server.queue(MockResponse().setBody(login(noKeys)))
+    repo.login("carol", "carolpass")
+    server.queue(MockResponse().setResponseCode(409).setBody("""{"success":false,"name":"KeyChangeError","info":"The public key is already set and cannot change; envelopes are sealed to it.","status":409}"""))
+    val r = repo.recoveryCodeSaved() as ApiResult.Failure
+    assertTrue(r.error is AppError.Conflict)
+    assertNull(repo.pendingRecoveryCode.value)
+    assertNull(vault.keyPair(7))
+    assertTrue(repo.keysLocked.value)
+  }
+
+  @Test
+  fun `unlocking an account that never got its key signs in again and makes the key and a code, as a first sign-in does`() = runTest {
+    // The app was stopped on the code screen: signed in, nothing uploaded, nothing on the phone.
+    server.queue(MockResponse().setBody(login(noKeys)))
+    repo.login("carol", "carolpass"); server.next()
+
+    // A wrong password is refused by the server, and said as this prompt says one.
+    server.queue(MockResponse().setBody("""{"data":$noKeys,"success":true,"status":200}"""))
+    server.queue(MockResponse().setResponseCode(401).setBody("""{"success":false,"name":"AuthenticationError","info":"Unauthorized","status":401}"""))
+    val refused = repo.unlock("not-it") as ApiResult.Failure
+    assertEquals("That password does not open your letters.", refused.error.userMessage)
+    server.next(); server.next()
+
+    server.queue(MockResponse().setBody("""{"data":$noKeys,"success":true,"status":200}"""))
+    server.queue(MockResponse().setBody(login(noKeys)))
+    assertTrue(repo.unlock("carolpass") is ApiResult.Success)
+    assertEquals("/auth/keys", server.next().path)
+    assertEquals("/auth/login", server.next().path)
+    assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
   }
 
   @Test

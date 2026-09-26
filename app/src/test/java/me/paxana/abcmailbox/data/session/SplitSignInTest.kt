@@ -88,11 +88,12 @@ class SplitSignInTest {
     server.queue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
     repo.login("carol", "carolpass")
     server.next()
+    assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
+    repo.recoveryCodeSaved() // the keys go up once the code is saved
     val put = server.next(); assertEquals("/auth/keys", put.path)
     val sent = json.parseToJsonElement(put.body.readUtf8()).jsonObject
     assertEquals("wrapped(PUB-NEW)underwrap(carolpass)with(SALT)", field(sent, "wrappedPrivateKey"))
     assertEquals("the same salt the auth key came from", "SALT", field(sent, "kdfSalt"))
-    assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
   }
 
   @Test

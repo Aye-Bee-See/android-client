@@ -1,7 +1,6 @@
 package me.paxana.abcmailbox.ui.auth
 
 import me.paxana.abcmailbox.R
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.SecretCodeText
 import me.paxana.abcmailbox.ui.common.asHeading
@@ -45,10 +44,12 @@ import me.paxana.abcmailbox.ui.common.AlertBanner
  * Shown exactly once, right after keys are created or an account is claimed.
  * The code is the only way back in if the password is lost, and nobody else
  * has it, so the screen cannot be left without ticking the box: the system
- * back gesture is swallowed on purpose.
+ * back gesture is swallowed on purpose. Keys made at sign-in are uploaded by
+ * Continue ([busy] while that happens); if that fails, [error] says why and
+ * the same code stays on screen for another try.
  */
 @Composable
-fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, lettersCaughtUp: Int = 0) {
+fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, busy: Boolean = false, error: String? = null) {
   var saved by rememberSaveable { mutableStateOf(false) }
   val clipboard = LocalClipboardManager.current
   BackHandler(enabled = true) { }
@@ -62,8 +63,6 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, lettersCaughtUp: Int =
       stringResource(R.string.recovery_explained),
       style = MaterialTheme.typography.bodyLarge,
     )
-    // Letters written to them before they had keys, which the server has just sealed to the new key.
-    if (lettersCaughtUp > 0) Text(pluralStringResource(R.plurals.recovery_letters_caught_up, lettersCaughtUp, lettersCaughtUp), style = MaterialTheme.typography.bodyLarge)
     SecretCodeText(code, modifier = Modifier.testTag("recovery-code"))
     OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(code))) }) { Text(stringResource(R.string.action_copy)) }
     AlertBanner(stringResource(R.string.recovery_keep_safe))
@@ -75,6 +74,9 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, lettersCaughtUp: Int =
       Checkbox(checked = saved, onCheckedChange = null)
       Text(stringResource(R.string.recovery_saved), style = MaterialTheme.typography.bodyMedium)
     }
-    Button(onClick = onSaved, enabled = saved, modifier = Modifier.fillMaxWidth().testTag("recovery-continue")) { Text(stringResource(R.string.action_continue)) }
+    error?.let { Text(stringResource(R.string.error_recovery_upload, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+    Button(onClick = onSaved, enabled = saved && !busy, modifier = Modifier.fillMaxWidth().testTag("recovery-continue")) {
+      Text(stringResource(if (busy) R.string.recovery_uploading else R.string.action_continue))
+    }
   }
 }

@@ -14,7 +14,13 @@ import me.paxana.abcmailbox.data.repo.DirectorySource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import me.paxana.abcmailbox.data.api.ApiResult
+import me.paxana.abcmailbox.data.api.AppError
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.crypto.EncryptionMode
@@ -53,7 +59,20 @@ class SessionViewModel @Inject constructor(
   val state: StateFlow<SessionState> = repository.state
   val expired: SharedFlow<Unit> = repository.expired
   val pendingRecoveryCode: StateFlow<String?> = repository.pendingRecoveryCode
-  val lettersCaughtUp: StateFlow<Int> = repository.lettersCaughtUp
+  /** The recovery code screen's upload: under way, or what went wrong (the code stays on screen for another try). */
+  data class RecoveryUpload(val busy: Boolean = false, val error: AppError? = null)
+  private val _recoveryUpload = MutableStateFlow(RecoveryUpload())
+  val recoveryUpload: StateFlow<RecoveryUpload> = _recoveryUpload.asStateFlow()
+
+  /** Told in a line at the bottom once the code screen has gone. */
+  sealed interface RecoveryOutcome {
+    /** The keys are up, and the server sealed this many earlier letters to them. */
+    data class Uploaded(val lettersCaughtUp: Int) : RecoveryOutcome
+    /** Another device set this account's key first: the code just shown opens nothing. */
+    data object KeysMadeElsewhere : RecoveryOutcome
+  }
+  private val _recoveryOutcome = MutableSharedFlow<RecoveryOutcome>(extraBufferCapacity = 1)
+  val recoveryOutcome: SharedFlow<RecoveryOutcome> = _recoveryOutcome.asSharedFlow()
   val keysLocked: StateFlow<Boolean> = repository.keysLocked
   val mode: StateFlow<EncryptionMode> = modes.mode
 
@@ -68,5 +87,17 @@ class SessionViewModel @Inject constructor(
     viewModelScope.launch { repository.state.collect { if (it is SessionState.SignedIn && outbox.hasWaiting()) outboxScheduler.schedule() } }
   }
 
-  fun recoveryCodeSaved() = repository.recoveryCodeSaved()
+  fun recoveryCodeSaved() {
+    if (_recoveryUpload.value.busy) return
+    _recoveryUpload.value = RecoveryUpload(busy = true)
+    viewModelScope.launch {
+      val r = repository.recoveryCodeSaved()
+      // Whatever happened, a code that is gone (uploaded, made elsewhere, or the session ended) leaves nothing to show.
+      _recoveryUpload.value = if (r is ApiResult.Failure && repository.pendingRecoveryCode.value != null) RecoveryUpload(error = r.error) else RecoveryUpload()
+      when {
+        r is ApiResult.Success && r.value > 0 -> _recoveryOutcome.emit(RecoveryOutcome.Uploaded(r.value))
+        r is ApiResult.Failure && r.error is AppError.Conflict -> _recoveryOutcome.emit(RecoveryOutcome.KeysMadeElsewhere)
+      }
+    }
+  }
 }

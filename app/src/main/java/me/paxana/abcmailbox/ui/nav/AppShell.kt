@@ -196,7 +196,9 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val passwordChangedSignedIn = stringResource(R.string.notice_password_changed_signed_in)
 
   val pendingCode by viewModel.pendingRecoveryCode.collectAsStateWithLifecycle()
-  val lettersCaughtUp by viewModel.lettersCaughtUp.collectAsStateWithLifecycle()
+  val recoveryUpload by viewModel.recoveryUpload.collectAsStateWithLifecycle()
+  val keysMadeElsewhere = stringResource(R.string.notice_keys_made_elsewhere)
+  val cannotReach = stringResource(R.string.error_network)
   val keysLocked by viewModel.keysLocked.collectAsStateWithLifecycle()
   val mode by viewModel.mode.collectAsStateWithLifecycle()
   val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
@@ -212,6 +214,14 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
 
   LaunchedEffect(Unit) {
     viewModel.expired.collect { snackbar.showSnackbar(sessionEnded) }
+  }
+  LaunchedEffect(Unit) {
+    viewModel.recoveryOutcome.collect { outcome ->
+      snackbar.showSnackbar(when (outcome) {
+        is SessionViewModel.RecoveryOutcome.Uploaded -> newsStrings.plural(R.plurals.recovery_letters_caught_up, outcome.lettersCaughtUp)
+        SessionViewModel.RecoveryOutcome.KeysMadeElsewhere -> keysMadeElsewhere
+      }, duration = SnackbarDuration.Long)
+    }
   }
 
   // A recovery code was just created (first sign-in on an end-to-end server, a claim, a join): it takes over the
@@ -478,7 +488,10 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
         // null code, while it animates out.
         val code = pendingCode
         if (code == null) LaunchedEffect(Unit) { navController.popBackStack<RecoveryCodeRoute>(inclusive = true) }
-        else RecoveryCodeScreen(code = code, lettersCaughtUp = lettersCaughtUp, onSaved = { viewModel.recoveryCodeSaved() })
+        else RecoveryCodeScreen(
+          code = code, busy = recoveryUpload.busy, error = recoveryUpload.error?.let { it.userMessage ?: cannotReach },
+          onSaved = { viewModel.recoveryCodeSaved() },
+        )
       }
     }
     } // Column: banner above the NavHost

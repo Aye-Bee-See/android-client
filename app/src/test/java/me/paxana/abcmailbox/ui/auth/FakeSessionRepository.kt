@@ -70,8 +70,7 @@ class FakeSessionRepository(
   }
 
   override val pendingRecoveryCode = MutableStateFlow<String?>(null)
-  override val lettersCaughtUp = MutableStateFlow(0)
-  override fun recoveryCodeSaved() { pendingRecoveryCode.value = null }
+  override suspend fun recoveryCodeSaved(): ApiResult<Int> { pendingRecoveryCode.value = null; return ApiResult.Success(0) }
   override val keysLocked = MutableStateFlow(false)
   var unlockPassword: String = "password1"
   val recoveries = mutableListOf<Triple<String, String, String>>()

@@ -531,6 +531,9 @@
     <string name="recovery_explained">Ваши письма зашифрованы ключом, который есть только у вас. Его открывает пароль. Если вы забудете пароль, этот код — единственный другой способ войти. Мы его не видим и не сможем прислать снова.</string>
     <string name="recovery_keep_safe">Запишите его на бумаге или сохраните в менеджере паролей. Не храните его только на этом телефоне и никому не отправляйте.</string>
     <string name="recovery_saved">Я сохранил(а) этот код в надёжном месте.</string>
+    <string name="recovery_uploading">Настраиваем ваш ключ…</string>
+    <string name="error_recovery_upload">Не удалось настроить ваш ключ. %1$s Код не изменился: сохраните его и попробуйте ещё раз.</string>
+    <string name="notice_keys_made_elsewhere">Ключ этой учётной записи уже настроен на другом устройстве. Код, который вы только что видели, не подойдёт; подойдёт тот, что был показан на том устройстве. Разблокируйте паролем.</string>
     <plurals name="recovery_letters_caught_up">
         <item quantity="one">%d письмо, написанное вам раньше, теперь открывается вашим ключом.</item>
         <item quantity="few">%d письма, написанных вам раньше, теперь открываются вашим ключом.</item>
@@ -619,7 +622,6 @@
     <string name="outbox_refused_no_reason">Сервер отклонил это письмо, не объяснив причину.</string>
     <string name="error_token_wrong_key">Этот код не открывает ключ аккаунта. Попросите у группы новый код.</string>
     <string name="error_current_password_wrong">Текущий пароль указан неверно.</string>
-    <string name="error_no_keys_yet">У этого аккаунта пока нет ключей. Выйдите и войдите снова, чтобы они были созданы.</string>
     <string name="error_password_does_not_open">Этот пароль не открывает ваши письма.</string>
     <string name="error_recovery_code_wrong">Этот код восстановления не подходит к аккаунту. Сверьте его с сохранённой копией.</string>
     <plurals name="error_rate_limited_minutes">

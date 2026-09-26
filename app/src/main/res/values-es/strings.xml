@@ -517,6 +517,9 @@
     <string name="recovery_explained">Tus cartas están cifradas con una clave que solo tienes tú. Tu contraseña la desbloquea. Si alguna vez olvidas la contraseña, este código es la única otra forma de entrar. No podemos verlo ni volver a enviártelo.</string>
     <string name="recovery_keep_safe">Apúntalo en papel o guárdalo en un gestor de contraseñas. No lo tengas solo en este teléfono, ni se lo envíes a nadie.</string>
     <string name="recovery_saved">He guardado este código en un lugar seguro.</string>
+    <string name="recovery_uploading">Configurando tu clave…</string>
+    <string name="error_recovery_upload">No se pudo configurar tu clave. %1$s Tu código no ha cambiado: guárdalo e inténtalo de nuevo.</string>
+    <string name="notice_keys_made_elsewhere">La clave de esta cuenta se configuró antes en otro dispositivo. El código que acabas de ver no funcionará; el que se mostró en ese dispositivo sí. Desbloquea con tu contraseña.</string>
     <plurals name="recovery_letters_caught_up">
         <item quantity="one">%d carta que te escribieron antes ya se puede abrir con tu clave.</item>
         <item quantity="many">%d cartas que te escribieron antes ya se pueden abrir con tu clave.</item>
@@ -600,7 +603,6 @@
     <string name="outbox_refused_no_reason">El servidor rechazó esta carta sin decir por qué.</string>
     <string name="error_token_wrong_key">Este código no abre la clave de la cuenta. Pide a tu grupo un código nuevo.</string>
     <string name="error_current_password_wrong">Tu contraseña actual no es correcta.</string>
-    <string name="error_no_keys_yet">Esta cuenta todavía no tiene claves. Cierra sesión y vuelve a iniciarla para crearlas.</string>
     <string name="error_password_does_not_open">Esa contraseña no abre tus cartas.</string>
     <string name="error_recovery_code_wrong">Ese código de recuperación no corresponde a esta cuenta. Compáralo con la copia que guardaste.</string>
     <plurals name="error_rate_limited_minutes">
