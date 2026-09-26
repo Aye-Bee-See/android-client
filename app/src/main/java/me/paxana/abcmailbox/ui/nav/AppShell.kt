@@ -80,6 +80,7 @@ import me.paxana.abcmailbox.ui.auth.ClaimScreen
 import me.paxana.abcmailbox.ui.auth.JoinScreen
 import me.paxana.abcmailbox.ui.auth.RecoverScreen
 import me.paxana.abcmailbox.ui.auth.RecoveryCodeScreen
+import me.paxana.abcmailbox.ui.auth.InvitationScreen
 import me.paxana.abcmailbox.ui.auth.LoginScreen
 import me.paxana.abcmailbox.ui.directory.DirectoryHomeScreen
 import me.paxana.abcmailbox.ui.group.AddWriterScreen
@@ -185,7 +186,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val scope = rememberCoroutineScope()
   val backStackEntry by navController.currentBackStackEntryAsState()
   val destination = backStackEntry?.destination
-  val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, JoinRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
+  val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, JoinRoute::class, InvitationRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
   val showBars = fullScreen.none { destination?.hasRoute(it) == true }
   // Snackbars are shown from callbacks, where there is no composition to read resources in, so the
   // sentences are resolved here, where there is.
@@ -193,6 +194,8 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val passwordChangedElsewhereOut = stringResource(R.string.notice_password_changed_elsewhere_signed_out)
   val accountClaimed = stringResource(R.string.notice_account_claimed)
   val joined = stringResource(R.string.notice_joined)
+  val invitationAccepted = stringResource(R.string.notice_invitation_accepted) // formatted in the callback, with the group's name
+  val invitationAwaitsReview = stringResource(R.string.notice_invitation_awaits_review)
   val passwordChangedSignedIn = stringResource(R.string.notice_password_changed_signed_in)
 
   val pendingCode by viewModel.pendingRecoveryCode.collectAsStateWithLifecycle()
@@ -442,6 +445,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onCancel = { navController.popBackStack() },
           onClaim = { navController.navigate(ClaimRoute()) },
           onJoin = { navController.navigate(JoinRoute()) },
+          onInvitation = { navController.navigate(InvitationRoute()) },
           onForgot = { navController.navigate(RecoverRoute) },
         )
       }
@@ -455,6 +459,21 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
             navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
             scope.launch { snackbar.showSnackbar(joined) }
           },
+          // Twenty-four characters is an invitation (or a claim) token, not an invite code: its own screen checks it.
+          onInvitationToken = { token -> navController.navigate(InvitationRoute(token)) { popUpTo<JoinRoute> { inclusive = true } } },
+          onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
+        )
+      }
+      composable<InvitationRoute> {
+        InvitationScreen(
+          sessionState = sessionState,
+          mode = mode,
+          onAccepted = { accepted ->
+            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            scope.launch { snackbar.showSnackbar((if (accepted.activeNow) invitationAccepted else invitationAwaitsReview).format(accepted.groupName), duration = SnackbarDuration.Long) }
+          },
+          onInviteCode = { code -> navController.navigate(JoinRoute(code)) { popUpTo<InvitationRoute> { inclusive = true } } },
+          onClaimToken = { token -> navController.navigate(ClaimRoute(token)) { popUpTo<InvitationRoute> { inclusive = true } } },
           onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
         )
       }

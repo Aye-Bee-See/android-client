@@ -106,13 +106,16 @@ data class Group(
 object Services {
   val keys: List<String> = listOf(
     "letter_collection", "letter_writing_nights", "domestic_mailing", "international_mailing",
-    "international_relay", "translation_assistance", "legal_support_coordination", "book_programs",
+    "international_relay", "translation_assistance", "legal_support", "book_programs",
   )
 
   fun label(key: String, strings: Strings): String = strings.byName("service_$key") ?: key.replace('_', ' ').replaceFirstChar { it.uppercase() }
 }
 
 object NetworkRoles {
+  /** The API's `NETWORK_ROLES`. */
+  val keys: List<String> = listOf("collecting", "relay", "both")
+
   @StringRes fun labelRes(key: String?): Int = when (key) {
     "collecting" -> R.string.role_collecting
     "relay" -> R.string.role_relay
