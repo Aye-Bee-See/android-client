@@ -1123,6 +1123,28 @@
     <string name="pen_name_since">%1$s, since %2$s</string>
     <string name="pen_name_current_tag">current</string>
     <string name="notice_pen_name_saved">Your pen name is now %s.</string>
+    <!-- The limits on changing a pen name (API #127). -->
+    <plurals name="pen_name_wait_banner">
+        <item quantity="one">You can change your pen name again on %1$s. A pen name changes at most once every %2$d day, so the name on letters in the post stays the one a reply comes back to.</item>
+        <item quantity="other">You can change your pen name again on %1$s. A pen name changes at most once every %2$d days, so the name on letters in the post stays the one a reply comes back to.</item>
+    </plurals>
+    <string name="pen_name_first_is_free">Your first pen name is not a change: choosing it uses up neither limit.</string>
+    <plurals name="pen_name_new_left">
+        <item quantity="one">You can take %d more new name this year. Going back to a name you used before does not count.</item>
+        <item quantity="other">You can take %d more new names this year. Going back to a name you used before does not count.</item>
+    </plurals>
+    <string name="pen_name_none_left">You have no new names left this year. You can still go back to a name you used before.</string>
+    <string name="pen_name_none_left_until">You have no new names left this year; another becomes possible on %1$s. You can still go back to a name you used before.</string>
+    <plurals name="pen_name_after_change_wait">
+        <item quantity="one">After a change, the next one waits %d day.</item>
+        <item quantity="other">After a change, the next one waits %d days.</item>
+    </plurals>
+    <string name="pen_name_only_old">This year you can only go back to a name you used before.</string>
+    <string name="pen_name_refused_cooldown">Your pen name changed recently, so it can change again on %1$s.</string>
+    <string name="pen_name_refused_cooldown_later">Your pen name changed recently, so it can only change again later.</string>
+    <string name="pen_name_refused_new_names">You have taken your new names for this year. You can go back to a name you used before.</string>
+    <string name="pen_name_refused_new_names_until">You have taken your new names for this year. You can go back to a name you used before, or take a new one from %1$s.</string>
+    <string name="pen_name_error_network">Can\'t reach the server. Your pen name has not changed.</string>
     <string name="account_pen_name">Pen name: %s</string>
     <string name="account_pen_name_none">Pen name: none yet</string>
 
