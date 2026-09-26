@@ -56,8 +56,13 @@ import me.paxana.abcmailbox.data.api.map
 import me.paxana.abcmailbox.di.ApplicationScope
 import me.paxana.abcmailbox.domain.ClaimInfo
 import me.paxana.abcmailbox.domain.Invitation
+import me.paxana.abcmailbox.domain.GroupInvitation
+import me.paxana.abcmailbox.domain.InvitationAccepted
+import me.paxana.abcmailbox.domain.NewGroupProfile
 import me.paxana.abcmailbox.domain.PenName
 import me.paxana.abcmailbox.data.api.JoinRequest
+import me.paxana.abcmailbox.data.api.AcceptInvitationRequest
+import me.paxana.abcmailbox.data.api.GroupProfileDto
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -91,6 +96,16 @@ interface SessionRepository {
 
   /** Makes an account with an invite code, with keys made here as on a claim, then signs in with it. */
   suspend fun join(code: String, username: String, password: String, email: String?, name: String?, penName: String? = null): ApiResult<Session>
+
+  /** What an invitation token invites its holder to, before anything is asked for. The token must already be normalised. */
+  suspend fun invitationInfo(token: String): ApiResult<GroupInvitation>
+
+  /**
+   * Accepts an invitation: a group admin account with keys made here, as on a join, and for a `group` invitation the
+   * new group, sending only the profile fields in [groupFields]. Then signs in with it, and the recovery code waits to
+   * be shown. The group key is not made here: the inbox offers it, because making it is a decision with a consequence.
+   */
+  suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: NewGroupProfile?, groupFields: Set<String>): ApiResult<InvitationAccepted>
 
   /** Verifies `current` by signing in with it, changes the password, and adopts the fresh token. */
   suspend fun changePassword(current: String, new: String): ApiResult<Unit>
@@ -414,27 +429,90 @@ class DefaultSessionRepository @Inject constructor(
     // A new account must not replace a session unasked (a slip's link opened while signed in); the screen says so first.
     (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.join_signed_in, it.session.user.username))) }
     val user = username.trim()
-    var request = JoinRequest(code, user, password, email?.trim()?.ifBlank { null }, name?.trim()?.ifBlank { null }, penName = penName?.let(PenName::normalise)?.ifBlank { null })
-    var recoveryCode: String? = null
-    val split = when (val r = splitSupported(user)) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
-    if (modes.current() == EncryptionMode.E2E) {
-      val fresh = if (split) engine.createAccountKeysSplit(password) else engine.createAccountKeys(password)
-      recoveryCode = fresh.recoveryCode
-      val f = fresh.fields
-      request = request.copy(
-        password = fresh.authKey ?: password, authScheme = SPLIT.takeIf { split },
-        publicKey = f.publicKey, wrappedPrivateKey = f.password.wrapped, kdfSalt = f.password.salt, kdfParams = f.password.params,
-        recoveryWrappedPrivateKey = f.recovery.wrapped, recoverySalt = f.recovery.salt, recoveryKdfParams = f.recovery.params,
-      )
-    } else if (split) {
-      val salt = engine.newSalt(); val params = engine.defaultParams()
-      val keys = engine.deriveSplit(password, salt, json.encodeToJsonElement(KdfParams.serializer(), params))
-      request = request.copy(password = keys.authKey, authScheme = SPLIT, kdfSalt = salt, kdfParams = params).also { keys.wipe() }
-    }
+    val acct = when (val a = newAccount(user, password)) { is ApiResult.Failure -> return a; is ApiResult.Success -> a.value }
+    val f = acct.fields
+    val request = JoinRequest(
+      code, user, acct.password, email?.trim()?.ifBlank { null }, name?.trim()?.ifBlank { null }, penName = penName?.let(PenName::normalise)?.ifBlank { null },
+      authScheme = acct.authScheme, publicKey = f?.publicKey, wrappedPrivateKey = f?.password?.wrapped, kdfSalt = acct.kdfSalt, kdfParams = acct.kdfParams,
+      recoveryWrappedPrivateKey = f?.recovery?.wrapped, recoverySalt = f?.recovery?.salt, recoveryKdfParams = f?.recovery?.params,
+    )
     return when (val joined = apiCall(json) { api.join(request) }) {
       is ApiResult.Failure -> joined
-      is ApiResult.Success -> login(user, password).also { if (it is ApiResult.Success && recoveryCode != null) _pendingRecoveryCode.value = recoveryCode }
+      is ApiResult.Success -> login(user, password).also { if (it is ApiResult.Success && acct.recoveryCode != null) _pendingRecoveryCode.value = acct.recoveryCode }
     }
+  }
+
+  override suspend fun invitationInfo(token: String): ApiResult<GroupInvitation> {
+    val d = when (val r = apiCall(json) { api.invitationInfo(token) }) {
+      is ApiResult.Failure -> return r
+      is ApiResult.Success -> r.value.data ?: return ApiResult.Failure(AppError.Unexpected(IllegalStateException("invitation response had no data")))
+    }
+    val kind = when (d.kind) {
+      "member" -> GroupInvitation.Kind.MEMBER
+      "group" -> GroupInvitation.Kind.GROUP
+      // A kind this release has never heard of: accepting it blind could make the wrong thing.
+      else -> return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_invitation_kind_unknown))))
+    }
+    return ApiResult.Success(GroupInvitation(
+      kind = kind, inviteeName = d.inviteeName.orEmpty(), groupName = d.chapter?.name,
+      expiresAt = d.expiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
+      activatesAtOnce = d.activation != "admin_review", groupFields = d.groupFields.orEmpty().toSet(),
+    ))
+  }
+
+  override suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: NewGroupProfile?, groupFields: Set<String>): ApiResult<InvitationAccepted> {
+    (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.invitation_signed_in, it.session.user.username))) }
+    val user = username.trim()
+    val acct = when (val a = newAccount(user, password)) { is ApiResult.Failure -> return a; is ApiResult.Success -> a.value }
+    val f = acct.fields
+    val request = AcceptInvitationRequest(
+      token, user, acct.password, email.trim(), name?.trim()?.ifBlank { null }, group = group?.toDto(groupFields),
+      authScheme = acct.authScheme, publicKey = f?.publicKey, wrappedPrivateKey = f?.password?.wrapped, kdfSalt = acct.kdfSalt, kdfParams = acct.kdfParams,
+      recoveryWrappedPrivateKey = f?.recovery?.wrapped, recoverySalt = f?.recovery?.salt, recoveryKdfParams = f?.recovery?.params,
+    )
+    val accepted = when (val a = apiCall(json) { api.acceptInvitation(request) }) {
+      is ApiResult.Failure -> return a
+      is ApiResult.Success -> a.value.data
+    }
+    return when (val signedIn = login(user, password)) {
+      is ApiResult.Failure -> signedIn
+      is ApiResult.Success -> {
+        if (acct.recoveryCode != null) _pendingRecoveryCode.value = acct.recoveryCode
+        ApiResult.Success(InvitationAccepted(groupName = accepted?.chapter?.name ?: group?.name.orEmpty(), activeNow = accepted?.activation != "admin_review"))
+      }
+    }
+  }
+
+  /** Only what the invitation allows, and nothing blank: the server refuses a field outside `groupFields`. */
+  private fun NewGroupProfile.toDto(allowed: Set<String>): GroupProfileDto {
+    fun String.given(field: String) = trim().takeIf { it.isNotEmpty() && field in allowed }
+    return GroupProfileDto(
+      name = name.trim(),
+      location = buildMap { put("city", city.trim()); region.trim().takeIf { it.isNotEmpty() }?.let { put("region", it) } },
+      subregion = region.given("subregion"), country = country.given("country"), about = about.given("about"),
+      website = website.given("website"), email = email.given("email"),
+      services = services.toList().takeIf { it.isNotEmpty() && "services" in allowed },
+      networkRole = networkRole.takeIf { "networkRole" in allowed },
+    )
+  }
+
+  /** The password and keys of an account made on this phone (a join, an invitation). */
+  private class NewAccount(val password: String, val authScheme: String?, val fields: AccountKeyFields?, val kdfSalt: String?, val kdfParams: KdfParams?, val recoveryCode: String?)
+
+  /**
+   * Split wherever the server knows the scheme, so the password never leaves the phone; in end-to-end mode with a
+   * keypair wrapped under it and under a new recovery code, and in server mode a salt and recipe alone.
+   */
+  private suspend fun newAccount(username: String, password: String): ApiResult<NewAccount> {
+    val split = when (val r = splitSupported(username)) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
+    if (modes.current() == EncryptionMode.E2E) {
+      val fresh = if (split) engine.createAccountKeysSplit(password) else engine.createAccountKeys(password)
+      return ApiResult.Success(NewAccount(fresh.authKey ?: password, SPLIT.takeIf { split }, fresh.fields, fresh.fields.password.salt, fresh.fields.password.params, fresh.recoveryCode))
+    }
+    if (!split) return ApiResult.Success(NewAccount(password, null, null, null, null, null))
+    val salt = engine.newSalt(); val params = engine.defaultParams()
+    val keys = engine.deriveSplit(password, salt, json.encodeToJsonElement(KdfParams.serializer(), params))
+    return ApiResult.Success(NewAccount(keys.authKey, SPLIT, null, salt, params, null)).also { keys.wipe() }
   }
 
   override suspend fun changePassword(current: String, new: String): ApiResult<Unit> {

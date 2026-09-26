@@ -49,10 +49,12 @@ fun JoinScreen(
   mode: EncryptionMode,
   onJoined: () -> Unit,
   onBack: () -> Unit,
+  onInvitationToken: (String) -> Unit = {},
   viewModel: JoinViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   LaunchedEffect(sessionState, ui.joined) { if (sessionState is SessionState.SignedIn && ui.joined) onJoined() }
+  LaunchedEffect(ui.invitationToken) { ui.invitationToken?.let { viewModel.invitationTokenHandedOn(); onInvitationToken(it) } }
 
   DetailScaffold(title = stringResource(R.string.title_join), onBack = onBack) { padding ->
     // Opened (by a slip's link, say) while an account is signed in: nothing is made until that is dealt with.

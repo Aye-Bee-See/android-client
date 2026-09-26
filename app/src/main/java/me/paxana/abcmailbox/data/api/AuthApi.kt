@@ -68,6 +68,22 @@ interface AuthApi {
   @POST("auth/join")
   suspend fun join(@Body body: JoinRequest): ApiEnvelope<JsonElement>
 
+  /**
+   * Public, rate limited (README, "Invitations"): what an invitation token invites its holder to, so the screen can say
+   * who is inviting before asking for anything. 404 for a token never issued; 410 with `condition` `expired`,
+   * `accepted`, `revoked` or `inactive` (the inviting group is no longer active).
+   */
+  @GET("invitation/invitation")
+  suspend fun invitationInfo(@Query("token") token: String): ApiEnvelope<InvitationInfoDto>
+
+  /**
+   * Public: accept an invitation, which makes a group admin account (role `chapter`) and, for a `group` invitation, the
+   * group. The keys come with it, made on this phone, as on a join. A refused acceptance leaves nothing behind and the
+   * invitation usable, so the form can be corrected and sent again; of two at once, one gets 410 `accepted`.
+   */
+  @POST("invitation/accept")
+  suspend fun acceptInvitation(@Body body: AcceptInvitationRequest): ApiEnvelope<InvitationAcceptedDto>
+
   /** Public, rate limited (API PR #120): is a pen name free, and why not. A signed-in caller's own old name is free to them. */
   @GET("auth/pen-name-available")
   suspend fun penNameAvailable(@Query("name") name: String): ApiEnvelope<PenNameCheckDto>
@@ -131,6 +147,59 @@ data class PenNamesDto(
   val newPerYear: Int? = null,
 )
 @Serializable data class PenNameRowDto(val name: String, val current: Boolean = false, val since: String? = null)
+
+@Serializable
+data class InvitationInfoDto(
+  val kind: String,
+  val inviteeName: String? = null,
+  /** The group that vouches (`group`) or is joined (`member`); null when an admin invited with nobody vouching. */
+  val chapter: NamedRef? = null,
+  val expiresAt: String? = null,
+  /** `immediate`, or `admin_review` when a new group waits for an admin. */
+  val activation: String? = null,
+  /** For a `group` invitation: the profile fields the acceptance may send. */
+  val groupFields: List<String>? = null,
+)
+
+@Serializable data class InvitationAcceptedDto(val chapter: AcceptedGroupDto, val activation: String? = null)
+@Serializable data class AcceptedGroupDto(val id: Int, val name: String? = null, val accountStatus: String? = null)
+
+/** A new group's profile. Null fields are left out (the app's Json has explicitNulls off), and the server refuses any field not in `groupFields`. */
+@Serializable
+data class GroupProfileDto(
+  val name: String,
+  /** Free-form JSON on the server; the directory reads `city` and `region` from it. */
+  val location: Map<String, String>,
+  val subregion: String? = null,
+  val country: String? = null,
+  val about: String? = null,
+  val website: String? = null,
+  val email: String? = null,
+  val services: List<String>? = null,
+  val networkRole: String? = null,
+)
+
+@Serializable
+data class AcceptInvitationRequest(
+  val token: String,
+  val username: String,
+  val password: String,
+  /** Required here: unlike a join, the server makes no placeholder for a group admin. */
+  val email: String,
+  val name: String? = null,
+  /** Only for a `group` invitation; refused on a `member` one. */
+  val group: GroupProfileDto? = null,
+  /** `"split"`: `password` is the auth key, derived with `kdfSalt`/`kdfParams` (API PR #114). Absent means plain. */
+  val authScheme: String? = null,
+  // End-to-end mode: a keypair made here, wrapped under the password and under a new recovery code.
+  val publicKey: String? = null,
+  val wrappedPrivateKey: String? = null,
+  val kdfSalt: String? = null,
+  val kdfParams: KdfParams? = null,
+  val recoveryWrappedPrivateKey: String? = null,
+  val recoverySalt: String? = null,
+  val recoveryKdfParams: KdfParams? = null,
+)
 
 @Serializable
 data class JoinRequest(

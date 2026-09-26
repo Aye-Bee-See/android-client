@@ -16,6 +16,7 @@ import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.repo.PenNameRepository
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
+import me.paxana.abcmailbox.domain.InvitationToken
 import me.paxana.abcmailbox.domain.InviteCode
 import me.paxana.abcmailbox.domain.Invitation
 import me.paxana.abcmailbox.domain.PasswordRules
@@ -38,6 +39,8 @@ data class JoinUiState(
   val codeDead: Boolean = false,
   /** The account was made and signed in from this screen: the session that follows is the new one, and the screen may leave. */
   val joined: Boolean = false,
+  /** A 24-character token was typed here: an invitation (or a claim) token, which the invitation screen checks. */
+  val invitationToken: String? = null,
   /** The pen name as typed and checked (API PR #120); optional, so an empty one never blocks. */
   val penName: PenNameState = PenNameState(),
 ) {
@@ -88,10 +91,13 @@ class JoinViewModel(
   fun onNameChange(v: String) = _ui.update { it.copy(name = v, error = null) }
   fun onToggleShowPassword() = _ui.update { it.copy(showPassword = !it.showPassword) }
   fun startOver() = _ui.update { JoinUiState() }
+  fun invitationTokenHandedOn() = _ui.update { it.copy(invitationToken = null) }
 
   fun check() {
     val typed = _ui.value.code
     signedInAs?.let { name -> _ui.update { it.copy(error = strings.get(R.string.join_signed_in, name)) }; return }
+    // Twice an invite code's length is an invitation token (README, "Invitations"): the one box sends each to its own screen.
+    if (InvitationToken.isWellFormed(typed)) { _ui.update { it.copy(invitationToken = InvitationToken.normalise(typed)) }; return }
     InviteCode.problem(typed, strings)?.let { problem -> _ui.update { it.copy(error = problem) }; return }
     _ui.update { it.copy(busy = true, error = null, codeDead = false) }
     viewModelScope.launch {

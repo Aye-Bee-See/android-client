@@ -54,6 +54,7 @@ fun LoginScreen(
   onCancel: () -> Unit,
   onClaim: () -> Unit,
   onJoin: () -> Unit = {},
+  onInvitation: () -> Unit = {},
   onForgot: () -> Unit,
   viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -135,6 +136,7 @@ fun LoginScreen(
     }
     TextButton(onClick = onJoin, modifier = Modifier.align(Alignment.Start).testTag("have-invite")) { Text(stringResource(R.string.action_have_invite)) }
     TextButton(onClick = onClaim, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_have_token)) }
+    TextButton(onClick = onInvitation, modifier = Modifier.align(Alignment.Start).testTag("have-invitation")) { Text(stringResource(R.string.action_have_invitation)) }
     TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_forgot_password)) }
     TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.Start)) { Text(stringResource(R.string.action_back)) }
   }
