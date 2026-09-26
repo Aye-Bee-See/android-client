@@ -69,6 +69,24 @@ class FakeSessionRepository(
     return login(username, password)
   }
 
+  var invitation = me.paxana.abcmailbox.domain.GroupInvitation(me.paxana.abcmailbox.domain.GroupInvitation.Kind.MEMBER, "Sam", "Portland ABC", Instant.parse("2026-10-22T19:00:00Z"), activatesAtOnce = true)
+  var invitationError: AppError? = null
+  val invitationChecks = mutableListOf<String>()
+  val acceptances = mutableListOf<Pair<List<String?>, me.paxana.abcmailbox.domain.NewGroupProfile?>>()
+  override suspend fun invitationInfo(token: String): ApiResult<me.paxana.abcmailbox.domain.GroupInvitation> {
+    invitationChecks += token
+    invitationError?.let { return ApiResult.Failure(it) }
+    return ApiResult.Success(invitation)
+  }
+  override suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: me.paxana.abcmailbox.domain.NewGroupProfile?, groupFields: Set<String>): ApiResult<me.paxana.abcmailbox.domain.InvitationAccepted> {
+    acceptances += listOf(token, username, password, email, name) to group
+    nextError?.let { return ApiResult.Failure(it) }
+    return when (val r = login(username, password)) {
+      is ApiResult.Failure -> r
+      is ApiResult.Success -> ApiResult.Success(me.paxana.abcmailbox.domain.InvitationAccepted(group?.name ?: invitation.groupName.orEmpty(), invitation.activatesAtOnce))
+    }
+  }
+
   override val pendingRecoveryCode = MutableStateFlow<String?>(null)
   override suspend fun passwordStaysOnPhone() = true
   override suspend fun recoveryCodeSaved(): ApiResult<Int> { pendingRecoveryCode.value = null; return ApiResult.Success(0) }
