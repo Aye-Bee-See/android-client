@@ -2,6 +2,9 @@ package me.paxana.abcmailbox.data.session
 
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 import me.paxana.abcmailbox.crypto.KdfParams
 import me.paxana.abcmailbox.data.crypto.SplitKeys
 import me.paxana.abcmailbox.data.api.DeletionReportDto
@@ -101,6 +104,12 @@ interface SessionRepository {
   /** A recovery code that was just created and must be shown to the writer exactly once. */
   val pendingRecoveryCode: StateFlow<String?>
 
+  /**
+   * How many letters written before the keys existed the server sealed to them on the spot (`caughtUp.sealed` of
+   * `PUT /auth/keys`), told once beside the recovery code. Zero when there were none, or the server did not say.
+   */
+  val lettersCaughtUp: StateFlow<Int>
+
   /** The writer confirmed they saved the code; forget it. */
   fun recoveryCodeSaved()
 
@@ -137,7 +146,9 @@ class DefaultSessionRepository @Inject constructor(
 
   private val _pendingRecoveryCode = MutableStateFlow<String?>(null)
   override val pendingRecoveryCode: StateFlow<String?> = _pendingRecoveryCode.asStateFlow()
-  override fun recoveryCodeSaved() { _pendingRecoveryCode.value = null }
+  private val _lettersCaughtUp = MutableStateFlow(0)
+  override val lettersCaughtUp: StateFlow<Int> = _lettersCaughtUp.asStateFlow()
+  override fun recoveryCodeSaved() { _pendingRecoveryCode.value = null; _lettersCaughtUp.value = 0 }
 
   /** The claim check's key material, kept so claiming does not spend a second rate-limited check. */
   private var lastClaim: Pair<String, ClaimInfoDto>? = null
@@ -269,11 +280,16 @@ class DefaultSessionRepository @Inject constructor(
         val sent = apiCall(json) { api.putKeys(fresh.fields.toRequest()) }
         if (sent is ApiResult.Success) {
           vault.store(userId, fresh.keyPair)
+          _lettersCaughtUp.value = sent.value.data.caughtUpSealed()
           _pendingRecoveryCode.value = fresh.recoveryCode
         }
       }
     }
   }
+
+  /** `caughtUp: { letters, sealed, dropped }`, or null once the server holds no keys of its own. Read leniently: it is only told. */
+  private fun JsonElement?.caughtUpSealed(): Int =
+    (((this as? JsonObject)?.get("caughtUp") as? JsonObject)?.get("sealed") as? JsonPrimitive)?.intOrNull ?: 0
 
   private fun AccountKeyFields.toRequest(includePublicKey: Boolean = true) = KeyFieldsRequest(
     publicKey = publicKey.takeIf { includePublicKey },
@@ -291,6 +307,7 @@ class DefaultSessionRepository @Inject constructor(
     store.clear()
     vault.clear()
     _pendingRecoveryCode.value = null
+    _lettersCaughtUp.value = 0
     return result
   }
 
@@ -462,7 +479,7 @@ class DefaultSessionRepository @Inject constructor(
         runCatching { wipe(session.user.id) }
         store.clear()
         vault.clear()
-        _pendingRecoveryCode.value = null
+        _pendingRecoveryCode.value = null; _lettersCaughtUp.value = 0
         ApiResult.Success(r.value.data ?: DeletionReportDto())
       }
     }

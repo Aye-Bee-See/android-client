@@ -552,6 +552,11 @@
     <string name="recovery_explained">Your letters are encrypted with a key only you hold. Your password unlocks it. If you ever forget the password, this code is the only other way in. We cannot see it and cannot send it to you again.</string>
     <string name="recovery_keep_safe">Write it on paper or put it in a password manager. Do not keep it only on this phone, and do not send it to anyone.</string>
     <string name="recovery_saved">I have saved this code somewhere safe.</string>
+    <!-- Letters written to this person before they had keys, which the server sealed to the new key just now. -->
+    <plurals name="recovery_letters_caught_up">
+        <item quantity="one">%d letter written to you earlier can now be opened with your key.</item>
+        <item quantity="other">%d letters written to you earlier can now be opened with your key.</item>
+    </plurals>
     <string name="action_continue">Continue</string>
 
     <!-- Account tab -->

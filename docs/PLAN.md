@@ -308,6 +308,11 @@ Verified on the emulator against a scratch end-to-end API at the API's `main` (w
 
 Verified on the emulator against a scratch end-to-end API at the API's `main` (#121): a writer set "Sam Hollow" with the check saying it was free, wrote to Jane Smith, and saw the reference on the letter; the group admin saw the footer on the work screen and on the print preview, mailed the letter, opened "A reply came in the post…", was refused a wrong check digit with the typo sentence, found the letter by its number (typed with spaces), recorded the reply, and the conversation showed "Answers the letter of 23 September 2026"; searching "sam" found Sam Hollow. Along the way the API's message field turned out to carry the nine digits bare, which the app now groups as printed. 25 new tests (301), lint clean but for the known warnings.
 
+**The public test API (mobile note of 25 September 2026). Done 25 September 2026.**
+`https://abctest.letters.support` follows the API's `main`, runs end-to-end, and is what the web and iOS clients see. The internal build points at it by default, and so does release until there is a production API (`-PapiBaseUrl` overrides it); debug stays on the laptop's API, with "Use the test API" in the developer dialog. The recovery code screen now says how many letters written before the keys existed the server sealed to the new key on the spot (`caughtUp.sealed` of `PUT /auth/keys`). Everything else the note asks for (no plaintext on an `e2e` server, keys made at first sign-in, the group's key steps, the missing-envelopes sweep, the split sign-in that never falls back to the password) was already in place from phases 5, 6b and later.
+
+Verified on the emulator: the internal build, installed fresh, reported "end-to-end encrypted" and saved the test server's directory (38 public prisoners of 58, 1 group); the debug build moved to the test API in one tap, signing out of the local one.
+
 **What is left before a public release** is not code: a domain and hosting (release API address, verified App Links for claim links, the Play listing), a release keystore that the project owner makes and backs up, a privacy policy, and a native-speaker review of the Spanish and Russian (`docs/TRANSLATING.md`).
 
 Total: roughly five to six working weeks for one developer, with e2e and group features being the two largest blocks.

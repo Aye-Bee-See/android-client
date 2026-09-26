@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
 import me.paxana.abcmailbox.R
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.SecretCodeText
 import me.paxana.abcmailbox.ui.common.asHeading
@@ -47,7 +48,7 @@ import me.paxana.abcmailbox.ui.common.AlertBanner
  * back gesture is swallowed on purpose.
  */
 @Composable
-fun RecoveryCodeScreen(code: String, onSaved: () -> Unit) {
+fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, lettersCaughtUp: Int = 0) {
   var saved by rememberSaveable { mutableStateOf(false) }
   val clipboard = LocalClipboardManager.current
   BackHandler(enabled = true) { }
@@ -61,6 +62,8 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit) {
       stringResource(R.string.recovery_explained),
       style = MaterialTheme.typography.bodyLarge,
     )
+    // Letters written to them before they had keys, which the server has just sealed to the new key.
+    if (lettersCaughtUp > 0) Text(pluralStringResource(R.plurals.recovery_letters_caught_up, lettersCaughtUp, lettersCaughtUp), style = MaterialTheme.typography.bodyLarge)
     SecretCodeText(code, modifier = Modifier.testTag("recovery-code"))
     OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(code))) }) { Text(stringResource(R.string.action_copy)) }
     AlertBanner(stringResource(R.string.recovery_keep_safe))

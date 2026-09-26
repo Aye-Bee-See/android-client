@@ -53,6 +53,7 @@ class SessionViewModel @Inject constructor(
   val state: StateFlow<SessionState> = repository.state
   val expired: SharedFlow<Unit> = repository.expired
   val pendingRecoveryCode: StateFlow<String?> = repository.pendingRecoveryCode
+  val lettersCaughtUp: StateFlow<Int> = repository.lettersCaughtUp
   val keysLocked: StateFlow<Boolean> = repository.keysLocked
   val mode: StateFlow<EncryptionMode> = modes.mode
 

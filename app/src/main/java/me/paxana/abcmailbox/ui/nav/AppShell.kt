@@ -196,6 +196,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val passwordChangedSignedIn = stringResource(R.string.notice_password_changed_signed_in)
 
   val pendingCode by viewModel.pendingRecoveryCode.collectAsStateWithLifecycle()
+  val lettersCaughtUp by viewModel.lettersCaughtUp.collectAsStateWithLifecycle()
   val keysLocked by viewModel.keysLocked.collectAsStateWithLifecycle()
   val mode by viewModel.mode.collectAsStateWithLifecycle()
   val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
@@ -477,7 +478,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
         // null code, while it animates out.
         val code = pendingCode
         if (code == null) LaunchedEffect(Unit) { navController.popBackStack<RecoveryCodeRoute>(inclusive = true) }
-        else RecoveryCodeScreen(code = code, onSaved = { viewModel.recoveryCodeSaved() })
+        else RecoveryCodeScreen(code = code, lettersCaughtUp = lettersCaughtUp, onSaved = { viewModel.recoveryCodeSaved() })
       }
     }
     } // Column: banner above the NavHost

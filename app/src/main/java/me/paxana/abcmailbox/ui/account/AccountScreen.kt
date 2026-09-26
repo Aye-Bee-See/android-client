@@ -129,6 +129,7 @@ fun AccountScreen(
       DevServerDialog(
         current = ui.serverUrl,
         default = ui.serverDefault,
+        testServer = BuildConfig.TEST_API_BASE_URL,
         checking = ui.serverChecking,
         result = ui.serverResult,
         onSave = viewModel::saveServer,

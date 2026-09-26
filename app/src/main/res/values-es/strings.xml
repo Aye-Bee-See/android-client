@@ -517,6 +517,11 @@
     <string name="recovery_explained">Tus cartas están cifradas con una clave que solo tienes tú. Tu contraseña la desbloquea. Si alguna vez olvidas la contraseña, este código es la única otra forma de entrar. No podemos verlo ni volver a enviártelo.</string>
     <string name="recovery_keep_safe">Apúntalo en papel o guárdalo en un gestor de contraseñas. No lo tengas solo en este teléfono, ni se lo envíes a nadie.</string>
     <string name="recovery_saved">He guardado este código en un lugar seguro.</string>
+    <plurals name="recovery_letters_caught_up">
+        <item quantity="one">%d carta que te escribieron antes ya se puede abrir con tu clave.</item>
+        <item quantity="many">%d cartas que te escribieron antes ya se pueden abrir con tu clave.</item>
+        <item quantity="other">%d cartas que te escribieron antes ya se pueden abrir con tu clave.</item>
+    </plurals>
     <string name="action_continue">Continuar</string>
 
     <!-- Account tab -->

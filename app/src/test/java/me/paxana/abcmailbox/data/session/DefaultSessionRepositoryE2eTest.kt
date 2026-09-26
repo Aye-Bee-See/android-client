@@ -80,8 +80,28 @@ class DefaultSessionRepositoryE2eTest {
 
     assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
     assertNotNull(vault.keyPair(7))
+    assertEquals(0, repo.lettersCaughtUp.value)
     repo.recoveryCodeSaved()
     assertNull(repo.pendingRecoveryCode.value)
+  }
+
+  @Test
+  fun `letters the server sealed to the new key are counted for the recovery code screen, then forgotten with it`() = runTest {
+    server.queue(MockResponse().setBody(login(noKeys)))
+    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-NEW","caughtUp":{"letters":4,"sealed":3,"dropped":3}},"success":true,"status":200}"""))
+    repo.login("carol", "carolpass")
+    assertEquals(3, repo.lettersCaughtUp.value)
+    repo.recoveryCodeSaved()
+    assertEquals(0, repo.lettersCaughtUp.value)
+  }
+
+  @Test
+  fun `a caughtUp of null, once the server holds no keys, counts as none`() = runTest {
+    server.queue(MockResponse().setBody(login(noKeys)))
+    server.queue(MockResponse().setBody("""{"data":{"publicKey":"PUB-NEW","caughtUp":null},"success":true,"status":200}"""))
+    repo.login("carol", "carolpass")
+    assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
+    assertEquals(0, repo.lettersCaughtUp.value)
   }
 
   @Test
