@@ -217,6 +217,7 @@
     <string name="thread_last_sent">→ Carta enviada · %1$s</string>
     <string name="writer_named">Remitente: %1$s</string>
     <string name="unlock_explained">Tus cartas están bloqueadas en este dispositivo. Escribe tu contraseña para desbloquearlas. Se usa aquí, en el teléfono, para abrir tu clave de cifrado; no se envía a ningún sitio.</string>
+    <string name="unlock_explained_older">Tus cartas están bloqueadas en este dispositivo. Escribe tu contraseña para desbloquearlas. Abre tu clave de cifrado aquí, en el teléfono. Si esta cuenta aún no tiene clave, al desbloquear se vuelve a iniciar sesión para crear una, y eso envía la contraseña al servidor, como cada inicio de sesión de una cuenta anterior.</string>
     <string name="label_password">Contraseña</string>
     <string name="action_unlock">Desbloquear</string>
     <string name="action_unlocking">Desbloqueando…</string>

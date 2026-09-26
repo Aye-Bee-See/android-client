@@ -129,6 +129,14 @@ interface SessionRepository {
    */
   suspend fun unlock(password: String): ApiResult<Unit>
 
+  /**
+   * Whether the signed-in account's password never leaves the phone, for the unlock prompt to say so only when it is
+   * true. A split account sends a key derived from it, even when unlocking signs in again; this phone remembers every
+   * name it has signed in to that way. Anything else (an account from before, or a session saved before this phone
+   * kept that memory) may send the password itself when unlocking has to sign in again.
+   */
+  suspend fun passwordStaysOnPhone(): Boolean
+
   /** Recovery with the saved code: proves possession of the key, sets a new password, signs in. */
   suspend fun recover(username: String, recoveryCode: String, newPassword: String): ApiResult<Session>
 }
@@ -536,6 +544,11 @@ class DefaultSessionRepository @Inject constructor(
     // A session from before the app recorded its way now knows it, from the key that opened.
     if (session.olderAccount == null) store.save(session.copy(olderAccount = older))
     return ApiResult.Success(Unit)
+  }
+
+  override suspend fun passwordStaysOnPhone(): Boolean {
+    val session = (state.value as? SessionState.SignedIn)?.session ?: return false
+    return session.olderAccount != true && schemes.isKnownSplit(session.user.username)
   }
 
   /** The account's key bundle, or null when it has no keys (server mode, or none made yet). */

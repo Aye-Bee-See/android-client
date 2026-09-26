@@ -82,6 +82,26 @@ class SplitSignInTest {
   }
 
   @Test
+  fun `the unlock prompt is told the password stays here only for an account this phone signed in to the split way`() = runTest {
+    build()
+    assertFalse("signed out: nothing to promise", repo.passwordStaysOnPhone())
+    server.queue(MockResponse().setBody(login(splitKeys("carolpass"))))
+    repo.login("carol", "carolpass")
+    assertTrue(repo.passwordStaysOnPhone())
+
+    // An account from before, signed in with the password itself by the person's choice.
+    server.queue(MockResponse().setBody("""{"data":{},"success":true,"status":200}"""))
+    repo.logout(); memory.split.clear()
+    server.queue(MockResponse().setBody(login(noKeys)))
+    repo.login("carol", "carolpass", olderAccount = true)
+    assertFalse(repo.passwordStaysOnPhone())
+
+    // A session saved before this phone kept the memory: the way is not known, so it is not promised.
+    store.save(Session("jwt-1", 0L, SessionUser(7, "carol", null, null, "user", null), olderAccount = null))
+    assertFalse(repo.passwordStaysOnPhone())
+  }
+
+  @Test
   fun `a split account with no keys yet gets them wrapped under the sign-in's own salt, so one derivation opens both`() = runTest {
     build()
     server.queue(MockResponse().setBody(login(noKeys)))

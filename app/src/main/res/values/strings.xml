@@ -243,6 +243,8 @@
     <string name="thread_last_sent">→ Letter sent · %1$s</string>
     <string name="writer_named">Writer: %1$s</string>
     <string name="unlock_explained">Your letters are locked on this device. Enter your password to unlock them. It is used here, on the phone, to open your encryption key; it is not sent anywhere.</string>
+    <!-- An account that may send its password itself: from before the split sign-in, or not yet known on this phone. -->
+    <string name="unlock_explained_older">Your letters are locked on this device. Enter your password to unlock them. It opens your encryption key here, on the phone. If this account has no key yet, unlocking signs you in again to make one, and that sends the password to the server, as every sign-in to an account from before does.</string>
     <string name="label_password">Password</string>
     <string name="action_unlock">Unlock</string>
     <string name="action_unlocking">Unlocking…</string>
