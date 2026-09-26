@@ -51,11 +51,15 @@ android {
     rootProject.file("firebase.properties").takeIf { it.exists() }?.reader(Charsets.UTF_8)?.use { load(it) }
   }
   fun firebaseValue(key: String, env: String): String = (firebaseProps.getProperty(key) ?: System.getenv(env) ?: "").trim()
+  val testApiBaseUrl = "https://abctest.letters.support/"
   defaultConfig {
     buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebaseValue("projectId", "ABC_FIREBASE_PROJECT_ID")}\"")
     buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseValue("applicationId", "ABC_FIREBASE_APP_ID")}\"")
     buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseValue("apiKey", "ABC_FIREBASE_API_KEY")}\"")
     buildConfigField("String", "FIREBASE_SENDER_ID", "\"${firebaseValue("senderId", "ABC_FIREBASE_SENDER_ID")}\"")
+    // The public test API (mobile note of 25 September 2026): it follows the API's main branch, runs end-to-end,
+    // and is what the web and iOS clients see too. Real storage and backups, so no real people's details in it.
+    buildConfigField("String", "TEST_API_BASE_URL", "\"$testApiBaseUrl\"")
   }
 
   buildTypes {
@@ -71,20 +75,20 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // Placeholder until there is a deployed API; override with -PapiBaseUrl=https://… for a real one.
-      val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "https://api.abcmailbox.net/"
+      // The test API is the only deployed one so far; a production build passes -PapiBaseUrl=https://… once there is one.
+      val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: testApiBaseUrl
       buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
       buildConfigField("boolean", "DEV_TOOLS", "false")
       signingConfig = signingConfigs.findByName("release")
     }
-    // What testers get before there is a domain: shrunk and optimised exactly like release (so it
-    // proves the release build works), but with the developer tools of debug, plain HTTP allowed so
-    // it can reach a laptop on the same Wi-Fi, and its own application id so it installs beside the others.
+    // What testers get: shrunk and optimised exactly like release (so it proves the release build works),
+    // pointed at the test API, but with the developer tools of debug, plain HTTP allowed so it can still
+    // reach a laptop on the same Wi-Fi, and its own application id so it installs beside the others.
     create("internal") {
       initWith(getByName("release"))
       applicationIdSuffix = ".internal"
       versionNameSuffix = "-internal"
-      buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+      buildConfigField("String", "API_BASE_URL", "\"$testApiBaseUrl\"")
       buildConfigField("boolean", "DEV_TOOLS", "true")
       signingConfig = signingConfigs.getByName("debug")
       matchingFallbacks += "release"

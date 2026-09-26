@@ -23,13 +23,15 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The hidden developer dialog: reached by tapping the build line on the
- * Account tab five times, debug builds only. Lets a phone on the same Wi-Fi
- * point at the API on a development machine.
+ * Account tab five times, in debug and internal builds. Lets a phone on the
+ * same Wi-Fi point at the API on a development machine, or at the public
+ * test API in one tap.
  */
 @Composable
 fun DevServerDialog(
   current: String,
   default: String,
+  testServer: String,
   checking: Boolean,
   result: String?,
   onSave: (String) -> Unit,
@@ -44,7 +46,7 @@ fun DevServerDialog(
     text = {
       // A dialog gets a fixed share of the screen; with the keyboard up it is less than this content, so it scrolls.
       Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Debug builds only. Enter your computer's address on this Wi-Fi, for example 192.168.1.20 (port 3000 is assumed). Saving signs you out.", style = MaterialTheme.typography.bodyMedium)
+        Text("Developer builds only. Enter your computer's address on this Wi-Fi, for example 192.168.1.20 (port 3000 is assumed). Saving signs you out.", style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
           value = text,
           onValueChange = { text = it },
@@ -60,6 +62,8 @@ fun DevServerDialog(
         HorizontalDivider()
         // Show the address now in force; the field is local state and would otherwise keep the old one.
         TextButton(onClick = { text = default; onReset() }, enabled = !checking) { Text("Use default") }
+        // Where the default already is the test API (the internal build), "Use default" is this button.
+        if (testServer != default) TextButton(onClick = { text = testServer; onSave(testServer) }, enabled = !checking) { Text("Use the test API (${testServer.removePrefix("https://").trimEnd('/')})") }
         TextButton(onClick = { onSimulatePush(); onDismiss() }) { Text("Simulate a push in 8 s") }
       }
     },

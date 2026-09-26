@@ -16,7 +16,7 @@ class DevServerTest {
     assertEquals("http://192.168.1.20:3000/", DevServerRepository.normalise("192.168.1.20"))
     assertEquals("http://192.168.1.20:3000/", DevServerRepository.normalise(" 192.168.1.20:3000 "))
     assertEquals("http://192.168.1.20:8080/", DevServerRepository.normalise("http://192.168.1.20:8080/some/path?x=1"))
-    assertEquals("https://api.abcmailbox.net/", DevServerRepository.normalise("https://api.abcmailbox.net"))
+    assertEquals("https://abctest.letters.support/", DevServerRepository.normalise("https://abctest.letters.support"))
     assertEquals("http://mymac.local:3000/", DevServerRepository.normalise("mymac.local"))
     assertNull(DevServerRepository.normalise(""))
     assertNull(DevServerRepository.normalise("not a url at all"))

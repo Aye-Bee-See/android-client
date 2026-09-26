@@ -243,6 +243,8 @@
     <string name="thread_last_sent">→ Letter sent · %1$s</string>
     <string name="writer_named">Writer: %1$s</string>
     <string name="unlock_explained">Your letters are locked on this device. Enter your password to unlock them. It is used here, on the phone, to open your encryption key; it is not sent anywhere.</string>
+    <!-- An account that may send its password itself: from before the split sign-in, or not yet known on this phone. -->
+    <string name="unlock_explained_older">Your letters are locked on this device. Enter your password to unlock them. It opens your encryption key here, on the phone. If this account has no key yet, unlocking signs you in again to make one, and that sends the password to the server, as every sign-in to an account from before does.</string>
     <string name="label_password">Password</string>
     <string name="action_unlock">Unlock</string>
     <string name="action_unlocking">Unlocking…</string>
@@ -552,6 +554,15 @@
     <string name="recovery_explained">Your letters are encrypted with a key only you hold. Your password unlocks it. If you ever forget the password, this code is the only other way in. We cannot see it and cannot send it to you again.</string>
     <string name="recovery_keep_safe">Write it on paper or put it in a password manager. Do not keep it only on this phone, and do not send it to anyone.</string>
     <string name="recovery_saved">I have saved this code somewhere safe.</string>
+    <string name="recovery_uploading">Setting up your key…</string>
+    <!-- %1$s is the reason, from the server or the connection. -->
+    <string name="error_recovery_upload">Your key could not be set up. %1$s Your code has not changed: keep it and try again.</string>
+    <string name="notice_keys_made_elsewhere">This account’s key was set up on another device first. The code you just saw will not work; the one shown on that device does. Unlock with your password.</string>
+    <!-- Told once the keys are up: letters written to this person before they had keys, which the server sealed to the new key. -->
+    <plurals name="recovery_letters_caught_up">
+        <item quantity="one">%d letter written to you earlier can now be opened with your key.</item>
+        <item quantity="other">%d letters written to you earlier can now be opened with your key.</item>
+    </plurals>
     <string name="action_continue">Continue</string>
 
     <!-- Account tab -->
@@ -628,7 +639,6 @@
     <string name="outbox_refused_no_reason">The server refused this letter without saying why.</string>
     <string name="error_token_wrong_key">This token does not open the account\'s key. Ask your group for a new token.</string>
     <string name="error_current_password_wrong">Your current password is incorrect.</string>
-    <string name="error_no_keys_yet">This account has no keys yet. Sign out and sign in again to set them up.</string>
     <string name="error_password_does_not_open">That password does not open your letters.</string>
     <string name="error_recovery_code_wrong">That recovery code does not match this account. Check it against the copy you saved.</string>
     <plurals name="error_rate_limited_minutes">

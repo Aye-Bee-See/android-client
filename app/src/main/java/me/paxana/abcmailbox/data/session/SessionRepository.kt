@@ -2,6 +2,9 @@ package me.paxana.abcmailbox.data.session
 
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 import me.paxana.abcmailbox.crypto.KdfParams
 import me.paxana.abcmailbox.data.crypto.SplitKeys
 import me.paxana.abcmailbox.data.api.DeletionReportDto
@@ -22,7 +25,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
@@ -37,6 +43,7 @@ import me.paxana.abcmailbox.data.crypto.CryptoEngine
 import me.paxana.abcmailbox.data.crypto.EncryptionMode
 import me.paxana.abcmailbox.data.crypto.EncryptionModeRepository
 import me.paxana.abcmailbox.data.crypto.KeyVault
+import me.paxana.abcmailbox.data.crypto.NewAccountKeys
 import me.paxana.abcmailbox.data.crypto.LetterCodec
 import me.paxana.abcmailbox.data.api.UpdateUserRequest
 import me.paxana.abcmailbox.data.api.AuthApi
@@ -101,14 +108,34 @@ interface SessionRepository {
   /** A recovery code that was just created and must be shown to the writer exactly once. */
   val pendingRecoveryCode: StateFlow<String?>
 
-  /** The writer confirmed they saved the code; forget it. */
-  fun recoveryCodeSaved()
+  /**
+   * The writer confirmed they saved the code. Keys made at sign-in go to the server only now (`PUT /auth/keys`, in the
+   * order docs/E2E-MIGRATION.md gives), so no account is ever guarded by a code nobody saw: until this succeeds nothing
+   * is uploaded, and a sign-in interrupted on the code screen makes fresh keys and a fresh code the next time. Answers
+   * how many earlier letters the server sealed to the new key (`caughtUp.sealed`), 0 when none or when the keys went up
+   * with the account (a claim, a join). A failure keeps the code and the keys for another try, except a
+   * [AppError.Conflict]: another device set this account's key first, the code shown here opens nothing, and it is
+   * forgotten; the account unlocks with its password as usual.
+   */
+  suspend fun recoveryCodeSaved(): ApiResult<Int>
 
   /** True when signed in to an end-to-end server without the private key on this device. */
   val keysLocked: StateFlow<Boolean>
 
-  /** Fetches the key bundle and unwraps it with the password. */
+  /**
+   * Fetches the key bundle and unwraps it with the password. An account with no key yet (a sign-in that ended on the
+   * recovery code screen without its confirmation) is signed in again, which checks the password with the server and
+   * makes the keys and a new recovery code, exactly as a first sign-in does.
+   */
   suspend fun unlock(password: String): ApiResult<Unit>
+
+  /**
+   * Whether the signed-in account's password never leaves the phone, for the unlock prompt to say so only when it is
+   * true. A split account sends a key derived from it, even when unlocking signs in again; this phone remembers every
+   * name it has signed in to that way. Anything else (an account from before, or a session saved before this phone
+   * kept that memory) may send the password itself when unlocking has to sign in again.
+   */
+  suspend fun passwordStaysOnPhone(): Boolean
 
   /** Recovery with the saved code: proves possession of the key, sets a new password, signs in. */
   suspend fun recover(username: String, recoveryCode: String, newPassword: String): ApiResult<Session>
@@ -137,7 +164,34 @@ class DefaultSessionRepository @Inject constructor(
 
   private val _pendingRecoveryCode = MutableStateFlow<String?>(null)
   override val pendingRecoveryCode: StateFlow<String?> = _pendingRecoveryCode.asStateFlow()
-  override fun recoveryCodeSaved() { _pendingRecoveryCode.value = null }
+
+  /** Keys made at sign-in, in memory only until the writer confirms they saved the code ([recoveryCodeSaved]). */
+  private class PendingKeys(val userId: Int, val keys: NewAccountKeys)
+  @Volatile private var pendingKeys: PendingKeys? = null
+  private val uploading = Mutex()
+
+  private fun forgetPendingKeys() { pendingKeys = null; _pendingRecoveryCode.value = null }
+
+  // On the application scope: leaving the screen (a rotation, the app going to the background) must not cancel an
+  // upload the server may already have taken. Under a lock, so a double tap sends once.
+  override suspend fun recoveryCodeSaved(): ApiResult<Int> = scope.async { uploading.withLock { uploadPendingKeys() } }.await()
+
+  private suspend fun uploadPendingKeys(): ApiResult<Int> {
+    // A claim or a join: the keys went up with the account, so there is only the code to forget.
+    val pending = pendingKeys ?: run { _pendingRecoveryCode.value = null; return ApiResult.Success(0) }
+    // Sending the same public key again is an ordinary update to the API, so a try whose answer was lost is safe to repeat.
+    return when (val sent = apiCall(json) { api.putKeys(pending.keys.fields.toRequest()) }) {
+      is ApiResult.Success -> {
+        vault.store(pending.userId, pending.keys.keyPair)
+        forgetPendingKeys()
+        ApiResult.Success(sent.value.data.caughtUpSealed())
+      }
+      is ApiResult.Failure -> sent.also {
+        // KeyChangeError: the account holds a different key, set by another device in the meantime. Ours can never go up.
+        if (it.error is AppError.Conflict) forgetPendingKeys()
+      }
+    }
+  }
 
   /** The claim check's key material, kept so claiming does not spend a second rate-limited check. */
   private var lastClaim: Pair<String, ClaimInfoDto>? = null
@@ -164,6 +218,7 @@ class DefaultSessionRepository @Inject constructor(
         if (refused == cache.token) {
           store.clear()
           vault.clear()
+          forgetPendingKeys()
           _expired.tryEmit(Unit)
         }
       }
@@ -251,10 +306,11 @@ class DefaultSessionRepository @Inject constructor(
   /**
    * End-to-end mode, right after signing in. An account that has keys gets them
    * unwrapped with the password just typed. An account that has none (made
-   * before the switch, or by an admin) gets a keypair now: generated here,
-   * wrapped under the password and a new recovery code, and uploaded. The
-   * recovery code is then shown once. A failure leaves the account signed in
-   * but locked, and the inbox offers to unlock.
+   * before the switch, or by an admin) gets a keypair now: generated here and
+   * wrapped under the password and a new recovery code. The code is shown once,
+   * and the keys are uploaded when the writer confirms they saved it
+   * ([recoveryCodeSaved]); until then the account is signed in but locked. A
+   * failure leaves it the same way, and the inbox offers to unlock.
    */
   private suspend fun prepareKeys(session: Session, bundle: KeyBundleDto?, password: String, cred: Credential) {
     val userId = session.user.id
@@ -266,14 +322,15 @@ class DefaultSessionRepository @Inject constructor(
       } else {
         // A split account keeps its sign-in salt: the keys are wrapped under the wrap key of that same derivation.
         val fresh = cred.split?.let { engine.createAccountKeysUnderWrapKey(it.wrapKey, cred.salt!!, cred.params!!) } ?: engine.createAccountKeys(password)
-        val sent = apiCall(json) { api.putKeys(fresh.fields.toRequest()) }
-        if (sent is ApiResult.Success) {
-          vault.store(userId, fresh.keyPair)
-          _pendingRecoveryCode.value = fresh.recoveryCode
-        }
+        pendingKeys = PendingKeys(userId, fresh)
+        _pendingRecoveryCode.value = fresh.recoveryCode
       }
     }
   }
+
+  /** `caughtUp: { letters, sealed, dropped }`, or null once the server holds no keys of its own. Read leniently: it is only told. */
+  private fun JsonElement?.caughtUpSealed(): Int =
+    (((this as? JsonObject)?.get("caughtUp") as? JsonObject)?.get("sealed") as? JsonPrimitive)?.intOrNull ?: 0
 
   private fun AccountKeyFields.toRequest(includePublicKey: Boolean = true) = KeyFieldsRequest(
     publicKey = publicKey.takeIf { includePublicKey },
@@ -290,7 +347,7 @@ class DefaultSessionRepository @Inject constructor(
     val result = apiCall(json) { api.logout(LogoutRequest(everywhere)) }.map { }
     store.clear()
     vault.clear()
-    _pendingRecoveryCode.value = null
+    forgetPendingKeys()
     return result
   }
 
@@ -462,7 +519,7 @@ class DefaultSessionRepository @Inject constructor(
         runCatching { wipe(session.user.id) }
         store.clear()
         vault.clear()
-        _pendingRecoveryCode.value = null
+        forgetPendingKeys()
         ApiResult.Success(r.value.data ?: DeletionReportDto())
       }
     }
@@ -472,7 +529,12 @@ class DefaultSessionRepository @Inject constructor(
     val session = (state.value as? SessionState.SignedIn)?.session ?: return ApiResult.Failure(AppError.Unauthorized(strings.get(R.string.error_signed_out)))
     val bundle = when (val b = fetchKeys()) {
       is ApiResult.Failure -> return b
-      is ApiResult.Success -> b.value ?: return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_no_keys_yet))))
+      // No key yet: sign in again, which checks the password with the server and makes the keys as a first sign-in does.
+      is ApiResult.Success -> b.value ?: return when (val again = login(session.user.username, password, olderAccount = session.olderAccount == true)) {
+        is ApiResult.Success -> ApiResult.Success(Unit)
+        // Refused: the server's bare "Unauthorized" is said the way this prompt says a wrong password.
+        is ApiResult.Failure -> if (again.error is AppError.Unauthorized) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open)))) else again
+      }
     }
     val (keyPair, older) = when (val o = openKeys(session, bundle, password)) {
       is ApiResult.Failure -> return o
@@ -482,6 +544,11 @@ class DefaultSessionRepository @Inject constructor(
     // A session from before the app recorded its way now knows it, from the key that opened.
     if (session.olderAccount == null) store.save(session.copy(olderAccount = older))
     return ApiResult.Success(Unit)
+  }
+
+  override suspend fun passwordStaysOnPhone(): Boolean {
+    val session = (state.value as? SessionState.SignedIn)?.session ?: return false
+    return session.olderAccount != true && schemes.isKnownSplit(session.user.username)
   }
 
   /** The account's key bundle, or null when it has no keys (server mode, or none made yet). */

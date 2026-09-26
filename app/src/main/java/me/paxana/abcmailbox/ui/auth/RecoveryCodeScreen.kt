@@ -44,10 +44,12 @@ import me.paxana.abcmailbox.ui.common.AlertBanner
  * Shown exactly once, right after keys are created or an account is claimed.
  * The code is the only way back in if the password is lost, and nobody else
  * has it, so the screen cannot be left without ticking the box: the system
- * back gesture is swallowed on purpose.
+ * back gesture is swallowed on purpose. Keys made at sign-in are uploaded by
+ * Continue ([busy] while that happens); if that fails, [error] says why and
+ * the same code stays on screen for another try.
  */
 @Composable
-fun RecoveryCodeScreen(code: String, onSaved: () -> Unit) {
+fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, busy: Boolean = false, error: String? = null) {
   var saved by rememberSaveable { mutableStateOf(false) }
   val clipboard = LocalClipboardManager.current
   BackHandler(enabled = true) { }
@@ -72,6 +74,9 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit) {
       Checkbox(checked = saved, onCheckedChange = null)
       Text(stringResource(R.string.recovery_saved), style = MaterialTheme.typography.bodyMedium)
     }
-    Button(onClick = onSaved, enabled = saved, modifier = Modifier.fillMaxWidth().testTag("recovery-continue")) { Text(stringResource(R.string.action_continue)) }
+    error?.let { Text(stringResource(R.string.error_recovery_upload, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+    Button(onClick = onSaved, enabled = saved && !busy, modifier = Modifier.fillMaxWidth().testTag("recovery-continue")) {
+      Text(stringResource(if (busy) R.string.recovery_uploading else R.string.action_continue))
+    }
   }
 }

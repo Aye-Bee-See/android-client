@@ -151,12 +151,14 @@ class ThreadViewModel(
 
 internal fun AppError.orGeneric(fallback: String) = userMessage ?: fallback
 
-data class UnlockUiState(val password: String = "", val busy: Boolean = false, val error: String? = null)
+/** [passwordStaysOnPhone] starts false, so the prompt never promises more than it knows while it asks. */
+data class UnlockUiState(val password: String = "", val busy: Boolean = false, val error: String? = null, val passwordStaysOnPhone: Boolean = false)
 
 @HiltViewModel
 class UnlockViewModel @Inject constructor(private val sessions: me.paxana.abcmailbox.data.session.SessionRepository, private val strings: Strings) : ViewModel() {
   private val _ui = MutableStateFlow(UnlockUiState())
   val ui: StateFlow<UnlockUiState> = _ui.asStateFlow()
+  init { viewModelScope.launch { val stays = sessions.passwordStaysOnPhone(); _ui.update { it.copy(passwordStaysOnPhone = stays) } } }
   fun onPassword(v: String) = _ui.update { it.copy(password = v, error = null) }
   fun unlock() {
     val pw = _ui.value.password
@@ -164,7 +166,7 @@ class UnlockViewModel @Inject constructor(private val sessions: me.paxana.abcmai
     _ui.update { it.copy(busy = true, error = null) }
     viewModelScope.launch {
       when (val r = sessions.unlock(pw)) {
-        is ApiResult.Success -> _ui.update { UnlockUiState() }
+        is ApiResult.Success -> _ui.update { UnlockUiState(passwordStaysOnPhone = it.passwordStaysOnPhone) }
         is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_unlock)) }
       }
     }
