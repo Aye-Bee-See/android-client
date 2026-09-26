@@ -14,6 +14,7 @@ import me.paxana.abcmailbox.text.TestStrings
 import me.paxana.abcmailbox.ui.auth.FakePenNames
 import me.paxana.abcmailbox.ui.auth.FakeSessionRepository
 import me.paxana.abcmailbox.ui.auth.PenNameChecker
+import me.paxana.abcmailbox.ui.common.longDate
 import me.paxana.abcmailbox.ui.directory.Loadable
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -57,5 +58,51 @@ class PenNameViewModelTest {
     vm.onChange("Anna Hollow"); dispatcher.scheduler.advanceTimeBy(PenNameChecker.DEBOUNCE_MS + 1); dispatcher.scheduler.advanceUntilIdle()
     assertTrue(vm.ui.value.typed.checkFailed); assertFalse("the form may go on; the server checks on save", vm.ui.value.typed.blocks); assertTrue(vm.ui.value.canSave)
     vm.onChange("Anna Hollow B"); dispatcher.scheduler.runCurrent(); assertFalse("not while the check is still coming", vm.ui.value.canSave)
+  }
+
+  private fun idle() = dispatcher.scheduler.advanceUntilIdle()
+  private fun type(vm: PenNameViewModel, name: String) { vm.onChange(name); dispatcher.scheduler.advanceTimeBy(PenNameChecker.DEBOUNCE_MS + 1); idle() }
+  private val future = java.time.Instant.now().plusSeconds(86_400 * 30)
+  private val past = java.time.Instant.now().minusSeconds(86_400)
+  private val jim = listOf(PenNameRow("Jim H", true, null), PenNameRow("Sam Hollow", false, null))
+
+  @Test
+  fun `during the cooldown there is nothing to type into, and the screen can say when`() = runTest {
+    val repo = FakePenNames().apply { names = PenNames("Jim H", jim, changeAllowedAt = future) }
+    val vm = PenNameViewModel(repo, FakeSessionRepository(), TestStrings()); idle()
+    assertFalse(vm.ui.value.canChange)
+    type(vm, "Anna Hollow"); assertFalse(vm.ui.value.canSave)
+  }
+
+  @Test
+  fun `with no new names left only an own old name can be saved, and the current name never`() = runTest {
+    val repo = FakePenNames().apply { names = PenNames("Jim H", jim, changeAllowedAt = past, newNamesLeft = 0) }
+    val vm = PenNameViewModel(repo, FakeSessionRepository(), TestStrings()); idle()
+    assertTrue(vm.ui.value.canChange)
+    type(vm, "Anna Hollow"); assertTrue(vm.ui.value.needsOldName); assertFalse(vm.ui.value.canSave)
+    type(vm, "sam  hollow"); assertFalse("an old name of this account's, whatever the case or spacing", vm.ui.value.needsOldName); assertTrue(vm.ui.value.canSave)
+    type(vm, "JIM H"); assertFalse("the current name is no change", vm.ui.value.canSave)
+  }
+
+  @Test
+  fun `a refusal from the server reads the limits again and says the date, not the server's sentence`() = runTest {
+    val repo = FakePenNames().apply { names = PenNames("Jim H", jim, changeAllowedAt = past) }
+    val vm = PenNameViewModel(repo, FakeSessionRepository(), TestStrings()); idle()
+    type(vm, "Anna Hollow")
+    // Another device changed the name meanwhile: the server now says wait.
+    val allowed = java.time.Instant.parse("2026-12-19T10:00:00Z")
+    repo.names = PenNames("Anna Hollow", jim, changeAllowedAt = allowed)
+    repo.setError = me.paxana.abcmailbox.data.api.AppError.Conflict("A pen name may be changed once every 90 days.", name = "PenNameLimitError", condition = "cooldown")
+    vm.save(); idle()
+    assertEquals("Your pen name changed recently, so it can change again on ${allowed.longDate()}.", vm.ui.value.error)
+    assertFalse("the limits were read again", vm.ui.value.canChange)
+  }
+
+  @Test
+  fun `a save that cannot reach the server says the name has not changed`() = runTest {
+    val repo = FakePenNames().apply { setError = me.paxana.abcmailbox.data.api.AppError.Network(java.io.IOException()) }
+    val vm = PenNameViewModel(repo, FakeSessionRepository(), TestStrings()); idle()
+    type(vm, "Anna Hollow"); vm.save(); idle()
+    assertEquals("Can't reach the server. Your pen name has not changed.", vm.ui.value.error)
   }
 }

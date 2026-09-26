@@ -119,7 +119,17 @@ data class NamedRef(val id: Int, val name: String? = null)
 
 @Serializable data class JoinInfoDto(val chapter: NamedRef, val expiresAt: String? = null)
 @Serializable data class PenNameCheckDto(val available: Boolean = false, val name: String? = null, val reason: String? = null, val twoParts: Boolean = true)
-@Serializable data class PenNamesDto(val penName: String? = null, val names: List<PenNameRowDto> = emptyList())
+/** Since API #127 with what the limits leave: absent from an older API, where the defaults are its settings (90 days, 2 a year). */
+@Serializable
+data class PenNamesDto(
+  val penName: String? = null,
+  val names: List<PenNameRowDto> = emptyList(),
+  val changeAllowedAt: String? = null,
+  val newNamesLeft: Int? = null,
+  val newNamesWindowEnds: String? = null,
+  val cooldownDays: Int? = null,
+  val newPerYear: Int? = null,
+)
 @Serializable data class PenNameRowDto(val name: String, val current: Boolean = false, val since: String? = null)
 
 @Serializable
