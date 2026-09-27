@@ -25,7 +25,17 @@ data class ApiEnvelope<T>(
   val unread: Int? = null,
   /** On some refusals: a code for why (a claim token that is `expired` or `used`). Asked of the API; not sent yet, see [goneCondition]. */
   val condition: String? = null,
+  /** On a 400 (API PR #133): one entry per sentence in [errors], in the same order, saying which field and why. */
+  val problems: List<ProblemDto>? = null,
 )
+
+/** One failure of a 400 as the API codes it (`docs/ERRORS.md`): the field's path in the request, a code, and its limits. */
+@Serializable
+data class ProblemDto(val field: String? = null, val code: String? = null, val params: ProblemParams? = null)
+
+/** What to interpolate; never the value that was sent. Only the limits are read. */
+@Serializable
+data class ProblemParams(val min: Int? = null, val max: Int? = null)
 
 /** A list response with its paging fields, as repositories hand it to Paging. */
 data class Page<T>(val items: List<T>, val total: Int, val page: Int, val pageSize: Int) {

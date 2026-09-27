@@ -40,7 +40,14 @@ object PenName {
 }
 
 /** The server's answer to "is this name free?" */
-data class PenNameCheck(val name: String, val available: Boolean, val reason: String?, val twoParts: Boolean)
+data class PenNameCheck(
+  val name: String,
+  val available: Boolean,
+  val reason: String?,
+  val twoParts: Boolean,
+  /** Why not, as a code (API PR #133): `not_unique` when someone has or had it. Null from an older API, or when it is free. */
+  val reasonCode: String? = null,
+)
 
 /**
  * An account's names, the current one first, and what the limits (API #127) leave it today: one change of any kind

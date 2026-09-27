@@ -26,6 +26,8 @@ import me.paxana.abcmailbox.ui.nav.JoinRoute
 import javax.inject.Inject
 
 data class JoinUiState(
+  /** A refused submit, sentence by API field (API PR #133); cleared by any edit. */
+  val fieldErrors: Map<String, String> = emptyMap(),
   val code: String = "",
   val invitation: Invitation? = null,
   val username: String = "",
@@ -80,16 +82,16 @@ class JoinViewModel(
     if (route.code != null && InviteCode.isWellFormed(route.code) && signedInAs == null) check()
   }
 
-  fun onPenNameChange(v: String) { penName.onChange(v); _ui.update { it.copy(error = null) } }
+  fun onPenNameChange(v: String) { penName.onChange(v); _ui.update { it.copy(error = null, fieldErrors = emptyMap()) } }
 
   fun signOut() { viewModelScope.launch { sessions.logout() } }
 
-  fun onCodeChange(v: String) = _ui.update { it.copy(code = v, error = null, codeDead = false, invitation = null) }
-  fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null) }
-  fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, error = null) }
-  fun onConfirmChange(v: String) = _ui.update { it.copy(confirm = v, error = null) }
-  fun onEmailChange(v: String) = _ui.update { it.copy(email = v, error = null) }
-  fun onNameChange(v: String) = _ui.update { it.copy(name = v, error = null) }
+  fun onCodeChange(v: String) = _ui.update { it.copy(code = v, error = null, fieldErrors = emptyMap(), codeDead = false, invitation = null) }
+  fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null, fieldErrors = emptyMap()) }
+  fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, error = null, fieldErrors = emptyMap()) }
+  fun onConfirmChange(v: String) = _ui.update { it.copy(confirm = v, error = null, fieldErrors = emptyMap()) }
+  fun onEmailChange(v: String) = _ui.update { it.copy(email = v, error = null, fieldErrors = emptyMap()) }
+  fun onNameChange(v: String) = _ui.update { it.copy(name = v, error = null, fieldErrors = emptyMap()) }
   fun onToggleShowPassword() = _ui.update { it.copy(showPassword = !it.showPassword) }
   fun startOver() = _ui.update { JoinUiState() }
   fun invitationTokenHandedOn() = _ui.update { it.copy(invitationToken = null) }
@@ -117,7 +119,10 @@ class JoinViewModel(
       when (val r = sessions.join(InviteCode.normalise(s.code), s.username, s.password, s.email, s.name, s.penName.value.ifBlank { null })) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", joined = true) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, codeDead = r.error.isDeadCode, error = r.error.toJoinMessage(strings)) }
+        is ApiResult.Failure -> {
+          val refused = r.error.forForm(accountFields(strings), strings, kept = R.string.invite_code_kept) { it.toJoinMessage(strings) }
+          _ui.update { it.copy(busy = false, codeDead = r.error.isDeadCode, error = refused.general, fieldErrors = refused.byField) }
+        }
       }
     }
   }

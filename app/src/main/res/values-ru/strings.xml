@@ -116,6 +116,32 @@
         <item quantity="other">Сервер попросил сделать паузу. Попробуйте снова через %d минуты.</item>
     </plurals>
     <string name="error_rate_limited_later">Сервер попросил сделать паузу. Попробуйте позже.</string>
+    <string name="error_wrong_encryption_mode">Эта версия приложения не может отправлять письма на этот сервер: он защищает их способом, который приложению неизвестен. Обновите приложение и отправьте письмо снова.</string>
+    <string name="form_check_fields">Проверьте поля, отмеченные красным.</string>
+    <string name="form_required">Нужно заполнить поле «%1$s».</string>
+    <plurals name="form_length">
+        <item quantity="one">Поле «%2$s» должно содержать от %3$d до %1$d символа.</item>
+        <item quantity="few">Поле «%2$s» должно содержать от %3$d до %1$d символов.</item>
+        <item quantity="many">Поле «%2$s» должно содержать от %3$d до %1$d символов.</item>
+        <item quantity="other">Поле «%2$s» должно содержать от %3$d до %1$d символа.</item>
+    </plurals>
+    <string name="form_not_unique">Такое значение поля «%1$s» уже занято. Выберите другое.</string>
+    <string name="form_reserved">Такое значение поля «%1$s» зарезервировано для самого сайта. Выберите другое.</string>
+    <string name="form_not_an_email">Это не похоже на адрес электронной почты.</string>
+    <string name="form_not_a_url">Это не похоже на веб-адрес. Он должен начинаться с https://.</string>
+    <string name="form_app_needs_update">Эта версия приложения отправила то, что сервер не смог использовать. Обновите приложение и попробуйте снова.</string>
+    <string name="pen_name_taken_named">Псевдоним %1$s занят. Использованный псевдоним навсегда остаётся за тем, кто его использовал, поэтому выберите другой.</string>
+    <string name="field_username">имя пользователя</string>
+    <string name="field_email">адрес электронной почты</string>
+    <string name="field_name">имя</string>
+    <string name="field_pen_name">псевдоним</string>
+    <string name="field_group_name">название группы</string>
+    <string name="field_city">город</string>
+    <string name="field_region">регион</string>
+    <string name="field_country">страна</string>
+    <string name="field_about">описание</string>
+    <string name="field_website">сайт</string>
+    <string name="field_group_email">почта группы</string>
     <string name="notice_letter_queued_limited">За последний час сервер получил от этой учётной записи очень много. Письмо сохранено на телефоне и отправится само с %1$s.</string>
     <string name="outbox_limited">За последний час сервер получил от этой учётной записи очень много. Эти письма в безопасности и отправятся сами с %1$s.</string>
     <string name="title_write_to">Кому написать…</string>

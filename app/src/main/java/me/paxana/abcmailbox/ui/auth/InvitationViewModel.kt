@@ -27,6 +27,8 @@ import me.paxana.abcmailbox.ui.nav.InvitationRoute
 import javax.inject.Inject
 
 data class InvitationUiState(
+  /** A refused submit, sentence by API field (API PR #133); cleared by any edit. */
+  val fieldErrors: Map<String, String> = emptyMap(),
   val token: String = "",
   val invitation: GroupInvitation? = null,
   val username: String = "",
@@ -89,13 +91,13 @@ class InvitationViewModel(
 
   fun signOut() { viewModelScope.launch { sessions.logout() } }
 
-  fun onTokenChange(v: String) = _ui.update { it.copy(token = v, error = null, tokenDead = false, maybeClaimToken = false, invitation = null) }
-  fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null) }
-  fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, error = null) }
-  fun onConfirmChange(v: String) = _ui.update { it.copy(confirm = v, error = null) }
-  fun onEmailChange(v: String) = _ui.update { it.copy(email = v, error = null) }
-  fun onNameChange(v: String) = _ui.update { it.copy(name = v, error = null) }
-  fun onGroupChange(change: (NewGroupProfile) -> NewGroupProfile) = _ui.update { it.copy(group = change(it.group), error = null) }
+  fun onTokenChange(v: String) = _ui.update { it.copy(token = v, error = null, fieldErrors = emptyMap(), tokenDead = false, maybeClaimToken = false, invitation = null) }
+  fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null, fieldErrors = emptyMap()) }
+  fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, error = null, fieldErrors = emptyMap()) }
+  fun onConfirmChange(v: String) = _ui.update { it.copy(confirm = v, error = null, fieldErrors = emptyMap()) }
+  fun onEmailChange(v: String) = _ui.update { it.copy(email = v, error = null, fieldErrors = emptyMap()) }
+  fun onNameChange(v: String) = _ui.update { it.copy(name = v, error = null, fieldErrors = emptyMap()) }
+  fun onGroupChange(change: (NewGroupProfile) -> NewGroupProfile) = _ui.update { it.copy(group = change(it.group), error = null, fieldErrors = emptyMap()) }
   fun onToggleShowPassword() = _ui.update { it.copy(showPassword = !it.showPassword) }
   fun inviteCodeHandedOn() = _ui.update { it.copy(inviteCode = null) }
   fun startOver() = _ui.update { InvitationUiState() }
@@ -134,7 +136,16 @@ class InvitationViewModel(
       when (val r = sessions.acceptInvitation(InvitationToken.normalise(s.token), s.username, s.password, s.email, s.name, group, invitation.groupFields)) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", accepted = r.value) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toInvitationMessage(strings)) }
+        is ApiResult.Failure -> {
+          val fields = accountFields(strings) - "penName" + mapOf(
+            "group.name" to strings.get(R.string.field_group_name), "group.location" to strings.get(R.string.field_city),
+            "group.subregion" to strings.get(R.string.field_region), "group.country" to strings.get(R.string.field_country),
+            "group.about" to strings.get(R.string.field_about), "group.website" to strings.get(R.string.field_website),
+            "group.email" to strings.get(R.string.field_group_email),
+          )
+          val refused = r.error.forForm(fields, strings, kept = R.string.invitation_kept) { it.toInvitationMessage(strings) }
+          _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = refused.general, fieldErrors = refused.byField) }
+        }
       }
     }
   }

@@ -13,5 +13,6 @@ fun AppError.message(strings: Strings): String? = when (this) {
     val minutes = ((s + 59) / 60).coerceAtLeast(1).toInt()
     strings.plural(R.plurals.error_rate_limited_wait, minutes, minutes)
   } ?: strings.get(R.string.error_rate_limited_later)
+  is AppError.WrongEncryptionMode -> strings.get(R.string.error_wrong_encryption_mode)
   else -> userMessage
 }

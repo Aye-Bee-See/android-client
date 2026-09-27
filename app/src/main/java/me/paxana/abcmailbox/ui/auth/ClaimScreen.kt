@@ -100,7 +100,7 @@ fun ClaimScreen(
         }
       )
 
-      OutlinedTextField(ui.username, viewModel::onUsernameChange, label = { Text(stringResource(R.string.label_username)) }, supportingText = { Text(stringResource(R.string.help_username_length)) }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.username, viewModel::onUsernameChange, label = { Text(stringResource(R.string.label_username)) }, isError = ui.fieldErrors["username"] != null, supportingText = { Text(ui.fieldErrors["username"] ?: stringResource(R.string.help_username_length)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("claim-username"))
       OutlinedTextField(ui.password, viewModel::onPasswordChange, label = { Text(stringResource(R.string.label_password)) }, supportingText = { Text(stringResource(R.string.help_password_length)) }, singleLine = true, enabled = !ui.busy,
         visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
@@ -114,9 +114,9 @@ fun ClaimScreen(
         visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth().testTag("claim-confirm"))
-      PenNameField(ui.penName, viewModel::onPenNameChange, enabled = !ui.busy, strings = me.paxana.abcmailbox.text.rememberStrings())
+      PenNameField(ui.penName, viewModel::onPenNameChange, enabled = !ui.busy, strings = me.paxana.abcmailbox.text.rememberStrings(), serverError = ui.fieldErrors["penName"])
       Text(stringResource(R.string.help_pen_name), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-      OutlinedTextField(ui.email, viewModel::onEmailChange, label = { Text(stringResource(R.string.label_email_optional)) }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.email, viewModel::onEmailChange, label = { Text(stringResource(R.string.label_email_optional)) }, isError = ui.fieldErrors["email"] != null, supportingText = ui.fieldErrors["email"]?.let { e -> { Text(e) } }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
 
       Row(verticalAlignment = Alignment.CenterVertically) {

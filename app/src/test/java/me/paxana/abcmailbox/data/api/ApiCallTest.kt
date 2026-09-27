@@ -124,4 +124,22 @@ class ApiCallTest {
     val mismatch = apiCall(json) { throw http(422, """{"success":false,"name":"IdempotencyError","info":"This Idempotency-Key was used for a different letter.","status":422}""") }
     assertEquals(AppError.Validation(listOf("This Idempotency-Key was used for a different letter.")), (mismatch as ApiResult.Failure).error)
   }
+
+  @Test
+  fun `a 400's problems pair with its sentences, and wrong_encryption_mode is its own error`() = runTest {
+    val r = apiCall(json) { throw http(400, """{"success":false,"errors":["Username taken.","penName must be between 3 and 40 characters."],"problems":[{"field":"username","code":"not_unique","params":{"fields":["username"]}},{"field":"penName","code":"length_out_of_range","params":{"min":3,"max":40}}]}""") }
+    val v = (r as ApiResult.Failure).error as AppError.Validation
+    assertEquals(listOf("Username taken.", "penName must be between 3 and 40 characters."), v.errors)
+    assertEquals(listOf(FieldProblem("username", "not_unique", message = "Username taken."), FieldProblem("penName", "length_out_of_range", 3, 40, "penName must be between 3 and 40 characters.")), v.problems)
+
+    val unpaired = apiCall(json) { throw http(400, """{"success":false,"errors":["One.","Two."],"problems":[{"field":"username","code":"required"}]}""") }
+    assertEquals("counts that do not match are not paired at all", emptyList<FieldProblem>(), ((unpaired as ApiResult.Failure).error as AppError.Validation).problems)
+
+    val underError = apiCall(json) { throw http(400, """{"success":false,"info":"Error creating user.","error":"That username is taken.","problems":[{"field":"username","code":"not_unique"}]}""") }
+    val u = (underError as ApiResult.Failure).error as AppError.Validation
+    assertEquals(listOf("That username is taken."), u.errors); assertEquals("username", u.problems.single().field)
+
+    val mode = apiCall(json) { throw http(400, """{"success":false,"errors":["messageText is not accepted by an end-to-end server."],"problems":[{"field":"messageText","code":"wrong_encryption_mode"}]}""") }
+    assertEquals(AppError.WrongEncryptionMode, (mode as ApiResult.Failure).error)
+  }
 }

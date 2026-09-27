@@ -60,6 +60,16 @@ class LetterCodec @Inject constructor(
 
   suspend fun isEndToEnd(): Boolean = modes.current() == EncryptionMode.E2E
 
+  /**
+   * Asks `/health` again after a `wrong_encryption_mode` refusal. True when the server now speaks another mode than
+   * the one this app last knew (it switched while the app was open), so encoding again is the fix.
+   */
+  suspend fun modeChanged(): Boolean {
+    val before = modes.mode.value
+    val after = modes.refresh()
+    return after != EncryptionMode.UNKNOWN && after != before
+  }
+
   /** The request for a new letter; in end-to-end mode also the content key, for encrypting its attachments. */
   suspend fun outgoing(letter: NewLetter): ApiResult<Pair<SendMessageRequest, ByteArray?>> {
     val sender = if (letter.fromPrisoner) "prisoner" else "user"

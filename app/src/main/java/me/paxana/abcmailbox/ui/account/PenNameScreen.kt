@@ -39,6 +39,7 @@ import me.paxana.abcmailbox.data.repo.PenNameRepository
 import me.paxana.abcmailbox.data.repo.penNameLimit
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
+import me.paxana.abcmailbox.domain.FormErrors
 import me.paxana.abcmailbox.domain.PenNames
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.text.rememberStrings
@@ -58,6 +59,8 @@ import javax.inject.Inject
 
 data class PenNameUiState(
   val names: Loadable<PenNames> = Loadable.Loading,
+  /** A refused save, said under the field (API PR #133): a name taken since it was checked, say. Cleared by typing. */
+  val fieldError: String? = null,
   val typed: PenNameState = PenNameState(),
   val busy: Boolean = false,
   val error: String? = null,
@@ -104,7 +107,7 @@ class PenNameViewModel @Inject constructor(private val repo: PenNameRepository, 
     _ui.update { it.copy(names = when (r) { is ApiResult.Failure -> Loadable.Failed(r.error); is ApiResult.Success -> Loadable.Loaded(r.value) }) }
   }
 
-  fun onChange(v: String) { checker.onChange(v); _ui.update { it.copy(error = null, saved = null) } }
+  fun onChange(v: String) { checker.onChange(v); _ui.update { it.copy(error = null, saved = null, fieldError = null) } }
 
   fun save() {
     val s = _ui.value
@@ -117,11 +120,13 @@ class PenNameViewModel @Inject constructor(private val repo: PenNameRepository, 
           val limit = r.error.penNameLimit
           // The limits may have moved since the screen opened (a change from another device): read them again, then say why.
           if (limit != null) reload()
-          val message = when {
-            limit != null -> refusal(limit)
-            r.error is AppError.Network -> strings.get(R.string.pen_name_error_network)
-            else -> r.error.message(strings) ?: strings.get(R.string.error_generic)
+          if (limit == null && r.error !is AppError.Network) {
+            // A refusal about the name itself goes under the field, in the app's words where the code allows.
+            val refused = FormErrors.of(r.error, mapOf("penName" to strings.get(R.string.field_pen_name)), strings) { it.message(strings) ?: strings.get(R.string.error_generic) }
+            _ui.update { it.copy(busy = false, fieldError = refused.byField["penName"], error = refused.general.takeIf { _ -> refused.byField.isEmpty() }) }
+            return@launch
           }
+          val message = if (limit != null) refusal(limit) else strings.get(R.string.pen_name_error_network)
           _ui.update { it.copy(busy = false, error = message) }
         }
       }
@@ -161,7 +166,7 @@ fun PenNameScreen(onBack: () -> Unit, viewModel: PenNameViewModel = hiltViewMode
           ui.saved?.let { Text(stringResource(R.string.notice_pen_name_saved, it), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("pen-name-saved")) }
           PenNameLimits(names)
           if (ui.canChange) {
-            PenNameField(ui.typed, viewModel::onChange, enabled = !ui.busy, strings = strings, label = stringResource(if (names.current == null) R.string.label_pen_name else R.string.label_new_pen_name))
+            PenNameField(ui.typed, viewModel::onChange, enabled = !ui.busy, strings = strings, label = stringResource(if (names.current == null) R.string.label_pen_name else R.string.label_new_pen_name), serverError = ui.fieldError)
             if (ui.needsOldName) ErrorText(stringResource(R.string.pen_name_only_old))
             ui.error?.let { ErrorText(it) }
             Button(onClick = viewModel::save, enabled = ui.canSave, modifier = Modifier.fillMaxWidth().testTag("pen-name-save")) { Text(stringResource(if (ui.busy) R.string.action_saving else R.string.action_save)) }

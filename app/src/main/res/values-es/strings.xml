@@ -110,6 +110,31 @@
         <item quantity="other">El servidor ha pedido una pausa. Inténtalo de nuevo en %d minutos.</item>
     </plurals>
     <string name="error_rate_limited_later">El servidor ha pedido una pausa. Inténtalo de nuevo más tarde.</string>
+    <string name="error_wrong_encryption_mode">Esta versión de la app no puede enviar cartas a este servidor, que las protege de una forma que la app no conoce. Actualiza la app y vuelve a enviar la carta.</string>
+    <string name="form_check_fields">Revisa los campos marcados en rojo.</string>
+    <string name="form_required">Falta «%1$s».</string>
+    <plurals name="form_length">
+        <item quantity="one">«%2$s» debe tener entre %3$d y %1$d carácter.</item>
+        <item quantity="many">«%2$s» debe tener entre %3$d y %1$d caracteres.</item>
+        <item quantity="other">«%2$s» debe tener entre %3$d y %1$d caracteres.</item>
+    </plurals>
+    <string name="form_not_unique">Lo que has puesto en «%1$s» ya está en uso. Elige otra cosa.</string>
+    <string name="form_reserved">Lo que has puesto en «%1$s» está reservado para el propio sitio. Elige otra cosa.</string>
+    <string name="form_not_an_email">Eso no parece una dirección de correo.</string>
+    <string name="form_not_a_url">Eso no parece una dirección web. Debería empezar por https://.</string>
+    <string name="form_app_needs_update">Esta versión de la app envió algo que el servidor no pudo usar. Actualiza la app e inténtalo de nuevo.</string>
+    <string name="pen_name_taken_named">%1$s ya está en uso. Un seudónimo usado queda para siempre con quien lo usó, así que elige otro.</string>
+    <string name="field_username">nombre de usuario</string>
+    <string name="field_email">correo electrónico</string>
+    <string name="field_name">nombre</string>
+    <string name="field_pen_name">seudónimo</string>
+    <string name="field_group_name">nombre del grupo</string>
+    <string name="field_city">ciudad</string>
+    <string name="field_region">región</string>
+    <string name="field_country">país</string>
+    <string name="field_about">descripción</string>
+    <string name="field_website">sitio web</string>
+    <string name="field_group_email">correo del grupo</string>
     <string name="notice_letter_queued_limited">El servidor ha recibido mucho de esta cuenta en la última hora. Tu carta está guardada en este teléfono y se enviará sola a partir de las %1$s.</string>
     <string name="outbox_limited">El servidor ha recibido mucho de esta cuenta en la última hora. Estas cartas están a salvo aquí y se enviarán solas a partir de las %1$s.</string>
     <string name="title_write_to">Escribir a…</string>
