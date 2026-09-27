@@ -68,6 +68,22 @@ class PushRegistrarTest {
   }
 
   @Test
+  fun `someone who never turned it on is never taken to Google, not even when their account is deleted or it is switched off`() = runTest {
+    registrar.forgetLocally()
+    registrar.turnOff()
+    assertEquals("the push service was never started to give up an address this phone never had", 0, provider.forgotten)
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `a phone that was registered gives its address up when the account is deleted`() = runTest {
+    server.enqueue(registered(id = 7, deliverable = true)); registrar.turnOn(); server.next()
+    registrar.forgetLocally()
+    assertEquals(1, provider.forgotten); assertFalse(registrar.enabled.first())
+    assertEquals("the server's record went with the account; it is not asked", 1, server.requestCount)
+  }
+
+  @Test
   fun `turning it on registers this phone, and says whether the server can ring it yet`() = runTest {
     server.enqueue(registered(deliverable = false))
     assertEquals(ApiResult.Success(false), registrar.turnOn())

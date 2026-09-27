@@ -108,16 +108,25 @@ class DefaultPushRegistrar @Inject constructor(
 
   override suspend fun turnOff(): ApiResult<Unit> {
     // Locally first: whatever the network does next, this phone has stopped asking to be rung.
+    val used = wasUsed()
     val deviceId = dataStore.data.first()[deviceIdKey]
     dataStore.edit { it[enabledKey] = false; it.remove(deviceIdKey) }
-    runCatching { provider.forget() }
+    if (used) runCatching { provider.forget() }
     return if (deviceId == null) ApiResult.Success(Unit) else apiCall(json) { api.removeDevice(IdBody(deviceId)) }.map { }
   }
 
   override suspend fun forgetLocally() {
+    val used = wasUsed()
     dataStore.edit { it[enabledKey] = false; it.remove(deviceIdKey) }
-    runCatching { provider.forget() }
+    if (used) runCatching { provider.forget() }
   }
+
+  /**
+   * Whether this phone ever got an address from the push service. Giving up an address it never had would start
+   * Firebase for nothing, and starting it contacts Google, which someone who never turned this on must not have
+   * happen (found 27 Sep 2026: deleting an account did exactly that).
+   */
+  private suspend fun wasUsed(): Boolean = dataStore.data.first().let { it[enabledKey] == true || it[deviceIdKey] != null }
 
   override fun onNewToken(token: String) {
     scope.launch { if (dataStore.data.first()[enabledKey] == true && sessions.state.value is SessionState.SignedIn) register(token) }
