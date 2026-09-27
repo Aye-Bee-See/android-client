@@ -119,6 +119,17 @@
         <item quantity="many">«%2$s» debe tener entre %3$d y %1$d caracteres.</item>
         <item quantity="other">«%2$s» debe tener entre %3$d y %1$d caracteres.</item>
     </plurals>
+    <plurals name="form_length_at_most">
+        <item quantity="one">«%2$s» puede tener como máximo %1$d carácter.</item>
+        <item quantity="many">«%2$s» puede tener como máximo %1$d caracteres.</item>
+        <item quantity="other">«%2$s» puede tener como máximo %1$d caracteres.</item>
+    </plurals>
+    <string name="form_range">«%1$s» debe estar entre %2$d y %3$d.</string>
+    <string name="form_at_least">«%1$s» debe ser %2$d o más.</string>
+    <string name="form_whole_number">«%1$s» debe ser un número entero.</string>
+    <string name="field_number">número</string>
+    <string name="field_label">etiqueta</string>
+    <string name="field_note">nota</string>
     <string name="form_not_unique">Lo que has puesto en «%1$s» ya está en uso. Elige otra cosa.</string>
     <string name="form_reserved">Lo que has puesto en «%1$s» está reservado para el propio sitio. Elige otra cosa.</string>
     <string name="form_not_an_email">Eso no parece una dirección de correo.</string>

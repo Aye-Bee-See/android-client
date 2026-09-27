@@ -73,7 +73,7 @@ class GroupViewModelsTest {
       moves += status; returnedAs += returned; releases += release; this.status = status; held = null; return ApiResult.Success(letter())
     }
     override suspend fun writers() = ApiResult.Success(emptyList<ManagedWriter>())
-    override suspend fun addWriter(name: String, email: String?, note: String?) = ApiResult.Success(ManagedWriter(47, name.trim(), email, note, null))
+    override suspend fun addWriter(name: String, email: String?, note: String?): ApiResult<ManagedWriter> = refuse?.let { ApiResult.Failure(it) } ?: ApiResult.Success(ManagedWriter(47, name.trim(), email, note, null))
     override suspend fun issueToken(writerId: Int) = ApiResult.Success(IssuedToken("TOKEN${++issued}", null))
     override suspend fun revokeToken(writerId: Int): ApiResult<Unit> { revoked++; return ApiResult.Success(Unit) }
 
@@ -285,5 +285,26 @@ class GroupViewModelsTest {
   @Test
   fun `printing escapes markup so a letter cannot inject HTML into the print job`() {
     assertEquals("&lt;script&gt;alert(1)&lt;/script&gt; &amp; more", PrintLetter.escape("<script>alert(1)</script> & more"))
+  }
+
+  private fun refusal(field: String, code: String, min: Int? = null, max: Int? = null, message: String) =
+    AppError.Validation(listOf(message), problems = listOf(me.paxana.abcmailbox.data.api.FieldProblem(field, code, min, max, message)))
+
+  @Test
+  fun `a refused writer puts each problem under its field, and an edit clears it`() = runTest {
+    val vm = AddWriterViewModel(FakeGroup(refuse = refusal("name", "length_out_of_range", 3, 32, "Name must be between 3 and 32 characters.")), TestStrings())
+    vm.onName("Sam"); vm.submit(thenWrite = false); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(mapOf("name" to "Name must be 3 to 32 characters."), vm.ui.value.fieldErrors)
+    assertEquals("Check the fields marked in red.", vm.ui.value.error)
+    vm.onNote("x")
+    assertEquals(emptyMap<String, String>(), vm.ui.value.fieldErrors)
+  }
+
+  @Test
+  fun `a refused count of letters mailed before goes under the field, with no second line`() = runTest {
+    val vm = GroupNumbersViewModel(FakeGroup(refuse = refusal("lettersSentBefore", "out_of_range", 0, 100000, "x")), TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    vm.onTyped("5"); vm.save(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Number must be from 0 to 100000.", vm.ui.value.fieldError)
+    assertEquals(null, vm.ui.value.error)
   }
 }

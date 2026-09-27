@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
 import androidx.compose.foundation.layout.Arrangement
+import me.paxana.abcmailbox.domain.FormErrors
 import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,8 @@ data class GroupNumbersUiState(
   val typed: String = "",
   val busy: Boolean = false,
   val error: String? = null,
+  /** A refused save said under the field (API PR #133), as the iOS app does; cleared by typing. */
+  val fieldError: String? = null,
   val saved: Boolean = false,
 ) {
   /** A whole number, not negative, and not absurd: six digits is more letters than any group has mailed. */
@@ -87,7 +90,7 @@ class GroupNumbersViewModel @Inject constructor(private val group: GroupReposito
     }
   }
 
-  fun onTyped(v: String) = _ui.update { it.copy(typed = v.filter(Char::isDigit).take(6), error = null, saved = false) }
+  fun onTyped(v: String) = _ui.update { it.copy(typed = v.filter(Char::isDigit).take(6), error = null, fieldError = null, saved = false) }
 
   fun save() {
     val count = _ui.value.parsed ?: return
@@ -96,7 +99,11 @@ class GroupNumbersViewModel @Inject constructor(private val group: GroupReposito
     viewModelScope.launch {
       when (val r = group.setLettersSentBefore(count)) {
         is ApiResult.Success -> { _ui.update { it.copy(busy = false, saved = true) }; load() }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_generic)) }
+        is ApiResult.Failure -> {
+          val refused = FormErrors.of(r.error, mapOf("lettersSentBefore" to strings.get(R.string.field_number)), strings) { it.message(strings) ?: strings.get(R.string.error_generic) }
+          val under = refused.byField["lettersSentBefore"]
+          _ui.update { it.copy(busy = false, fieldError = under, error = refused.general.takeIf { _ -> under == null }) }
+        }
       }
     }
   }
@@ -127,8 +134,8 @@ fun GroupNumbersScreen(onBack: () -> Unit, viewModel: GroupNumbersViewModel = hi
           KeyValue(stringResource(R.string.label_marked_mailed_here), numbers.countedHere.toString())
           OutlinedTextField(
             ui.typed, viewModel::onTyped, label = { Text(stringResource(R.string.label_letters_sent_before)) },
-            supportingText = { Text(stringResource(R.string.help_letters_sent_before)) },
-            singleLine = true, enabled = !ui.busy, isError = ui.typed.isNotEmpty() && ui.parsed == null,
+            supportingText = { Text(ui.fieldError ?: stringResource(R.string.help_letters_sent_before)) },
+            singleLine = true, enabled = !ui.busy, isError = ui.fieldError != null || (ui.typed.isNotEmpty() && ui.parsed == null),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             modifier = Modifier.fillMaxWidth().testTag("letters-before"),
           )

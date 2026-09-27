@@ -352,6 +352,10 @@ Verified on the emulator against a scratch API at the API's `main` (#140): the p
 
 Verified on the emulator against a scratch end-to-end API at the API's `main` (#161): with a letter open to Abdul Aziz, his record was set to pending and Send showed that sentence after the two 404s; and the offline database's instrumented test finds nothing for `%` or `_` and both Smiths for "smith".
 
+**Group forms put refusals under their fields too (as ios-client #15, 27 September 2026).** Adding a managed writer (name, email, internal note), printing invite codes (the batch's label) and the group's numbers (letters mailed before) now use `FormErrors` like the account forms: the problem under its field, "Check the fields marked in red" beside it (the numbers form, with one field, says it only under the field), cleared by editing. `FormErrors` gains the group forms' cases, worded as iOS words them: a length with no minimum ("can be at most 80 characters"), a number's range ("must be from 0 to 100000", "must be 1 or more"; a maximum alone is left to the API's sentence, which says which limit it is), and "must be a whole number".
+
+Verified on the emulator against a scratch API at the API's `main` (#167), signed in as `chapter1`: adding a writer with the email `not-an-email` was refused, and the Email field said "That does not look like an email address." with "Check the fields marked in red." below. The label and the numbers cannot be refused from the phone (it limits both before sending), so those are covered by tests.
+
 **What is left before a public release** is not code: a domain and hosting (release API address, verified App Links for claim links, the Play listing), a release keystore that the project owner makes and backs up, a privacy policy, and a native-speaker review of the Spanish and Russian (`docs/TRANSLATING.md`).
 
 Total: roughly five to six working weeks for one developer, with e2e and group features being the two largest blocks.

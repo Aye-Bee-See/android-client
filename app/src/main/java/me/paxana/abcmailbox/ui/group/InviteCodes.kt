@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
 import androidx.activity.compose.BackHandler
+import me.paxana.abcmailbox.domain.FormErrors
 import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -83,6 +84,8 @@ data class InviteCodesUiState(
   val daysText: String = "",
   val busy: Boolean = false,
   val error: String? = null,
+  /** A refused batch's label problem, under the label (API PR #133), as the iOS app does; cleared by editing it. */
+  val labelError: String? = null,
   /** A batch made and not yet printed or saved, shown once; while set the screen shows the slips and nothing else. */
   val issued: IssuedInvites? = null,
   /** The batch a cancel is being confirmed for ([ALL_BATCHES] for every batch), or null. */
@@ -120,19 +123,23 @@ class InviteCodesViewModel @Inject constructor(private val invites: InviteReposi
   }
 
   fun onCount(v: String) = _ui.update { it.copy(countText = v.filter(Char::isDigit).take(2), error = null, cancelledNotice = null) }
-  fun onLabel(v: String) = _ui.update { it.copy(label = v.take(InviteRepository.LABEL_MAX), error = null, cancelledNotice = null) }
+  fun onLabel(v: String) = _ui.update { it.copy(label = v.take(InviteRepository.LABEL_MAX), error = null, labelError = null, cancelledNotice = null) }
   fun onDays(v: String) = _ui.update { it.copy(daysText = v.filter(Char::isDigit).take(3), error = null, cancelledNotice = null) }
 
   fun issue() {
     val s = _ui.value
     val count = s.count ?: return
     if (!s.canIssue) return
-    _ui.update { it.copy(busy = true, error = null, cancelledNotice = null) }
+    _ui.update { it.copy(busy = true, error = null, labelError = null, cancelledNotice = null) }
     viewModelScope.launch {
       when (val r = invites.issue(count, s.label, s.days)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, issued = r.value, label = "", daysText = "") }
         // Over the quota the server answers 409 with the numbers in its sentence; that sentence is what to show.
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_generic)) }
+        // A 400 about the label goes under the label.
+        is ApiResult.Failure -> {
+          val refused = FormErrors.of(r.error, mapOf("label" to strings.get(R.string.field_label)), strings) { it.message(strings) ?: strings.get(R.string.error_generic) }
+          _ui.update { it.copy(busy = false, labelError = refused.byField["label"], error = refused.general) }
+        }
       }
     }
   }
@@ -188,8 +195,8 @@ fun InviteCodesScreen(onBack: () -> Unit, viewModel: InviteCodesViewModel = hilt
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("invite-count"),
           )
           OutlinedTextField(
-            ui.label, viewModel::onLabel, label = { Text(stringResource(R.string.label_invite_label)) }, supportingText = { Text(stringResource(R.string.help_invite_label)) },
-            singleLine = true, enabled = !ui.busy, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("invite-label"),
+            ui.label, viewModel::onLabel, label = { Text(stringResource(R.string.label_invite_label)) }, supportingText = { Text(ui.labelError ?: stringResource(R.string.help_invite_label)) },
+            singleLine = true, enabled = !ui.busy, isError = ui.labelError != null, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("invite-label"),
           )
           OutlinedTextField(
             ui.daysText, viewModel::onDays, label = { Text(stringResource(R.string.label_invite_days)) }, supportingText = { Text(stringResource(R.string.help_invite_days)) },

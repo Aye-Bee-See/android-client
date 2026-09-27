@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.domain.FormErrors
 import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
@@ -228,7 +229,12 @@ class LetterWorkViewModel(
   fun noticeShown() = _ui.update { it.copy(notice = null) }
 }
 
-data class AddWriterUiState(val name: String = "", val email: String = "", val note: String = "", val busy: Boolean = false, val error: String? = null, val created: ManagedWriter? = null, val thenWrite: Boolean = false) {
+data class AddWriterUiState(
+  val name: String = "", val email: String = "", val note: String = "", val busy: Boolean = false, val error: String? = null,
+  val created: ManagedWriter? = null, val thenWrite: Boolean = false,
+  /** A refused add, sentence by API field (API PR #133), as the iOS app does; cleared by any edit. */
+  val fieldErrors: Map<String, String> = emptyMap(),
+) {
   val canSubmit: Boolean get() = !busy && name.trim().length in 3..32
 }
 
@@ -236,9 +242,9 @@ data class AddWriterUiState(val name: String = "", val email: String = "", val n
 class AddWriterViewModel @Inject constructor(private val group: GroupRepository, private val strings: Strings) : ViewModel() {
   private val _ui = MutableStateFlow(AddWriterUiState())
   val ui: StateFlow<AddWriterUiState> = _ui.asStateFlow()
-  fun onName(v: String) = _ui.update { it.copy(name = v, error = null) }
-  fun onEmail(v: String) = _ui.update { it.copy(email = v, error = null) }
-  fun onNote(v: String) = _ui.update { it.copy(note = v, error = null) }
+  fun onName(v: String) = _ui.update { it.copy(name = v, error = null, fieldErrors = emptyMap()) }
+  fun onEmail(v: String) = _ui.update { it.copy(email = v, error = null, fieldErrors = emptyMap()) }
+  fun onNote(v: String) = _ui.update { it.copy(note = v, error = null, fieldErrors = emptyMap()) }
 
   fun submit(thenWrite: Boolean) {
     val s = _ui.value
@@ -247,7 +253,11 @@ class AddWriterViewModel @Inject constructor(private val group: GroupRepository,
     viewModelScope.launch {
       when (val r = group.addWriter(s.name, s.email, s.note)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, created = r.value, thenWrite = thenWrite) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_add_writer)) }
+        is ApiResult.Failure -> {
+          val fields = mapOf("name" to strings.get(R.string.field_name), "email" to strings.get(R.string.field_email), "managerNote" to strings.get(R.string.field_note))
+          val refused = FormErrors.of(r.error, fields, strings) { it.message(strings) ?: strings.get(R.string.error_add_writer) }
+          _ui.update { it.copy(busy = false, fieldErrors = refused.byField, error = refused.general) }
+        }
       }
     }
   }

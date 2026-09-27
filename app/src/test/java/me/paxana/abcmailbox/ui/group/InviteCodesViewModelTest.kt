@@ -88,4 +88,17 @@ class InviteCodesViewModelTest {
     vm.askCancel(ALL_BATCHES); vm.cancelConfirmed(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals(listOf("b1", null), invites.cancels)
   }
+
+  @Test
+  fun `a refused label goes under the label, and editing it clears the error`() = runTest {
+    val invites = FakeInvites().apply {
+      issueError = AppError.Validation(listOf("label can be at most 80 characters."), problems = listOf(me.paxana.abcmailbox.data.api.FieldProblem("label", "length_out_of_range", 0, 80, "label can be at most 80 characters.")))
+    }
+    val vm = InviteCodesViewModel(invites, TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    vm.onLabel("Letter night"); vm.issue(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Label can be at most 80 characters.", vm.ui.value.labelError)
+    assertEquals("Check the fields marked in red.", vm.ui.value.error)
+    vm.onLabel("Letter night, 2 October")
+    assertEquals(null, vm.ui.value.labelError)
+  }
 }
