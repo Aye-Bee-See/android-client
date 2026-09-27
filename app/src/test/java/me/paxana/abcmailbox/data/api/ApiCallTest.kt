@@ -57,9 +57,15 @@ class ApiCallTest {
   fun `a 409 carries the API's condition beside its name, where it sends one`() = runTest {
     val c = apiCall(json) { throw http(409, """{"success":false,"name":"AccountDeleteError","info":"Error deleting user.","status":409,"error":"This is the only admin account. Make another admin first, or nobody could run the site.","condition":"only_admin"}""") }
     assertEquals(AppError.Conflict("This is the only admin account. Make another admin first, or nobody could run the site.", "AccountDeleteError", "only_admin"), (c as ApiResult.Failure).error)
-    // A status move somebody else made first (the brief's review note): known by its sentence until it has a condition.
-    val m = apiCall(json) { throw http(409, """{"success":false,"name":"LetterStatusError","info":"Error updating letter status.","status":409,"error":"Letter 41 was changed by someone else meanwhile; nothing was moved."}""") }
+    // A status move somebody else made first (the brief's review note): known by its condition (API PR #133), whatever the sentence says.
+    val m = apiCall(json) { throw http(409, """{"success":false,"name":"LetterStatusError","info":"Error updating letter status.","status":409,"error":"Reworded, and nothing in it to match.","condition":"changed_meanwhile"}""") }
     assertTrue(((m as ApiResult.Failure).error as AppError.Conflict).changedMeanwhile)
+    // A server from before the condition: the sentence, as before.
+    val old = apiCall(json) { throw http(409, """{"success":false,"name":"LetterStatusError","info":"Error updating letter status.","status":409,"error":"Letter 41 was changed by someone else meanwhile; nothing was moved."}""") }
+    assertTrue(((old as ApiResult.Failure).error as AppError.Conflict).changedMeanwhile)
+    // Another condition on the same error name is another refusal, even if the sentence happens to mention someone else.
+    val other = apiCall(json) { throw http(409, """{"success":false,"name":"LetterStatusError","status":409,"error":"Only someone else can move it back.","condition":"backwards"}""") }
+    assertFalse(((other as ApiResult.Failure).error as AppError.Conflict).changedMeanwhile)
   }
 
   @Test
