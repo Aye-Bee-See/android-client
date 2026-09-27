@@ -15,6 +15,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import me.paxana.abcmailbox.domain.PrisonerPhoto
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
@@ -142,5 +144,38 @@ class DirectoryMappersTest {
     val dto = PrisonDto(id = 1, prisonName = "Old", mailRules = listOf("no_photos", "brand_new_tag"))
     val labels = dto.toDomain().rules.rules.associate { it.tag to it.label }
     assertEquals(mapOf("no_photos" to "No pictures", "brand_new_tag" to "Brand new tag"), labels)
+  }
+
+  private fun prisoner(extra: String) = json.decodeFromString<PrisonerDto>("""{"id":41,"birthName":"Alex Johnson"$extra}""").toDomain()
+
+  @Test
+  fun `only a hosted photo is a photo, with its path, credit and date`() {
+    val hosted = prisoner(""","photoUrl":"https://abcbelarus.org/a.jpg","photo":{"url":"/prisoner/photo?prisoner=41","hosted":true,"credit":"ABC Belarus","updatedAt":"2026-09-26T10:04:00.000Z"}""").photo!!
+    assertEquals("/prisoner/photo?prisoner=41", hosted.path); assertEquals("ABC Belarus", hosted.credit)
+    assertEquals("2026-09-26T10:04:00Z", hosted.updatedAt.toString())
+
+    // Off-site pictures are not shown at all: the API's fallback to the link, and an older API's link alone.
+    assertNull(prisoner(""","photoUrl":"https://abcbelarus.org/a.jpg","photo":{"url":"https://abcbelarus.org/a.jpg","hosted":false}""").photo)
+    assertNull(prisoner(""","photoUrl":"https://abcbelarus.org/a.jpg"""").photo)
+    assertNull(prisoner(""","photoUrl":null,"photo":null""").photo)
+  }
+
+  @Test
+  fun `a photo is fetched from the API in use and nowhere else, and its cache key changes with the picture`() {
+    val p = PrisonerPhoto("/prisoner/photo?prisoner=41", updatedAt = java.time.Instant.parse("2026-09-26T10:04:00Z"))
+    assertEquals("https://abctest.letters.support/prisoner/photo?prisoner=41", p.absoluteUrl("https://abctest.letters.support/"))
+    assertEquals("the developer override", "http://10.0.2.2:3000/prisoner/photo?prisoner=41", p.absoluteUrl("http://10.0.2.2:3000/"))
+    assertEquals(p.cacheKey("https://a.test/"), p.cacheKey("https://a.test/"))
+    assertNotEquals(p.cacheKey("https://a.test/"), p.copy(updatedAt = java.time.Instant.parse("2026-09-27T08:00:00Z")).cacheKey("https://a.test/"))
+    assertNull("a path that resolves to another host is not fetched", PrisonerPhoto("https://abcbelarus.org/a.jpg").absoluteUrl("https://a.test/"))
+    assertNull(PrisonerPhoto("//abcbelarus.org/a.jpg").absoluteUrl("https://a.test/"))
+  }
+
+  @Test
+  fun `initials are two at most, first and last, from letters only`() {
+    assertEquals("AJ", PrisonerPhoto.initials("Alex Johnson"))
+    assertEquals("MW", PrisonerPhoto.initials("Maria  de la Wilson"))
+    assertEquals("Д", PrisonerPhoto.initials("Дмитрий"))
+    assertEquals("", PrisonerPhoto.initials("7 42"))
   }
 }

@@ -98,5 +98,6 @@ fun PrisonerRow(p: me.paxana.abcmailbox.domain.Prisoner, onClick: () -> Unit, ho
     tags = p.interests.take(4),
     onClick = onClick,
     horizontalPadding = horizontalPadding,
+    leading = { me.paxana.abcmailbox.ui.common.PrisonerAvatar(p.name, p.photo) },
   )
 }

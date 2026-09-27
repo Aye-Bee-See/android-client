@@ -182,6 +182,8 @@
     <string name="title_facility">Учреждение</string>
     <string name="title_group">Группа</string>
     <string name="photo_of">Фото: %1$s</string>
+    <string name="photo_credit">Фото: %1$s</string>
+    <string name="photo_unavailable">Не удалось загрузить фото.</string>
     <string name="action_write_letter">Написать письмо</string>
     <string name="label_country">Страна</string>
     <string name="label_current_facility">ТЕКУЩЕЕ УЧРЕЖДЕНИЕ</string>
