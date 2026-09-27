@@ -50,4 +50,13 @@ class SecretCodesTest {
       AccountKeys.unlockWithCode(fields.publicKey, fields.recovery.wrapped, "1123-4567-89AB-CDEF-GHJK-MNPQ", fields.recovery.salt, fields.recovery.params)
     }
   }
+
+  /** The API README's vector for a typed code (API #139): the whole path a person walks, from what they type to the key. */
+  @Test
+  fun `a code typed carelessly derives the API's key`() {
+    val typed = " o123-4567-89ab-cdef-ghjk-mnpq "
+    assertEquals("0123456789ABCDEFGHJKMNPQ", SecretCodes.normalise(typed))
+    val salt = ByteArray(16) { it.toByte() }
+    assertEquals("XZ7IeQJcWF00Cy2UxN9UfA2624gzWabkGTldGLHXKyU=", Sodium.toBase64(KdfParams().derive(SecretCodes.normalise(typed), salt)))
+  }
 }

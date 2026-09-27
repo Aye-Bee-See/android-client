@@ -113,4 +113,17 @@ class JoinViewModelTest {
     assertEquals("Username is taken. The code was not used up. Fix what is wrong and try again.", vm.ui.value.error)
     assertNotNull("still on the form", vm.ui.value.invitation)
   }
+
+  @Test
+  fun `a refused join puts each problem under its field, says the code is still good, and an edit clears them`() = runTest {
+    val refusal = AppError.Validation(listOf("Username taken."), problems = listOf(me.paxana.abcmailbox.data.api.FieldProblem("username", "not_unique", message = "Username taken.")))
+    val vm = JoinViewModel(FakeSessionRepository(nextError = refusal), JoinRoute(), TestStrings(), FakePenNames())
+    vm.onCodeChange("7q4m 2xkd 9hbt"); vm.check(); dispatcher.scheduler.advanceUntilIdle()
+    vm.onUsernameChange("sam"); vm.onPasswordChange("longenough1"); vm.onConfirmChange("longenough1")
+    vm.join(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(mapOf("username" to "That username is already taken. Choose another."), vm.ui.value.fieldErrors)
+    assertEquals("Check the fields marked in red. The code was not used up. Fix what is wrong and try again.", vm.ui.value.error)
+    vm.onUsernameChange("sam2")
+    assertEquals(emptyMap<String, String>(), vm.ui.value.fieldErrors)
+  }
 }

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.next
 import me.paxana.abcmailbox.text.TestStrings
 import android.net.Uri
@@ -39,6 +40,12 @@ class LettersRepositoryE2eTest {
   private val engine = FakeCryptoEngine()
   private val vault = InMemoryVault()
   private val sessions = FakeSessionRepository()
+  /** End-to-end, until a test says the server has switched: then the next look at `/health` says so. */
+  private val modes = object : me.paxana.abcmailbox.data.crypto.EncryptionModeRepository {
+    var next: EncryptionMode? = null
+    override val mode = kotlinx.coroutines.flow.MutableStateFlow(EncryptionMode.E2E)
+    override suspend fun refresh() = (next ?: mode.value).also { mode.value = it }
+  }
   private lateinit var repo: DefaultLettersRepository
   private val tmp = File(System.getProperty("java.io.tmpdir"), "abc-e2e-${System.nanoTime()}").apply { mkdirs() }
 
@@ -48,7 +55,7 @@ class LettersRepositoryE2eTest {
     val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
     sessions.login("user1", "password1")
     vault.store(1, engine.keyPairFor("PUB-ME"))
-    val codec = LetterCodec(FixedMode(EncryptionMode.E2E), engine, vault, sessions, retrofit.create(AuthApi::class.java), json, me.paxana.abcmailbox.data.crypto.FakeKeyring(), TestStrings())
+    val codec = LetterCodec(modes, engine, vault, sessions, retrofit.create(AuthApi::class.java), json, me.paxana.abcmailbox.data.crypto.FakeKeyring(), TestStrings())
     repo = DefaultLettersRepository(retrofit.create(LettersApi::class.java), json, object : LocalFilesContract {
       override fun newCameraTarget(): Pair<File, Uri> = error("not used")
       override fun stageCameraShot(file: File): StagedFile = StagedFile(file, file.name, "image/jpeg", file.length())
@@ -104,5 +111,29 @@ class LettersRepositoryE2eTest {
     server.enqueue(MockResponse().setBody(okio.Buffer().write(byteArrayOf(3, 2, 1))))
     val downloaded = (repo.download(uploaded) as ApiResult.Success).value
     assertEquals(listOf<Byte>(1, 2, 3), downloaded.readBytes().toList())
+  }
+
+  private val wrongMode = MockResponse().setResponseCode(400).setBody("""{"success":false,"errors":["ciphertext is not accepted by a server-mode server."],"problems":[{"field":"ciphertext","code":"wrong_encryption_mode"}],"status":400}""")
+
+  @Test
+  fun `a server that switched modes while the app was open gets the letter again in its mode, under the same key`() = runTest {
+    server.enqueue(publicKey(1)); server.enqueue(wrongMode)
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"id":9,"chat":4,"sender":"user","prisoner":3,"user":1,"status":"queued","relayChapter":2,"messageText":"Dear friend"},"success":true,"status":201}"""))
+    modes.next = EncryptionMode.SERVER
+    val sent = repo.send(NewLetter(3, "Dear friend", null, 2, idempotencyKey = "key-1")) as ApiResult.Success
+    assertEquals("Dear friend", sent.value.body)
+    server.next() // the group's public key, for the sealed first try
+    val first = server.next(); val second = server.next()
+    assertEquals(true, json.parseToJsonElement(first.body.readUtf8()).jsonObject.containsKey("ciphertext"))
+    assertEquals("the second try is plain, as the server now wants", "Dear friend", json.parseToJsonElement(second.body.readUtf8()).jsonObject["messageText"]!!.jsonPrimitive.content)
+    assertEquals("key-1", first.getHeader("Idempotency-Key")); assertEquals("key-1", second.getHeader("Idempotency-Key"))
+  }
+
+  @Test
+  fun `a server that did not switch means this build cannot write to it, and it is asked only once`() = runTest {
+    server.enqueue(publicKey(1)); server.enqueue(wrongMode)
+    val r = repo.send(NewLetter(3, "Dear friend", null, 2)) as ApiResult.Failure
+    assertEquals(AppError.WrongEncryptionMode, r.error)
+    assertEquals(2, server.requestCount)
   }
 }

@@ -25,8 +25,15 @@ fun HttpException.toAppError(json: Json): AppError {
   val envelope = body?.let { runCatching { json.decodeFromString<ApiEnvelope<JsonElement>>(it) }.getOrNull() }
   val info = envelope?.info ?: envelope?.error
   return when (code()) {
-    400 -> envelope?.errors?.takeIf { it.isNotEmpty() }?.let { AppError.Validation(it, envelope.condition) }
-      ?: AppError.Validation(listOfNotNull(envelope?.error ?: info ?: "The request was rejected."), envelope?.condition)
+    400 -> {
+      // The letter is in the wrong shape for the server's mode: nothing the writer can fix in a form.
+      if (envelope?.problems?.any { it.code == "wrong_encryption_mode" } == true) return AppError.WrongEncryptionMode
+      // The sentences are under `errors`, or, for a refusal raised as a general error, one sentence under `error`.
+      val sentences = envelope?.errors?.takeIf { it.isNotEmpty() } ?: listOfNotNull(envelope?.error ?: info ?: "The request was rejected.")
+      // `problems[i]` is `sentences[i]`, a documented rule since #133; without that pairing, the sentences alone.
+      val problems = envelope?.problems.orEmpty().takeIf { it.size == sentences.size }.orEmpty()
+      AppError.Validation(sentences, envelope?.condition, problems.zip(sentences) { p, s -> FieldProblem(p.field, p.code ?: "validation_failed", p.params?.min, p.params?.max, s) })
+    }
     401 -> AppError.Unauthorized(info)
     403 -> AppError.Forbidden(info ?: "You are not allowed to do that.")
     // Like a 409, a 404 may carry the useful sentence in `error` ("Message 99999 not found") under a general `info`.

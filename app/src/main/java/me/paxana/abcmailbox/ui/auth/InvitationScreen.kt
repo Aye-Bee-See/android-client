@@ -120,7 +120,7 @@ fun InvitationScreen(
       AlertBanner(stringResource(if (mode == EncryptionMode.E2E) R.string.claim_warning_e2e else R.string.claim_warning_server))
 
       Text(stringResource(R.string.join_setup_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.asHeading())
-      OutlinedTextField(ui.username, viewModel::onUsernameChange, label = { Text(stringResource(R.string.label_username)) }, supportingText = { Text(stringResource(R.string.help_username_length)) }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.username, viewModel::onUsernameChange, label = { Text(stringResource(R.string.label_username)) }, isError = ui.fieldErrors["username"] != null, supportingText = { Text(ui.fieldErrors["username"] ?: stringResource(R.string.help_username_length)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("invitation-username"))
       OutlinedTextField(ui.password, viewModel::onPasswordChange, label = { Text(stringResource(R.string.label_password)) }, supportingText = { Text(stringResource(R.string.help_password_length)) }, singleLine = true, enabled = !ui.busy,
         visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
@@ -134,12 +134,12 @@ fun InvitationScreen(
         visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth().testTag("invitation-confirm"))
-      OutlinedTextField(ui.email, viewModel::onEmailChange, label = { Text(stringResource(R.string.label_email_required)) }, supportingText = { Text(stringResource(R.string.help_invitation_email)) }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.email, viewModel::onEmailChange, label = { Text(stringResource(R.string.label_email_required)) }, isError = ui.fieldErrors["email"] != null, supportingText = { Text(ui.fieldErrors["email"] ?: stringResource(R.string.help_invitation_email)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("invitation-email"))
-      OutlinedTextField(ui.name, viewModel::onNameChange, label = { Text(stringResource(R.string.label_name_optional)) }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.name, viewModel::onNameChange, label = { Text(stringResource(R.string.label_name_optional)) }, isError = ui.fieldErrors["name"] != null, supportingText = ui.fieldErrors["name"]?.let { e -> { Text(e) } }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
 
-      if (invitation.kind == GroupInvitation.Kind.GROUP) GroupProfileFields(ui.group, invitation.groupFields, enabled = !ui.busy, onChange = viewModel::onGroupChange)
+      if (invitation.kind == GroupInvitation.Kind.GROUP) GroupProfileFields(ui.group, invitation.groupFields, enabled = !ui.busy, onChange = viewModel::onGroupChange, errors = ui.fieldErrors)
 
       if (ui.tokenDead) AlertBanner(ui.error.orEmpty()) else ui.error?.let { ErrorText(it) }
       Button(onClick = viewModel::accept, enabled = ui.canAccept, modifier = Modifier.fillMaxWidth().testTag("invitation-accept")) { Text(stringResource(if (ui.busy) R.string.action_accepting else R.string.action_accept_invitation)) }
@@ -150,20 +150,22 @@ fun InvitationScreen(
 
 /** The new group's profile: a name and a city always, and the rest only where the invitation lists the field. */
 @Composable
-private fun GroupProfileFields(group: NewGroupProfile, allowed: Set<String>, enabled: Boolean, onChange: ((NewGroupProfile) -> NewGroupProfile) -> Unit) {
+/** [errors] is keyed by the API's paths: `group.name`, `group.location` (the city), `group.subregion`, and so on. */
+private fun GroupProfileFields(group: NewGroupProfile, allowed: Set<String>, enabled: Boolean, onChange: ((NewGroupProfile) -> NewGroupProfile) -> Unit, errors: Map<String, String> = emptyMap()) {
   Text(stringResource(R.string.invitation_group_section), style = MaterialTheme.typography.titleMedium, modifier = Modifier.asHeading())
   Text(stringResource(R.string.invitation_group_section_help), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-  @Composable fun field(value: String, label: Int, change: (NewGroupProfile, String) -> NewGroupProfile, tag: String, keyboard: KeyboardType = KeyboardType.Text, lines: Int = 1) =
-    OutlinedTextField(value, { v -> onChange { change(it, v) } }, label = { Text(stringResource(label)) }, singleLine = lines == 1, minLines = lines, enabled = enabled,
+  @Composable fun field(value: String, label: Int, change: (NewGroupProfile, String) -> NewGroupProfile, tag: String, keyboard: KeyboardType = KeyboardType.Text, lines: Int = 1, apiField: String? = null) =
+    OutlinedTextField(value, { v -> onChange { change(it, v) } }, label = { Text(stringResource(label)) },
+      isError = apiField?.let { errors[it] } != null, supportingText = apiField?.let { errors[it] }?.let { e -> { Text(e) } }, singleLine = lines == 1, minLines = lines, enabled = enabled,
       keyboardOptions = KeyboardOptions(keyboardType = keyboard, capitalization = if (keyboard == KeyboardType.Text) KeyboardCapitalization.Sentences else KeyboardCapitalization.None, imeAction = if (lines == 1) ImeAction.Next else ImeAction.Default),
       modifier = Modifier.fillMaxWidth().testTag(tag))
-  field(group.name, R.string.label_group_name, { g, v -> g.copy(name = v) }, "group-name")
-  field(group.city, R.string.label_group_city, { g, v -> g.copy(city = v) }, "group-city")
-  if ("subregion" in allowed) field(group.region, R.string.label_group_region, { g, v -> g.copy(region = v) }, "group-region")
-  if ("country" in allowed) field(group.country, R.string.label_group_country, { g, v -> g.copy(country = v) }, "group-country")
-  if ("about" in allowed) field(group.about, R.string.label_group_about, { g, v -> g.copy(about = v) }, "group-about", lines = 3)
-  if ("website" in allowed) field(group.website, R.string.label_group_website, { g, v -> g.copy(website = v) }, "group-website", KeyboardType.Uri)
-  if ("email" in allowed) field(group.email, R.string.label_group_email, { g, v -> g.copy(email = v) }, "group-email", KeyboardType.Email)
+  field(group.name, R.string.label_group_name, { g, v -> g.copy(name = v) }, "group-name", apiField = "group.name")
+  field(group.city, R.string.label_group_city, { g, v -> g.copy(city = v) }, "group-city", apiField = "group.location")
+  if ("subregion" in allowed) field(group.region, R.string.label_group_region, { g, v -> g.copy(region = v) }, "group-region", apiField = "group.subregion")
+  if ("country" in allowed) field(group.country, R.string.label_group_country, { g, v -> g.copy(country = v) }, "group-country", apiField = "group.country")
+  if ("about" in allowed) field(group.about, R.string.label_group_about, { g, v -> g.copy(about = v) }, "group-about", lines = 3, apiField = "group.about")
+  if ("website" in allowed) field(group.website, R.string.label_group_website, { g, v -> g.copy(website = v) }, "group-website", KeyboardType.Uri, apiField = "group.website")
+  if ("email" in allowed) field(group.email, R.string.label_group_email, { g, v -> g.copy(email = v) }, "group-email", KeyboardType.Email, apiField = "group.email")
 
   if ("networkRole" in allowed) {
     Text(stringResource(R.string.label_group_role), style = MaterialTheme.typography.titleSmall)

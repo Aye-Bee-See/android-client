@@ -49,7 +49,7 @@ class DefaultPenNameRepository @Inject constructor(
     val n = PenName.normalise(name)
     return apiCall(json) { api.penNameAvailable(n) }.map { env ->
       val d = checkNotNull(env.data) { "pen-name-available response had no data" }
-      PenNameCheck(d.name?.takeIf { it.isNotBlank() } ?: n, d.available, d.reason, d.twoParts)
+      PenNameCheck(d.name?.takeIf { it.isNotBlank() } ?: n, d.available, d.reason, d.twoParts, d.reasonCode?.takeIf { it.isNotBlank() })
     }
   }
 

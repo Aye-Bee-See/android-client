@@ -8,7 +8,14 @@ package me.paxana.abcmailbox.data.api
  */
 sealed class AppError : Exception() {
   /** The server rejected the input; each entry is a complete sentence. [condition] is a code beside them where the API has one (`checksum` on a reply reference). */
-  data class Validation(val errors: List<String>, val condition: String? = null) : AppError()
+  data class Validation(val errors: List<String>, val condition: String? = null, val problems: List<FieldProblem> = emptyList()) : AppError()
+
+  /**
+   * `400 wrong_encryption_mode` (API PR #133): a letter in the wrong shape for the server's mode, text in the clear to
+   * an end-to-end server or the other way round. `LettersRepository.send` asks `/health` again and resends once if the
+   * server switched; what reaches a screen means this build cannot write to that server, and the words say to update.
+   */
+  data object WrongEncryptionMode : AppError()
 
   /** No token, a bad token, or (on login) wrong credentials. */
   data class Unauthorized(val info: String?) : AppError()
@@ -60,10 +67,18 @@ sealed class AppError : Exception() {
       is Gone -> info
       is RateLimited -> info ?: retryAfterSeconds?.let { "Too many attempts. Try again in ${(it + 59) / 60} minute(s)." } ?: "Too many attempts. Try again later."
       is Server -> info
+      is WrongEncryptionMode -> "This version of the app cannot send letters to this server, which protects them in a way the app does not know. Update the app, then send the letter again."
       is Network -> null
       is Unexpected -> null
     }
 }
+
+/**
+ * One failure of a 400 (API PR #133): the request field it is about (a path such as `group.name`; null when it is
+ * about the request as a whole), a code from `docs/ERRORS.md`, the limits it names, and the API's own English
+ * sentence for it, shown when the app has no better words. The value that was sent is never in it.
+ */
+data class FieldProblem(val field: String?, val code: String, val min: Int? = null, val max: Int? = null, val message: String)
 
 /** A typed outcome so callers handle failure explicitly instead of catching exceptions. */
 sealed interface ApiResult<out T> {

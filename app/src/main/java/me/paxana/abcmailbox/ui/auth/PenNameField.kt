@@ -43,6 +43,8 @@ data class PenNameState(
     value.isBlank() -> null
     problem != null -> problem
     check != null -> when {
+      // The app's words where the code says why (API PR #133), in the reader's language; else the API's sentence.
+      !check.available && check.reasonCode == "not_unique" -> strings.get(R.string.pen_name_taken_named, check.name)
       !check.available -> check.reason ?: strings.get(R.string.pen_name_taken)
       !check.twoParts -> strings.get(R.string.pen_name_two_parts_nudge, check.name)
       else -> strings.get(R.string.pen_name_available, check.name)
@@ -79,11 +81,12 @@ class PenNameChecker(private val scope: CoroutineScope, private val repo: PenNam
 }
 
 @Composable
-fun PenNameField(state: PenNameState, onChange: (String) -> Unit, enabled: Boolean, strings: Strings, modifier: Modifier = Modifier, label: String = stringResource(R.string.label_pen_name)) {
+/** [serverError] is a refusal of the saved form for this field (API PR #133), shown in place of the check's message. */
+fun PenNameField(state: PenNameState, onChange: (String) -> Unit, enabled: Boolean, strings: Strings, modifier: Modifier = Modifier, label: String = stringResource(R.string.label_pen_name), serverError: String? = null) {
   OutlinedTextField(
     state.value, onChange, label = { Text(label) },
-    supportingText = { Text(if (state.checking) stringResource(R.string.action_checking) else state.message(strings) ?: stringResource(R.string.pen_name_rules)) },
-    isError = state.isError, singleLine = true, enabled = enabled,
+    supportingText = { Text(serverError ?: if (state.checking) stringResource(R.string.action_checking) else state.message(strings) ?: stringResource(R.string.pen_name_rules)) },
+    isError = state.isError || serverError != null, singleLine = true, enabled = enabled,
     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, autoCorrectEnabled = false, imeAction = ImeAction.Next),
     modifier = modifier.fillMaxWidth().testTag("pen-name"),
   )

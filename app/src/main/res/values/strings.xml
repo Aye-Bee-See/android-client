@@ -41,6 +41,34 @@
         <item quantity="other">The server has asked for a pause. Try again in %d minutes.</item>
     </plurals>
     <string name="error_rate_limited_later">The server has asked for a pause. Try again later.</string>
+    <!-- Refusals worded from their code (API PR #133, docs/ERRORS.md); the server's English sentence is the fallback. -->
+    <string name="error_wrong_encryption_mode">This version of the app cannot send letters to this server, which protects them in a way the app does not know. Update the app, then send the letter again.</string>
+    <string name="form_check_fields">Check the fields marked in red.</string>
+    <!-- %1$s is a field's label, capitalised, like "Username". -->
+    <string name="form_required">%1$s is needed.</string>
+    <plurals name="form_length">
+        <item quantity="one">%2$s must be %3$d to %1$d character.</item>
+        <item quantity="other">%2$s must be %3$d to %1$d characters.</item>
+    </plurals>
+    <!-- %1$s is a field's label, in lower case, like "username". -->
+    <string name="form_not_unique">That %1$s is already taken. Choose another.</string>
+    <string name="form_reserved">That %1$s is kept for the site\'s own use. Choose another.</string>
+    <string name="form_not_an_email">That does not look like an email address.</string>
+    <string name="form_not_a_url">That does not look like a web address. It should start with https://.</string>
+    <string name="form_app_needs_update">This version of the app sent something the server could not use. Update the app, then try again.</string>
+    <string name="pen_name_taken_named">%1$s is taken. A pen name once used stays with the person who used it, so choose another.</string>
+    <!-- Field names inside the sentences above. -->
+    <string name="field_username">username</string>
+    <string name="field_email">email address</string>
+    <string name="field_name">name</string>
+    <string name="field_pen_name">pen name</string>
+    <string name="field_group_name">group name</string>
+    <string name="field_city">city</string>
+    <string name="field_region">region</string>
+    <string name="field_country">country</string>
+    <string name="field_about">description</string>
+    <string name="field_website">website</string>
+    <string name="field_group_email">group email</string>
     <!-- %1$s is a time today, like 21:40. -->
     <string name="notice_letter_queued_limited">The server has had a lot from this account in the last hour. Your letter is saved on this phone and will be sent by itself from %1$s.</string>
     <string name="outbox_limited">The server has had a lot from this account in the last hour. These letters are safe here and will be sent by themselves from %1$s.</string>

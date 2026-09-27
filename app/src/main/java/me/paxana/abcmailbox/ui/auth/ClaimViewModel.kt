@@ -25,6 +25,8 @@ import me.paxana.abcmailbox.ui.nav.ClaimRoute
 import javax.inject.Inject
 
 data class ClaimUiState(
+  /** A refused submit, sentence by API field (API PR #133); cleared by any edit. */
+  val fieldErrors: Map<String, String> = emptyMap(),
   val token: String = "",
   val info: ClaimInfo? = null,
   val username: String = "",
@@ -76,15 +78,15 @@ class ClaimViewModel(
     if (route.token != null && ClaimToken.isWellFormed(route.token) && signedInAs == null) check()
   }
 
-  fun onPenNameChange(v: String) { penName.onChange(v); _ui.update { it.copy(error = null) } }
+  fun onPenNameChange(v: String) { penName.onChange(v); _ui.update { it.copy(error = null, fieldErrors = emptyMap()) } }
 
   fun signOut() { viewModelScope.launch { sessions.logout() } }
 
-  fun onTokenChange(v: String) = _ui.update { it.copy(token = v, error = null, tokenDead = false, info = null) }
-  fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null) }
-  fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, error = null) }
-  fun onConfirmChange(v: String) = _ui.update { it.copy(confirm = v, error = null) }
-  fun onEmailChange(v: String) = _ui.update { it.copy(email = v, error = null) }
+  fun onTokenChange(v: String) = _ui.update { it.copy(token = v, error = null, fieldErrors = emptyMap(), tokenDead = false, info = null) }
+  fun onUsernameChange(v: String) = _ui.update { it.copy(username = v, error = null, fieldErrors = emptyMap()) }
+  fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, error = null, fieldErrors = emptyMap()) }
+  fun onConfirmChange(v: String) = _ui.update { it.copy(confirm = v, error = null, fieldErrors = emptyMap()) }
+  fun onEmailChange(v: String) = _ui.update { it.copy(email = v, error = null, fieldErrors = emptyMap()) }
   fun onUnderstoodChange(v: Boolean) = _ui.update { it.copy(understood = v) }
   fun onToggleShowPassword() = _ui.update { it.copy(showPassword = !it.showPassword) }
   fun startOver() = _ui.update { ClaimUiState() }
@@ -110,7 +112,10 @@ class ClaimViewModel(
       when (val r = sessions.claim(ClaimToken.normalise(s.token), s.username, s.password, s.email, s.penName.value.ifBlank { null })) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", claimed = true) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage(strings)) }
+        is ApiResult.Failure -> {
+          val refused = r.error.forForm(accountFields(strings) - "name", strings, kept = null) { it.toClaimMessage(strings) }
+          _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = refused.general, fieldErrors = refused.byField) }
+        }
       }
     }
   }

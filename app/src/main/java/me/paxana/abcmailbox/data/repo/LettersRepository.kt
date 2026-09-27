@@ -143,8 +143,11 @@ class DefaultLettersRepository @Inject constructor(
 
   override suspend fun send(letter: NewLetter): ApiResult<Letter> {
     // A 409 here means a group rotated its key between our lookup and the send: encode again
-    // (which fetches the new public key and version) and retry once.
-    repeat(2) { attempt ->
+    // (which fetches the new public key and version) and retry once. A `wrong_encryption_mode` 400 means the server
+    // may have switched modes while the app was open: if `/health` says so, encode again in its mode and send once
+    // more. A refused 400 left nothing under the key (API #132), so the same key is still fresh.
+    var rotations = 0; var modeChecks = 0
+    while (true) {
       val request = when (val encoded = codec.outgoing(letter)) {
         is ApiResult.Failure -> return encoded
         is ApiResult.Success -> encoded.value.first
@@ -155,11 +158,14 @@ class DefaultLettersRepository @Inject constructor(
           letter.replacesHeld?.let { old -> apiCall(json) { api.delete(IdBody(old)) } }
           return ApiResult.Success(codec.incoming(checkNotNull(r.value.data)))
         }
-        // Only a rotated group key is worth an immediate second try. "Still processing" means our own earlier attempt is in flight.
-        is ApiResult.Failure -> if (r.error !is AppError.Conflict || r.error.isStillProcessing || attempt == 1) return r else codec.refreshKeys()
+        is ApiResult.Failure -> when {
+          r.error is AppError.WrongEncryptionMode && modeChecks == 0 -> { modeChecks++; if (!codec.modeChanged()) return r }
+          // Only a rotated group key is worth an immediate second try. "Still processing" means our own earlier attempt is in flight.
+          r.error is AppError.Conflict && !r.error.isStillProcessing && rotations == 0 -> { rotations++; codec.refreshKeys() }
+          else -> return r
+        }
       }
     }
-    error("unreachable")
   }
 
   override suspend fun chooseRelay(messageId: Int, groupId: Int): ApiResult<Unit> =
