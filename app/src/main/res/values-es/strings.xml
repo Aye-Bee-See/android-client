@@ -104,6 +104,14 @@
     <string name="notice_account_claimed">Cuenta activada. Has iniciado sesión.</string>
     <string name="notice_password_changed_signed_in">Contraseña cambiada. Has iniciado sesión.</string>
     <string name="notice_letter_queued">Sin conexión. Tu carta queda guardada en este teléfono y se enviará cuando vuelvas a tener conexión.</string>
+    <plurals name="error_rate_limited_wait">
+        <item quantity="one">El servidor ha pedido una pausa. Inténtalo de nuevo en %d minuto.</item>
+        <item quantity="many">El servidor ha pedido una pausa. Inténtalo de nuevo en %d minutos.</item>
+        <item quantity="other">El servidor ha pedido una pausa. Inténtalo de nuevo en %d minutos.</item>
+    </plurals>
+    <string name="error_rate_limited_later">El servidor ha pedido una pausa. Inténtalo de nuevo más tarde.</string>
+    <string name="notice_letter_queued_limited">El servidor ha recibido mucho de esta cuenta en la última hora. Tu carta está guardada en este teléfono y se enviará sola a partir de las %1$s.</string>
+    <string name="outbox_limited">El servidor ha recibido mucho de esta cuenta en la última hora. Estas cartas están a salvo aquí y se enviarán solas a partir de las %1$s.</string>
     <string name="title_write_to">Escribir a…</string>
     <string name="title_write_as_to">Escribir como %1$s a…</string>
     <string name="outbox_channel_name">Cartas escritas sin conexión</string>

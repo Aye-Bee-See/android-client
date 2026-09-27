@@ -58,6 +58,8 @@ class OutboxRepositoryTest {
   private val letters = ScriptedLetters()
   private val sessions = FakeSessionRepository()
   private var scheduled = 0
+  private val scheduledAt = mutableListOf<Instant>()
+  private var clock = Instant.parse("2026-09-27T20:00:00Z")
   private lateinit var outbox: DefaultOutboxRepository
 
   /** Reverses bytes: not encryption, but enough to show that what reaches the disk is not the plain text. */
@@ -69,7 +71,8 @@ class OutboxRepositoryTest {
     val retrofit = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
     val codec = LetterCodec(FixedMode(EncryptionMode.SERVER), FakeCryptoEngine(), InMemoryVault(), sessions, retrofit.create(AuthApi::class.java), json, FakeKeyring(), TestStrings())
     sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
-    outbox = DefaultOutboxRepository(dao, Reversing, Files(tmp.root), letters, codec, sessions, object : OutboxScheduler { override fun schedule() { scheduled++ } }, json, TestStrings())
+    outbox = DefaultOutboxRepository(dao, Reversing, Files(tmp.root), letters, codec, sessions, object : OutboxScheduler { override fun schedule() { scheduled++ }; override fun scheduleAt(at: Instant) { scheduledAt += at } }, json, TestStrings())
+    outbox.now = { clock }
   }
 
   @After fun tearDown() = server.shutdown()
@@ -110,6 +113,39 @@ class OutboxRepositoryTest {
     assertEquals(FlushOutcome(stillWaiting = 2), outbox.flush())
     assertTrue("the second letter was not tried through the same dead connection", letters.sent.isEmpty())
     assertEquals(FlushOutcome(sent = 2), outbox.flush())
+  }
+
+  @Test
+  fun `a 429 waits out Retry-After, asks nothing before then, books a run for the end, then sends under the same key`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList()); outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2), emptyList())
+    letters.sendResults += ApiResult.Failure(AppError.RateLimited("Too many letters and replies. Try again in 45 minute(s).", 2700))
+    val until = Instant.parse("2026-09-27T20:45:00Z")
+    assertEquals(FlushOutcome(stillWaiting = 2, limitedUntil = until), outbox.flush())
+    assertEquals("a run booked for the end of the wait", listOf(until), scheduledAt)
+    assertEquals(until, outbox.limitedUntil.value)
+    assertTrue("paced, not refused", rows().none { it.state == OutboxEntity.STATE_REFUSED })
+
+    // "Send now", or the network coming back, before the wait is over: nothing is asked.
+    clock = Instant.parse("2026-09-27T20:30:00Z")
+    assertEquals(FlushOutcome(stillWaiting = 2, limitedUntil = until), outbox.flush())
+    assertEquals("only the one limited try", 1, letters.sendKeys.size)
+
+    clock = Instant.parse("2026-09-27T20:45:01Z")
+    assertEquals(FlushOutcome(sent = 2), outbox.flush())
+    assertEquals("the retry is the same letter under the same key", letters.sendKeys[0], letters.sendKeys[1])
+    assertNull(outbox.limitedUntil.value)
+  }
+
+  @Test
+  fun `a 429 on a file after its letter went waits too, and the letter is not sent again`() = runTest {
+    outbox.queue("Jane Smith", null, letter, listOf(staged("a.pdf")))
+    letters.uploadResults += ApiResult.Failure(AppError.RateLimited(null, null))
+    val outcome = outbox.flush()
+    assertEquals("without Retry-After, a minute", Instant.parse("2026-09-27T20:01:00Z"), outcome.limitedUntil)
+    assertEquals(1, outcome.stillWaiting)
+    clock = Instant.parse("2026-09-27T20:01:01Z")
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+    assertEquals(1, letters.sent.size); assertEquals(listOf("a.pdf" to "scan of a.pdf"), letters.uploaded)
   }
 
   @Test

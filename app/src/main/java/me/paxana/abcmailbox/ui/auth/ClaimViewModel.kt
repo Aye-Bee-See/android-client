@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
 import me.paxana.abcmailbox.domain.PasswordRules
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
@@ -120,5 +121,5 @@ internal fun AppError.toClaimMessage(strings: Strings): String = when (this) {
   // No lifetime is ever stated here: it is the server operator's setting (CLAIM_TOKEN_DAYS), and the date comes with each token.
   is AppError.Gone -> strings.get(when (condition) { "expired" -> R.string.error_token_expired; "used" -> R.string.error_token_used; else -> R.string.error_token_gone })
   is AppError.Network -> strings.get(R.string.error_network)
-  else -> userMessage ?: strings.get(R.string.error_generic)
+  else -> message(strings) ?: strings.get(R.string.error_generic)
 }

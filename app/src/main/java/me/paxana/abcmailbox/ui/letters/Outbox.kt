@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.ui.letters
 
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -35,11 +36,14 @@ import me.paxana.abcmailbox.data.repo.OutboxItem
 import me.paxana.abcmailbox.data.repo.OutboxRepository
 import me.paxana.abcmailbox.ui.common.SectionTitle
 import me.paxana.abcmailbox.ui.common.shortDateTime
+import me.paxana.abcmailbox.ui.common.shortTime
 import javax.inject.Inject
 
 @HiltViewModel
 class OutboxViewModel @Inject constructor(private val outbox: OutboxRepository) : ViewModel() {
   val items: StateFlow<List<OutboxItem>> = outbox.items().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+  /** The server is pacing this account's writes until then (a `429`); the section says when the letters go. */
+  val limitedUntil: StateFlow<java.time.Instant?> = outbox.limitedUntil
   private val _trying = MutableStateFlow(false)
   val trying: StateFlow<Boolean> = _trying.asStateFlow()
 
@@ -61,13 +65,17 @@ class OutboxViewModel @Inject constructor(private val outbox: OutboxRepository) 
 fun OutboxSection(onEdit: (OutboxItem) -> Unit, modifier: Modifier = Modifier, viewModel: OutboxViewModel = hiltViewModel()) {
   val items by viewModel.items.collectAsStateWithLifecycle()
   val trying by viewModel.trying.collectAsStateWithLifecycle()
+  val limitedUntil by viewModel.limitedUntil.collectAsStateWithLifecycle()
   var confirmDelete by remember { mutableStateOf<OutboxItem?>(null) }
   if (items.isEmpty()) return
 
   Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium, modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
       SectionTitle(stringResource(R.string.outbox_title), Modifier.padding(top = 0.dp))
-      Text(stringResource(R.string.outbox_explained), style = MaterialTheme.typography.bodySmall)
+      // Not "no connection" while the server has asked this account to wait: say that, and when the letters go by themselves.
+      val limited = limitedUntil?.takeIf { it.isAfter(java.time.Instant.now()) }
+      if (limited != null) Text(stringResource(R.string.outbox_limited, limited.shortTime()), style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("outbox-limited"))
+      else Text(stringResource(R.string.outbox_explained), style = MaterialTheme.typography.bodySmall)
       items.forEach { item ->
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
           val to = stringResource(if (item.payload.fromPrisoner) R.string.outbox_reply_from else R.string.outbox_to, item.payload.prisonerName) + (item.payload.writingAs?.let { stringResource(R.string.outbox_as, it) } ?: "")

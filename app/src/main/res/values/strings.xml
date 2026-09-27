@@ -35,6 +35,15 @@
 
     <!-- Shown after pressing Send with no connection. -->
     <string name="notice_letter_queued">No connection. Your letter is saved on this phone and will be sent when you are back online.</string>
+    <!-- Any 429: writes are counted per account per hour (API PR #128), public checks per address, so it names neither. -->
+    <plurals name="error_rate_limited_wait">
+        <item quantity="one">The server has asked for a pause. Try again in %d minute.</item>
+        <item quantity="other">The server has asked for a pause. Try again in %d minutes.</item>
+    </plurals>
+    <string name="error_rate_limited_later">The server has asked for a pause. Try again later.</string>
+    <!-- %1$s is a time today, like 21:40. -->
+    <string name="notice_letter_queued_limited">The server has had a lot from this account in the last hour. Your letter is saved on this phone and will be sent by itself from %1$s.</string>
+    <string name="outbox_limited">The server has had a lot from this account in the last hour. These letters are safe here and will be sent by themselves from %1$s.</string>
 
     <!-- Title of the page where a group member picks who a new letter is for. -->
     <string name="title_write_to">Write to…</string>

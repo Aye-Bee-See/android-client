@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.letters
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -95,9 +96,9 @@ class ThreadViewModel(
       val facility = ((prisoner as? ApiResult.Success)?.value?.facilityId)?.let { directory.facility(it) }
       _ui.update { st ->
         when {
-          prisoner is ApiResult.Failure -> st.copy(busyMessageId = null, notice = prisoner.error.userMessage ?: strings.get(R.string.error_lookup_relay))
+          prisoner is ApiResult.Failure -> st.copy(busyMessageId = null, notice = prisoner.error.message(strings) ?: strings.get(R.string.error_lookup_relay))
           facility == null -> st.copy(busyMessageId = null, notice = strings.get(R.string.relay_place_unknown))
-          facility is ApiResult.Failure -> st.copy(busyMessageId = null, notice = facility.error.userMessage ?: strings.get(R.string.error_lookup_relay))
+          facility is ApiResult.Failure -> st.copy(busyMessageId = null, notice = facility.error.message(strings) ?: strings.get(R.string.error_lookup_relay))
           else -> {
             val f = (facility as ApiResult.Success).value
             val options = f.relayGroups.filter { it.accountStatus == null || it.accountStatus == "active" }
@@ -117,7 +118,7 @@ class ThreadViewModel(
     viewModelScope.launch {
       val notice = when (val r = repo.chooseRelay(question.messageId, group.id)) {
         is ApiResult.Success -> strings.get(R.string.relay_chosen, group.name)
-        is ApiResult.Failure -> r.error.userMessage ?: strings.get(R.string.error_choose_relay)
+        is ApiResult.Failure -> r.error.message(strings) ?: strings.get(R.string.error_choose_relay)
       }
       _ui.update { it.copy(busyMessageId = null, notice = notice) }
       load()
@@ -129,7 +130,7 @@ class ThreadViewModel(
     viewModelScope.launch {
       val notice = when (val r = repo.delete(messageId)) {
         is ApiResult.Success -> strings.get(R.string.letter_deleted)
-        is ApiResult.Failure -> r.error.userMessage ?: strings.get(R.string.error_delete_letter)
+        is ApiResult.Failure -> r.error.message(strings) ?: strings.get(R.string.error_delete_letter)
       }
       _ui.update { it.copy(busyMessageId = null, notice = notice) }
       load()
@@ -140,7 +141,7 @@ class ThreadViewModel(
     viewModelScope.launch {
       when (val r = repo.download(attachment)) {
         is ApiResult.Success -> _ui.update { it.copy(openFile = r.value to attachment.mimeType) }
-        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.userMessage ?: strings.get(R.string.error_download_file)) }
+        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.message(strings) ?: strings.get(R.string.error_download_file)) }
       }
     }
   }
@@ -149,7 +150,6 @@ class ThreadViewModel(
   fun noticeShown() = _ui.update { it.copy(notice = null) }
 }
 
-internal fun AppError.orGeneric(fallback: String) = userMessage ?: fallback
 
 /** [passwordStaysOnPhone] starts false, so the prompt never promises more than it knows while it asks. */
 data class UnlockUiState(val password: String = "", val busy: Boolean = false, val error: String? = null, val passwordStaysOnPhone: Boolean = false)
@@ -167,7 +167,7 @@ class UnlockViewModel @Inject constructor(private val sessions: me.paxana.abcmai
     viewModelScope.launch {
       when (val r = sessions.unlock(pw)) {
         is ApiResult.Success -> _ui.update { UnlockUiState(passwordStaysOnPhone = it.passwordStaysOnPhone) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_unlock)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_unlock)) }
       }
     }
   }

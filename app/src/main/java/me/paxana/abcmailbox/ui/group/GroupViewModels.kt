@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -102,7 +103,7 @@ class QueueViewModel @Inject constructor(private val group: GroupRepository, ses
         is ApiResult.Success -> _selection.update { QueueSelection(notice = strings.plural(if (next == LetterStatus.PRINTED) R.plurals.notice_many_printed else R.plurals.notice_many_mailed, r.value), done = it.done + 1) }
         // The ticks stay: after un-ticking the one letter that stopped it, the rest can go.
         is ApiResult.Failure -> if ((r.error as? AppError.Conflict)?.changedMeanwhile == true) _selection.update { QueueSelection(notice = strings.get(R.string.notice_changed_meanwhile), done = it.done + 1) }
-          else _selection.update { it.copy(busy = false, notice = strings.get(R.string.error_batch_nothing_changed, r.error.userMessage ?: strings.get(R.string.error_update_letter))) }
+          else _selection.update { it.copy(busy = false, notice = strings.get(R.string.error_batch_nothing_changed, r.error.message(strings) ?: strings.get(R.string.error_update_letter))) }
       }
     }
   }
@@ -166,7 +167,7 @@ class LetterWorkViewModel(
       val r = group.shareWith(route.messageId, partner.id)
       _ui.update { it.copy(busy = false, notice = when (r) {
         is ApiResult.Success -> strings.get(R.string.notice_shared_with, partner.name)
-        is ApiResult.Failure -> r.error.userMessage ?: strings.get(R.string.error_share)
+        is ApiResult.Failure -> r.error.message(strings) ?: strings.get(R.string.error_share)
       }) }
     }
   }
@@ -190,7 +191,7 @@ class LetterWorkViewModel(
           // someone mid-press: say so, and show the letter again, now with its reason and "Print it anyway…".
           val held = (r.error as? AppError.Conflict)?.name == "LetterHeldError"
           val meanwhile = (r.error as? AppError.Conflict)?.changedMeanwhile == true
-          _ui.update { it.copy(busy = false, notice = when { held -> strings.get(R.string.notice_held_since); meanwhile -> strings.get(R.string.notice_changed_meanwhile); else -> r.error.userMessage ?: strings.get(R.string.error_update_letter) }) }
+          _ui.update { it.copy(busy = false, notice = when { held -> strings.get(R.string.notice_held_since); meanwhile -> strings.get(R.string.notice_changed_meanwhile); else -> r.error.message(strings) ?: strings.get(R.string.error_update_letter) }) }
           if (held || meanwhile) load()
         }
       }
@@ -209,7 +210,7 @@ class LetterWorkViewModel(
           _ui.update { it.copy(busy = false, item = Loadable.Loaded(current.copy(letter = r.value.copy(attachments = current.letter.attachments))), notice = strings.get(if (reason.putsAddressInDoubt) R.string.notice_returned_address else R.string.notice_returned)) }
           load()
         }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, notice = r.error.userMessage ?: strings.get(R.string.error_update_letter)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, notice = r.error.message(strings) ?: strings.get(R.string.error_update_letter)) }
       }
     }
   }
@@ -218,7 +219,7 @@ class LetterWorkViewModel(
     viewModelScope.launch {
       when (val r = letters.download(attachment)) {
         is ApiResult.Success -> _ui.update { it.copy(openFile = r.value to attachment.mimeType) }
-        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.userMessage ?: strings.get(R.string.error_download_file)) }
+        is ApiResult.Failure -> _ui.update { it.copy(notice = r.error.message(strings) ?: strings.get(R.string.error_download_file)) }
       }
     }
   }
@@ -246,7 +247,7 @@ class AddWriterViewModel @Inject constructor(private val group: GroupRepository,
     viewModelScope.launch {
       when (val r = group.addWriter(s.name, s.email, s.note)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, created = r.value, thenWrite = thenWrite) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_add_writer)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_add_writer)) }
       }
     }
   }
@@ -267,7 +268,7 @@ class HandoffViewModel(private val group: GroupRepository, private val route: Ha
     viewModelScope.launch {
       when (val r = group.issueToken(route.writerId)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, token = r.value) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_make_token)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_make_token)) }
       }
     }
   }
@@ -277,7 +278,7 @@ class HandoffViewModel(private val group: GroupRepository, private val route: Ha
     viewModelScope.launch {
       when (val r = group.revokeToken(route.writerId)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, token = null, revoked = true) }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_revoke_token)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_revoke_token)) }
       }
     }
   }
@@ -313,7 +314,7 @@ class GroupKeyViewModel @Inject constructor(private val group: GroupRepository, 
     viewModelScope.launch {
       val r = group.setUpGroupKey()
       _ui.update {
-        it.copy(busy = false, error = (r as? ApiResult.Failure)?.error?.let { e -> e.userMessage ?: strings.get(R.string.error_set_up_group_key) },
+        it.copy(busy = false, error = (r as? ApiResult.Failure)?.error?.let { e -> e.message(strings) ?: strings.get(R.string.error_set_up_group_key) },
           notice = if (r is ApiResult.Success) strings.get(R.string.notice_group_key_set_up) else null)
       }
     }
@@ -336,7 +337,7 @@ class GroupKeyViewModel @Inject constructor(private val group: GroupRepository, 
     viewModelScope.launch {
       when (val r = call()) {
         is ApiResult.Success -> { _ui.update { it.copy(busyMemberId = null, notice = done) }; loadMembers() }
-        is ApiResult.Failure -> _ui.update { it.copy(busyMemberId = null, error = r.error.userMessage ?: strings.get(R.string.error_did_not_work)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busyMemberId = null, error = r.error.message(strings) ?: strings.get(R.string.error_did_not_work)) }
       }
     }
   }

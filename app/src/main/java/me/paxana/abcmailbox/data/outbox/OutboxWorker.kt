@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.data.outbox
 
+import java.time.Instant
+import java.time.Duration
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -49,8 +51,14 @@ class OutboxWorker @AssistedInject constructor(
   override suspend fun doWork(): Result {
     val outcome = outbox.flush()
     notifier.report(outcome)
-    // `retry` hands the job back with a growing delay (30 s, 1 min, 2 min, … capped by the system at five hours).
-    return if (outcome.stillWaiting > 0) Result.retry() else Result.success()
+    return when {
+      // Paced by the server: a run is already booked for the end of the wait (OutboxRepository.waitOut), so this one
+      // ends here instead of retrying sooner on the backoff below.
+      outcome.limitedUntil != null -> Result.success()
+      // `retry` hands the job back with a growing delay (30 s, 1 min, 2 min, … capped by the system at five hours).
+      outcome.stillWaiting > 0 -> Result.retry()
+      else -> Result.success()
+    }
   }
 }
 
@@ -64,7 +72,17 @@ class WorkManagerOutboxScheduler @Inject constructor(@ApplicationContext private
     // Append, not keep: a letter queued while a run is in progress was not in that run's list, and must get its own.
     WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
   }
-  private companion object { const val UNIQUE_NAME = "outbox" }
+
+  // Its own name, replaced by each new wait: replacing under "outbox" would cancel the run that is asking for it.
+  override fun scheduleAt(at: Instant) {
+    val delay = Duration.between(Instant.now(), at).coerceAtLeast(Duration.ZERO)
+    val request = OneTimeWorkRequestBuilder<OutboxWorker>()
+      .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+      .setInitialDelay(delay.toMillis() + 1_000, TimeUnit.MILLISECONDS)
+      .build()
+    WorkManager.getInstance(context).enqueueUniqueWork(LATER_NAME, ExistingWorkPolicy.REPLACE, request)
+  }
+  private companion object { const val UNIQUE_NAME = "outbox"; const val LATER_NAME = "outbox-after-limit" }
 }
 
 /**
