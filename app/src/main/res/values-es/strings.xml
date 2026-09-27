@@ -174,8 +174,6 @@
     <string name="title_facility">Centro</string>
     <string name="title_group">Grupo</string>
     <string name="photo_of">Foto de %1$s</string>
-    <string name="photo_offsite_button">Mostrar la foto de %1$s</string>
-    <string name="photo_offsite_note">Está en otro sitio web. Cargarla le dice a ese sitio que alguien está mirando esta página.</string>
     <string name="photo_credit">Foto: %1$s</string>
     <string name="photo_unavailable">No se pudo cargar la foto.</string>
     <string name="action_write_letter">Escribir una carta</string>

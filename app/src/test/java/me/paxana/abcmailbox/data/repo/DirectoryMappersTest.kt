@@ -149,29 +149,26 @@ class DirectoryMappersTest {
   private fun prisoner(extra: String) = json.decodeFromString<PrisonerDto>("""{"id":41,"birthName":"Alex Johnson"$extra}""").toDomain()
 
   @Test
-  fun `a hosted photo keeps its path, credit and date, an older API's link is an off-site photo, and none is none`() {
+  fun `only a hosted photo is a photo, with its path, credit and date`() {
     val hosted = prisoner(""","photoUrl":"https://abcbelarus.org/a.jpg","photo":{"url":"/prisoner/photo?prisoner=41","hosted":true,"credit":"ABC Belarus","updatedAt":"2026-09-26T10:04:00.000Z"}""").photo!!
-    assertTrue(hosted.hosted); assertEquals("/prisoner/photo?prisoner=41", hosted.url); assertEquals("ABC Belarus", hosted.credit)
-    assertEquals("2026-09-26T10:04:00Z", hosted.updatedAt.toString()); assertNull(hosted.offSiteHost)
+    assertEquals("/prisoner/photo?prisoner=41", hosted.path); assertEquals("ABC Belarus", hosted.credit)
+    assertEquals("2026-09-26T10:04:00Z", hosted.updatedAt.toString())
 
-    // An API (or an offline copy) from before PR #130: only the link, which is somebody else's site.
-    val old = prisoner(""","photoUrl":"https://www.abcbelarus.org/a.jpg"""").photo!!
-    assertFalse(old.hosted); assertEquals("abcbelarus.org", old.offSiteHost)
-
+    // Off-site pictures are not shown at all: the API's fallback to the link, and an older API's link alone.
+    assertNull(prisoner(""","photoUrl":"https://abcbelarus.org/a.jpg","photo":{"url":"https://abcbelarus.org/a.jpg","hosted":false}""").photo)
+    assertNull(prisoner(""","photoUrl":"https://abcbelarus.org/a.jpg"""").photo)
     assertNull(prisoner(""","photoUrl":null,"photo":null""").photo)
-    assertNull("a blank link is no photo", prisoner(""","photoUrl":"  """").photo)
   }
 
   @Test
-  fun `a hosted path is fetched from the API in use, and its cache key changes with the picture`() {
-    val p = PrisonerPhoto("/prisoner/photo?prisoner=41", hosted = true, updatedAt = java.time.Instant.parse("2026-09-26T10:04:00Z"))
+  fun `a photo is fetched from the API in use and nowhere else, and its cache key changes with the picture`() {
+    val p = PrisonerPhoto("/prisoner/photo?prisoner=41", updatedAt = java.time.Instant.parse("2026-09-26T10:04:00Z"))
     assertEquals("https://abctest.letters.support/prisoner/photo?prisoner=41", p.absoluteUrl("https://abctest.letters.support/"))
     assertEquals("the developer override", "http://10.0.2.2:3000/prisoner/photo?prisoner=41", p.absoluteUrl("http://10.0.2.2:3000/"))
     assertEquals(p.cacheKey("https://a.test/"), p.cacheKey("https://a.test/"))
     assertNotEquals(p.cacheKey("https://a.test/"), p.copy(updatedAt = java.time.Instant.parse("2026-09-27T08:00:00Z")).cacheKey("https://a.test/"))
-    // An off-site link is only ever an http(s) address; anything else is not fetched at all.
-    assertEquals("https://abcbelarus.org/a.jpg", PrisonerPhoto("https://abcbelarus.org/a.jpg", hosted = false).absoluteUrl("https://a.test/"))
-    assertNull(PrisonerPhoto("javascript:alert(1)", hosted = false).absoluteUrl("https://a.test/"))
+    assertNull("a path that resolves to another host is not fetched", PrisonerPhoto("https://abcbelarus.org/a.jpg").absoluteUrl("https://a.test/"))
+    assertNull(PrisonerPhoto("//abcbelarus.org/a.jpg").absoluteUrl("https://a.test/"))
   }
 
   @Test

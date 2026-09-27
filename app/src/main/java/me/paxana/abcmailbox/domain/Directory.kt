@@ -82,20 +82,20 @@ data class Prisoner(
 }
 
 /**
- * A prisoner's picture (API PR #130). A [hosted] one lives on the API: [url] is a path on it, public, and cached by
- * the server's own headers. Otherwise [url] is a link to somebody else's site, which the app never loads on its own:
- * fetching it tells that site who is looking at which prisoner. [credit] is where it came from, shown beside it.
+ * A prisoner's picture (API PR #130), hosted by the API: [path] is on it, public, and cached by the server's own
+ * headers. Only hosted pictures are shown (decided 27 September 2026): a link to somebody else's site is never
+ * fetched, because fetching it tells that site who is looking at which prisoner. [credit] is shown beside it.
  */
-data class PrisonerPhoto(val url: String, val hosted: Boolean, val credit: String? = null, val updatedAt: Instant? = null) {
-  /** The other site's name, for "Show the photo from …"; null for a hosted photo. */
-  val offSiteHost: String? get() = if (hosted) null else runCatching { java.net.URI(url).host?.removePrefix("www.") }.getOrNull()
-
+data class PrisonerPhoto(val path: String, val credit: String? = null, val updatedAt: Instant? = null) {
   /**
-   * The address to fetch. A hosted path is resolved against the API the app is using now (the build's, or the
-   * developer override), since the image loader does not go through the API's own client.
+   * The address to fetch: the path resolved against the API the app is using now (the build's, or the developer
+   * override), since the image loader does not go through the API's own client. Anything that would resolve to
+   * another host is not fetched at all.
    */
-  fun absoluteUrl(apiBase: String): String? =
-    if (hosted) apiBase.toHttpUrlOrNull()?.resolve(url)?.toString() else url.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+  fun absoluteUrl(apiBase: String): String? {
+    val base = apiBase.toHttpUrlOrNull() ?: return null
+    return base.resolve(path)?.takeIf { it.host == base.host && it.port == base.port }?.toString()
+  }
 
   /** Changes when the picture does, so an image cache keyed on it never shows an old one (the server's ETag says the same). */
   fun cacheKey(apiBase: String): String? = absoluteUrl(apiBase)?.let { "$it#${updatedAt?.toEpochMilli() ?: 0}" }

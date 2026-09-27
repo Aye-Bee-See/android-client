@@ -11,13 +11,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -51,10 +49,7 @@ private fun photoRequest(photo: PrisonerPhoto): ImageRequest? {
   return ImageRequest.Builder(LocalContext.current).data(url).diskCacheKey(key).memoryCacheKey(key).build()
 }
 
-/**
- * A round thumbnail for a list row: a hosted photo over the person's initials, which show while it loads, when it
- * cannot (offline, say), and whenever the photo is off-site, which a list never fetches.
- */
+/** A round thumbnail for a list row: the photo over the person's initials, which show while it loads and when it cannot. */
 @Composable
 fun PrisonerAvatar(name: String, photo: PrisonerPhoto?, size: Dp = 48.dp) {
   Box(
@@ -63,36 +58,24 @@ fun PrisonerAvatar(name: String, photo: PrisonerPhoto?, size: Dp = 48.dp) {
   ) {
     Text(PrisonerPhoto.initials(name), style = MaterialTheme.typography.titleMedium.copy(fontSize = (size.value * 0.36f).sp), color = MaterialTheme.colorScheme.onSecondaryContainer)
     // Decorative: the name is read out beside it.
-    if (photo?.hosted == true) photoRequest(photo)?.let { AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().testTag("prisoner-avatar-photo")) }
+    photo?.let { photoRequest(it) }?.let { AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().testTag("prisoner-avatar-photo")) }
   }
 }
 
-/**
- * The picture on a prisoner's page, with its credit. A hosted one is shown at once. An off-site one waits for a tap
- * that says which site it comes from and what loading it tells that site; the choice lasts while the page is open.
- * A picture that cannot be fetched (offline, or a link another site broke) says so in a line, never an empty box.
- */
+/** The picture on a prisoner's page, with its credit. One that cannot be fetched (offline, say) says so in a line, never an empty box. */
 @Composable
 fun PrisonerPhotoBlock(name: String, photo: PrisonerPhoto) {
-  var allowed by rememberSaveable(photo.url) { mutableStateOf(photo.hosted) }
-  var failed by remember(photo.url) { mutableStateOf(false) }
+  var failed by remember(photo.path) { mutableStateOf(false) }
   val request = photoRequest(photo)
   Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-    if (allowed && (failed || request == null)) {
+    if (failed || request == null) {
       Text(stringResource(R.string.photo_unavailable), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("prisoner-photo-failed"))
       return@Column
     }
-    if (allowed && request != null) {
-      AsyncImage(
-        model = request, contentDescription = stringResource(R.string.photo_of, name), contentScale = ContentScale.Crop, onError = { failed = true },
-        modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant).testTag("prisoner-photo"),
-      )
-    } else {
-      val host = photo.offSiteHost ?: return@Column
-      OutlinedButton(onClick = { allowed = true }, modifier = Modifier.testTag("prisoner-photo-offsite")) { Text(stringResource(R.string.photo_offsite_button, host)) }
-      Text(stringResource(R.string.photo_offsite_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    val credit = photo.credit ?: photo.offSiteHost?.takeIf { allowed }
-    credit?.let { Text(stringResource(R.string.photo_credit, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("prisoner-photo-credit")) }
+    AsyncImage(
+      model = request, contentDescription = stringResource(R.string.photo_of, name), contentScale = ContentScale.Crop, onError = { failed = true },
+      modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant).testTag("prisoner-photo"),
+    )
+    photo.credit?.let { Text(stringResource(R.string.photo_credit, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("prisoner-photo-credit")) }
   }
 }

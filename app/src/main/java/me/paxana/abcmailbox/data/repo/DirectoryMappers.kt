@@ -78,9 +78,8 @@ fun PrisonerDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): P
   estimatedRelease = estimatedRelease?.takeIf { it.isNotBlank() },
   bio = bio?.takeIf { it.isNotBlank() },
   interests = interests.orEmpty().filter { it.isNotBlank() },
-  // An API or an offline copy from before PR #130 has only the link: that is an off-site picture.
-  photo = photo?.takeIf { it.url.isNotBlank() }?.let { PrisonerPhoto(it.url, it.hosted, it.credit?.takeIf { c -> c.isNotBlank() }, it.updatedAt?.let { t -> runCatching { java.time.Instant.parse(t) }.getOrNull() }) }
-    ?: photoUrl?.takeIf { it.isNotBlank() }?.let { PrisonerPhoto(it, hosted = false) },
+  // Hosted pictures only: an off-site link (`hosted: false`, or an API from before PR #130 with `photoUrl` alone) is no photo.
+  photo = photo?.takeIf { it.hosted && it.url.isNotBlank() }?.let { PrisonerPhoto(it.url, it.credit?.takeIf { c -> c.isNotBlank() }, it.updatedAt?.let { t -> runCatching { java.time.Instant.parse(t) }.getOrNull() }) },
   supportWebsite = supportWebsite?.takeIf { it.isNotBlank() },
   donationInfo = donationInfo?.takeIf { it.isNotBlank() },
   status = status,

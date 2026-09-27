@@ -77,9 +77,8 @@ data class PrisonerDto(
   val estimatedRelease: String? = null,
   val bio: String? = null,
   val interests: List<String>? = null,
-  /** A link to a picture on somebody else's site; superseded by [photo], which falls back to it (API PR #130). */
-  val photoUrl: String? = null,
-  /** What a client should show (API PR #130): a hosted picture, else the [photoUrl] link; null when there is none. */
+  // `photoUrl` (a link to somebody else's site) is not read: the app shows hosted pictures only.
+  /** API PR #130: a hosted picture when `hosted`, else the older off-site link, which the app ignores; null when there is none. */
   val photo: PhotoDto? = null,
   val supportWebsite: String? = null,
   val donationInfo: String? = null,
