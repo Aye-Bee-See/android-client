@@ -192,19 +192,24 @@ fun RecordRow(
   tags: List<String> = emptyList(),
   secondary: String? = null,
   horizontalPadding: Dp = 20.dp,
+  /** Something before the text, such as a prisoner's photo; the row stays one click target. */
+  leading: (@Composable () -> Unit)? = null,
 ) {
-  Column(
+  Row(
     modifier
       .fillMaxWidth()
       .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
       .padding(horizontal = horizontalPadding, vertical = 12.dp),
-    verticalArrangement = Arrangement.spacedBy(4.dp),
+    horizontalArrangement = Arrangement.spacedBy(14.dp),
   ) {
-    notice?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
-    Text(title, style = MaterialTheme.typography.titleMedium)
-    secondary?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-    subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.spokenWithoutArrows(it)) }
-    TagRow(tags)
+    leading?.invoke()
+    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+      notice?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
+      Text(title, style = MaterialTheme.typography.titleMedium)
+      secondary?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+      subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.spokenWithoutArrows(it)) }
+      TagRow(tags)
+    }
   }
 }
 

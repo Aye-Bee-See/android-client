@@ -197,6 +197,12 @@
     <string name="title_group">Group</string>
     <!-- Read aloud by screen readers. -->
     <string name="photo_of">Photo of %1$s</string>
+    <!-- A prisoner's photo that is on another website (API PR #130): never loaded without a tap. %1$s is the site, like abcbelarus.org. -->
+    <string name="photo_offsite_button">Show the photo from %1$s</string>
+    <string name="photo_offsite_note">It is on another website. Loading it tells that site that someone is looking at this page.</string>
+    <!-- %1$s is where the photo came from, or whose permission it is shown by. -->
+    <string name="photo_credit">Photo: %1$s</string>
+    <string name="photo_unavailable">The photo could not be loaded.</string>
     <string name="action_write_letter">Write a letter</string>
     <string name="label_country">Country</string>
     <string name="label_current_facility">CURRENT FACILITY</string>

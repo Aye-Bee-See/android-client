@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.domain
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
 import androidx.annotation.StringRes
@@ -63,7 +65,8 @@ data class Prisoner(
   val estimatedRelease: String?,
   val bio: String?,
   val interests: List<String>,
-  val photoUrl: String?,
+  /** Null when there is no picture: the rows and the page show initials instead. */
+  val photo: PrisonerPhoto?,
   val supportWebsite: String?,
   val donationInfo: String?,
   val status: String?,
@@ -76,6 +79,32 @@ data class Prisoner(
 ) {
   /** "Est. release" as the site shows it: the free-text estimate wins, then the date's year. */
   val releaseSummary: String? get() = estimatedRelease?.takeIf { it.isNotBlank() } ?: releaseDate?.year?.toString()
+}
+
+/**
+ * A prisoner's picture (API PR #130). A [hosted] one lives on the API: [url] is a path on it, public, and cached by
+ * the server's own headers. Otherwise [url] is a link to somebody else's site, which the app never loads on its own:
+ * fetching it tells that site who is looking at which prisoner. [credit] is where it came from, shown beside it.
+ */
+data class PrisonerPhoto(val url: String, val hosted: Boolean, val credit: String? = null, val updatedAt: Instant? = null) {
+  /** The other site's name, for "Show the photo from …"; null for a hosted photo. */
+  val offSiteHost: String? get() = if (hosted) null else runCatching { java.net.URI(url).host?.removePrefix("www.") }.getOrNull()
+
+  /**
+   * The address to fetch. A hosted path is resolved against the API the app is using now (the build's, or the
+   * developer override), since the image loader does not go through the API's own client.
+   */
+  fun absoluteUrl(apiBase: String): String? =
+    if (hosted) apiBase.toHttpUrlOrNull()?.resolve(url)?.toString() else url.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+
+  /** Changes when the picture does, so an image cache keyed on it never shows an old one (the server's ETag says the same). */
+  fun cacheKey(apiBase: String): String? = absoluteUrl(apiBase)?.let { "$it#${updatedAt?.toEpochMilli() ?: 0}" }
+
+  companion object {
+    /** Up to two initials from a name, for the placeholder: "Alex Johnson" is "AJ"; a name with no letters has none. */
+    fun initials(name: String): String =
+      name.split(Regex("\\s+")).mapNotNull { w -> w.firstOrNull { it.isLetter() }?.uppercaseChar() }.let { if (it.size > 2) listOf(it.first(), it.last()) else it }.joinToString("")
+  }
 }
 
 data class Group(

@@ -8,6 +8,7 @@ import me.paxana.abcmailbox.data.api.PrisonDto
 import me.paxana.abcmailbox.data.api.PrisonerDto
 import me.paxana.abcmailbox.domain.Facility
 import me.paxana.abcmailbox.domain.Group
+import me.paxana.abcmailbox.domain.PrisonerPhoto
 import me.paxana.abcmailbox.domain.MailRule
 import me.paxana.abcmailbox.domain.MailRuleCatalog
 import me.paxana.abcmailbox.domain.MailRules
@@ -77,7 +78,9 @@ fun PrisonerDto.toDomain(catalog: MailRuleCatalog = MailRuleCatalog.Compiled): P
   estimatedRelease = estimatedRelease?.takeIf { it.isNotBlank() },
   bio = bio?.takeIf { it.isNotBlank() },
   interests = interests.orEmpty().filter { it.isNotBlank() },
-  photoUrl = photoUrl?.takeIf { it.isNotBlank() },
+  // An API or an offline copy from before PR #130 has only the link: that is an off-site picture.
+  photo = photo?.takeIf { it.url.isNotBlank() }?.let { PrisonerPhoto(it.url, it.hosted, it.credit?.takeIf { c -> c.isNotBlank() }, it.updatedAt?.let { t -> runCatching { java.time.Instant.parse(t) }.getOrNull() }) }
+    ?: photoUrl?.takeIf { it.isNotBlank() }?.let { PrisonerPhoto(it, hosted = false) },
   supportWebsite = supportWebsite?.takeIf { it.isNotBlank() },
   donationInfo = donationInfo?.takeIf { it.isNotBlank() },
   status = status,

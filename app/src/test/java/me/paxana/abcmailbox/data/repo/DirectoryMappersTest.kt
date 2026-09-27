@@ -15,6 +15,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import me.paxana.abcmailbox.domain.PrisonerPhoto
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
@@ -142,5 +144,41 @@ class DirectoryMappersTest {
     val dto = PrisonDto(id = 1, prisonName = "Old", mailRules = listOf("no_photos", "brand_new_tag"))
     val labels = dto.toDomain().rules.rules.associate { it.tag to it.label }
     assertEquals(mapOf("no_photos" to "No pictures", "brand_new_tag" to "Brand new tag"), labels)
+  }
+
+  private fun prisoner(extra: String) = json.decodeFromString<PrisonerDto>("""{"id":41,"birthName":"Alex Johnson"$extra}""").toDomain()
+
+  @Test
+  fun `a hosted photo keeps its path, credit and date, an older API's link is an off-site photo, and none is none`() {
+    val hosted = prisoner(""","photoUrl":"https://abcbelarus.org/a.jpg","photo":{"url":"/prisoner/photo?prisoner=41","hosted":true,"credit":"ABC Belarus","updatedAt":"2026-09-26T10:04:00.000Z"}""").photo!!
+    assertTrue(hosted.hosted); assertEquals("/prisoner/photo?prisoner=41", hosted.url); assertEquals("ABC Belarus", hosted.credit)
+    assertEquals("2026-09-26T10:04:00Z", hosted.updatedAt.toString()); assertNull(hosted.offSiteHost)
+
+    // An API (or an offline copy) from before PR #130: only the link, which is somebody else's site.
+    val old = prisoner(""","photoUrl":"https://www.abcbelarus.org/a.jpg"""").photo!!
+    assertFalse(old.hosted); assertEquals("abcbelarus.org", old.offSiteHost)
+
+    assertNull(prisoner(""","photoUrl":null,"photo":null""").photo)
+    assertNull("a blank link is no photo", prisoner(""","photoUrl":"  """").photo)
+  }
+
+  @Test
+  fun `a hosted path is fetched from the API in use, and its cache key changes with the picture`() {
+    val p = PrisonerPhoto("/prisoner/photo?prisoner=41", hosted = true, updatedAt = java.time.Instant.parse("2026-09-26T10:04:00Z"))
+    assertEquals("https://abctest.letters.support/prisoner/photo?prisoner=41", p.absoluteUrl("https://abctest.letters.support/"))
+    assertEquals("the developer override", "http://10.0.2.2:3000/prisoner/photo?prisoner=41", p.absoluteUrl("http://10.0.2.2:3000/"))
+    assertEquals(p.cacheKey("https://a.test/"), p.cacheKey("https://a.test/"))
+    assertNotEquals(p.cacheKey("https://a.test/"), p.copy(updatedAt = java.time.Instant.parse("2026-09-27T08:00:00Z")).cacheKey("https://a.test/"))
+    // An off-site link is only ever an http(s) address; anything else is not fetched at all.
+    assertEquals("https://abcbelarus.org/a.jpg", PrisonerPhoto("https://abcbelarus.org/a.jpg", hosted = false).absoluteUrl("https://a.test/"))
+    assertNull(PrisonerPhoto("javascript:alert(1)", hosted = false).absoluteUrl("https://a.test/"))
+  }
+
+  @Test
+  fun `initials are two at most, first and last, from letters only`() {
+    assertEquals("AJ", PrisonerPhoto.initials("Alex Johnson"))
+    assertEquals("MW", PrisonerPhoto.initials("Maria  de la Wilson"))
+    assertEquals("Д", PrisonerPhoto.initials("Дмитрий"))
+    assertEquals("", PrisonerPhoto.initials("7 42"))
   }
 }
