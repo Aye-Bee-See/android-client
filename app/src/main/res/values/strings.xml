@@ -206,6 +206,9 @@
     <string name="title_group">Group</string>
     <!-- Read aloud by screen readers. -->
     <string name="photo_of">Photo of %1$s</string>
+    <!-- %1$s is where the photo came from, or whose permission it is shown by. -->
+    <string name="photo_credit">Photo: %1$s</string>
+    <string name="photo_unavailable">The photo could not be loaded.</string>
     <string name="action_write_letter">Write a letter</string>
     <string name="label_country">Country</string>
     <string name="label_current_facility">CURRENT FACILITY</string>

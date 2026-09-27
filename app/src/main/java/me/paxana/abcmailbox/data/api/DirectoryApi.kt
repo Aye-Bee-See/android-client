@@ -77,7 +77,9 @@ data class PrisonerDto(
   val estimatedRelease: String? = null,
   val bio: String? = null,
   val interests: List<String>? = null,
-  val photoUrl: String? = null,
+  // `photoUrl` (a link to somebody else's site) is not read: the app shows hosted pictures only.
+  /** API PR #130: a hosted picture when `hosted`, else the older off-site link, which the app ignores; null when there is none. */
+  val photo: PhotoDto? = null,
   val supportWebsite: String? = null,
   val donationInfo: String? = null,
   val status: String? = null,
@@ -89,6 +91,9 @@ data class PrisonerDto(
   @SerialName("prison_details") val prisonDetails: PrisonDto? = null,
   @SerialName("support_groups") val supportGroups: List<ChapterDto>? = null,
 )
+
+@Serializable
+data class PhotoDto(val url: String, val hosted: Boolean = false, val credit: String? = null, val updatedAt: String? = null)
 
 @Serializable
 data class PrisonDto(

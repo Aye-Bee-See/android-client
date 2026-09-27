@@ -182,6 +182,8 @@
     <string name="title_facility">Centro</string>
     <string name="title_group">Grupo</string>
     <string name="photo_of">Foto de %1$s</string>
+    <string name="photo_credit">Foto: %1$s</string>
+    <string name="photo_unavailable">No se pudo cargar la foto.</string>
     <string name="action_write_letter">Escribir una carta</string>
     <string name="label_country">País</string>
     <string name="label_current_facility">CENTRO ACTUAL</string>

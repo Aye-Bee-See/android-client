@@ -1,5 +1,7 @@
 package me.paxana.abcmailbox.domain
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
 import androidx.annotation.StringRes
@@ -63,7 +65,8 @@ data class Prisoner(
   val estimatedRelease: String?,
   val bio: String?,
   val interests: List<String>,
-  val photoUrl: String?,
+  /** Null when there is no picture: the rows and the page show initials instead. */
+  val photo: PrisonerPhoto?,
   val supportWebsite: String?,
   val donationInfo: String?,
   val status: String?,
@@ -76,6 +79,32 @@ data class Prisoner(
 ) {
   /** "Est. release" as the site shows it: the free-text estimate wins, then the date's year. */
   val releaseSummary: String? get() = estimatedRelease?.takeIf { it.isNotBlank() } ?: releaseDate?.year?.toString()
+}
+
+/**
+ * A prisoner's picture (API PR #130), hosted by the API: [path] is on it, public, and cached by the server's own
+ * headers. Only hosted pictures are shown (decided 27 September 2026): a link to somebody else's site is never
+ * fetched, because fetching it tells that site who is looking at which prisoner. [credit] is shown beside it.
+ */
+data class PrisonerPhoto(val path: String, val credit: String? = null, val updatedAt: Instant? = null) {
+  /**
+   * The address to fetch: the path resolved against the API the app is using now (the build's, or the developer
+   * override), since the image loader does not go through the API's own client. Anything that would resolve to
+   * another host is not fetched at all.
+   */
+  fun absoluteUrl(apiBase: String): String? {
+    val base = apiBase.toHttpUrlOrNull() ?: return null
+    return base.resolve(path)?.takeIf { it.host == base.host && it.port == base.port }?.toString()
+  }
+
+  /** Changes when the picture does, so an image cache keyed on it never shows an old one (the server's ETag says the same). */
+  fun cacheKey(apiBase: String): String? = absoluteUrl(apiBase)?.let { "$it#${updatedAt?.toEpochMilli() ?: 0}" }
+
+  companion object {
+    /** Up to two initials from a name, for the placeholder: "Alex Johnson" is "AJ"; a name with no letters has none. */
+    fun initials(name: String): String =
+      name.split(Regex("\\s+")).mapNotNull { w -> w.firstOrNull { it.isLetter() }?.uppercaseChar() }.let { if (it.size > 2) listOf(it.first(), it.last()) else it }.joinToString("")
+  }
 }
 
 data class Group(

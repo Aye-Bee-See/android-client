@@ -28,7 +28,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import me.paxana.abcmailbox.ui.common.PrisonerPhotoBlock
 import me.paxana.abcmailbox.domain.Facility
 import me.paxana.abcmailbox.domain.Group
 import me.paxana.abcmailbox.domain.NetworkRoles
@@ -78,9 +78,7 @@ private fun PrisonerBody(p: Prisoner, facilityDetail: Facility?, onFacility: (In
   val facility = facilityDetail ?: p.facility
   Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
     p.statusNotice?.let { AlertBanner("⚠ $it") }
-    p.photoUrl?.let {
-      AsyncImage(model = it, contentDescription = stringResource(R.string.photo_of, p.name), modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(4.dp)))
-    }
+    p.photo?.let { PrisonerPhotoBlock(p.name, it) }
     Text(p.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
     val alsoKnown = listOfNotNull(p.birthName) + p.aliases
     if (alsoKnown.isNotEmpty()) Text(alsoKnown.joinToString("  ·  "), color = MaterialTheme.colorScheme.onSurfaceVariant)
