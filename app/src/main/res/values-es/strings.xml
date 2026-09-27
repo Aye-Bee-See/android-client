@@ -638,14 +638,6 @@
     </plurals>
 
     <!-- Instant notifications (the optional push doorbell) -->
-    <string name="push_title">Avisos inmediatos</string>
-    <string name="push_explained">Sin esto, la aplicación comprueba si hay novedades unas pocas veces al día y cada vez que la abres. Con esto, el servidor llama a este teléfono en cuanto ocurre algo. La llamada pasa por el servicio de avisos de Google y no lleva nada, ni nombres ni texto: Google solo sabe que este teléfono tiene esta aplicación y cuándo recibe una llamada.</string>
-    <string name="push_unavailable_build">No disponible en esta versión.</string>
-    <string name="push_unavailable_device">Este teléfono no tiene el servicio de avisos de Google, así que la aplicación sigue comprobando por su cuenta.</string>
-    <string name="push_on_not_deliverable">Activado. El servidor todavía no está preparado para llamar a los teléfonos, así que de momento la aplicación sigue comprobando por su cuenta.</string>
-    <string name="push_on">Activado.</string>
-    <string name="push_off">Desactivado. Ya no se llamará a este teléfono.</string>
-    <string name="push_failed">No se pudo cambiar: %1$s</string>
 
     <!-- Notification channels: people can silence each kind separately in Android's settings -->
     <string name="channel_replies">Respuestas y cartas que te necesitan</string>

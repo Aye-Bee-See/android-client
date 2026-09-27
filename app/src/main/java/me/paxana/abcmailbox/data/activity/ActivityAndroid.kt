@@ -47,7 +47,7 @@ class ActivitySyncWorker @AssistedInject constructor(
 interface ActivityScheduler {
   /** Keeps the periodic check alive. Safe to call on every launch. */
   fun keepChecking()
-  /** The doorbell rang (or something else suggests news): look now. */
+  /** Something suggests news (the developer tool, today): look now, from the background. */
   fun checkNow()
 }
 
@@ -56,14 +56,16 @@ class WorkManagerActivityScheduler @Inject constructor(@ApplicationContext priva
   private val online = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
   override fun keepChecking() {
-    // Replies take weeks and a status change is not urgent, so a few times a day is plenty without push,
-    // and costs almost nothing. With push turned on this is only the safety net for a missed ring.
-    val request = PeriodicWorkRequestBuilder<ActivitySyncWorker>(6, TimeUnit.HOURS).setConstraints(online).build()
-    WorkManager.getInstance(context).enqueueUniquePeriodicWork("activity-periodic", ExistingPeriodicWorkPolicy.KEEP, request)
+    // The app has no push (taken out 27 Sep 2026: a ring through Google told Google who uses this app, and when).
+    // Replies take weeks and a status change is not urgent, so every three hours, and on every opening, is enough
+    // and costs almost nothing. Android stretches it while the phone sleeps. UPDATE, not KEEP: a phone that had the
+    // six-hourly check from an older release moves to this one.
+    val request = PeriodicWorkRequestBuilder<ActivitySyncWorker>(3, TimeUnit.HOURS).setConstraints(online).build()
+    WorkManager.getInstance(context).enqueueUniquePeriodicWork("activity-periodic", ExistingPeriodicWorkPolicy.UPDATE, request)
   }
 
   override fun checkNow() {
-    // Expedited: a high-priority push gives the app a short window to run; this asks to use it.
+    // Expedited where the system allows it, so a check asked for now runs now.
     val request = OneTimeWorkRequestBuilder<ActivitySyncWorker>().setConstraints(online).setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST).build()
     WorkManager.getInstance(context).enqueueUniqueWork("activity-now", ExistingWorkPolicy.REPLACE, request)
   }

@@ -670,15 +670,6 @@
         <item quantity="other">and %d more</item>
     </plurals>
 
-    <!-- Instant notifications (the optional push doorbell) -->
-    <string name="push_title">Instant notifications</string>
-    <string name="push_explained">Without this, the app checks for news a few times a day and whenever you open it. With it, the server rings this phone the moment something happens. The ring passes through Google\'s push service and carries nothing, no names, no text: Google learns only that this phone has this app, and when it is rung.</string>
-    <string name="push_unavailable_build">Not available in this build.</string>
-    <string name="push_unavailable_device">This phone has no Google push service, so the app keeps checking by itself.</string>
-    <string name="push_on_not_deliverable">Turned on. The server is not set up to ring phones yet, so until it is the app keeps checking by itself.</string>
-    <string name="push_on">Turned on.</string>
-    <string name="push_off">Turned off. This phone will no longer be rung.</string>
-    <string name="push_failed">Could not change this: %1$s</string>
 
     <!-- Notification channels: people can silence each kind separately in Android's settings -->
     <string name="channel_replies">Replies and letters that need you</string>

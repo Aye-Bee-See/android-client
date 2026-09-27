@@ -6,6 +6,7 @@ import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 import me.paxana.abcmailbox.data.activity.ActivityNotifier
 import me.paxana.abcmailbox.data.dev.DevServerRepository
+import me.paxana.abcmailbox.data.push.PushRetirement
 import javax.inject.Inject
 
 /**
@@ -27,11 +28,14 @@ class AbcApplication : Application(), Configuration.Provider {
    */
   @Inject lateinit var workerFactory: HiltWorkerFactory
   @Inject lateinit var notifier: ActivityNotifier
+  /** Removes a device record left from when the app had push (taken out 27 Sep 2026), once. */
+  @Inject lateinit var pushRetirement: PushRetirement
   override val workManagerConfiguration: Configuration
     get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
   override fun onCreate() {
     super.onCreate() // Hilt fills the @Inject fields in here, so they are only usable after this line
     notifier.prepare()
+    pushRetirement.start()
   }
 }

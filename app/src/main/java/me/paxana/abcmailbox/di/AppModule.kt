@@ -117,16 +117,13 @@ abstract class BindingsModule {
   abstract fun activityScheduler(impl: me.paxana.abcmailbox.data.activity.WorkManagerActivityScheduler): me.paxana.abcmailbox.data.activity.ActivityScheduler
 
   @Binds
-  abstract fun pushProvider(impl: me.paxana.abcmailbox.data.push.FcmPushProvider): me.paxana.abcmailbox.data.push.PushProvider
-
-  @Binds
   abstract fun schemeMemory(impl: me.paxana.abcmailbox.data.session.DataStoreSchemeMemory): me.paxana.abcmailbox.data.session.SchemeMemory
 
   @Binds
   abstract fun accountEraser(impl: me.paxana.abcmailbox.data.account.DefaultAccountEraser): me.paxana.abcmailbox.data.account.AccountEraser
 
   @Binds
-  abstract fun pushRegistrar(impl: me.paxana.abcmailbox.data.push.DefaultPushRegistrar): me.paxana.abcmailbox.data.push.PushRegistrar
+  abstract fun pushRetirement(impl: me.paxana.abcmailbox.data.push.DefaultPushRetirement): me.paxana.abcmailbox.data.push.PushRetirement
 
   @Binds
   abstract fun strings(impl: me.paxana.abcmailbox.text.AndroidStrings): me.paxana.abcmailbox.text.Strings
