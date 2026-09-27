@@ -1,6 +1,8 @@
 package me.paxana.abcmailbox.ui.nav
 
 import androidx.compose.animation.AnimatedVisibility
+import me.paxana.abcmailbox.ui.common.shortTime
+import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Mail
@@ -202,6 +204,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val recoveryUpload by viewModel.recoveryUpload.collectAsStateWithLifecycle()
   val keysMadeElsewhere = stringResource(R.string.notice_keys_made_elsewhere)
   val cannotReach = stringResource(R.string.error_network)
+  val shellStrings = rememberStrings()
   val keysLocked by viewModel.keysLocked.collectAsStateWithLifecycle()
   val mode by viewModel.mode.collectAsStateWithLifecycle()
   val directorySource by viewModel.directorySource.collectAsStateWithLifecycle()
@@ -210,6 +213,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   // What needs attention on the Inbox tab: letters that have not gone yet, and news that has not been seen yet.
   val inboxBadge = unsentCount + unreadActivity
   val letterQueued = stringResource(R.string.notice_letter_queued)
+  val letterQueuedLimited = stringResource(R.string.notice_letter_queued_limited) // formatted in the callback, with the time it goes
   val writerAdded = stringResource(R.string.notice_writer_added) // formatted in the callback, where the name is known
   // Android 13+ asks the user before an app may post notifications. Asked here, the first time it matters
   // (a letter was just queued and its fate will be decided while they are not looking), not at first launch.
@@ -397,9 +401,9 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           sessionState = sessionState,
           onSignIn = { navController.navigate(LoginRoute) },
           onBack = { navController.popBackStack() },
-          onQueued = {
+          onQueued = { limitedUntil ->
             navController.popBackStack()
-            scope.launch { snackbar.showSnackbar(letterQueued) }
+            scope.launch { snackbar.showSnackbar(limitedUntil?.let { letterQueuedLimited.format(it.shortTime()) } ?: letterQueued, duration = SnackbarDuration.Long) }
             if (Build.VERSION.SDK_INT >= 33) askToNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
           },
           onSent = { chatId ->
@@ -508,7 +512,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
         val code = pendingCode
         if (code == null) LaunchedEffect(Unit) { navController.popBackStack<RecoveryCodeRoute>(inclusive = true) }
         else RecoveryCodeScreen(
-          code = code, busy = recoveryUpload.busy, error = recoveryUpload.error?.let { it.userMessage ?: cannotReach },
+          code = code, busy = recoveryUpload.busy, error = recoveryUpload.error?.let { it.message(shellStrings) ?: cannotReach },
           onSaved = { viewModel.recoveryCodeSaved() },
         )
       }

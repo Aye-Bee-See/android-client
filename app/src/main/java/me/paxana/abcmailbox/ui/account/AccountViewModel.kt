@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import me.paxana.abcmailbox.data.offline.OfflineDirectory
 import androidx.lifecycle.ViewModel
@@ -63,7 +64,7 @@ class AccountViewModel @Inject constructor(
         onSuccess = { url ->
           when (val r = devServer.check()) {
             is ApiResult.Success -> "Reachable: ${r.value}"
-            is ApiResult.Failure -> "Saved $url, but /health failed: ${r.error.userMessage ?: "no connection"}. Is the API running and on the same Wi-Fi?"
+            is ApiResult.Failure -> "Saved $url, but /health failed: ${r.error.message(strings) ?: "no connection"}. Is the API running and on the same Wi-Fi?"
           }
         },
         onFailure = { it.message ?: "Invalid URL" },
@@ -88,7 +89,7 @@ class AccountViewModel @Inject constructor(
       val result = sessions.logout(everywhere)
       val notice = when (result) {
         is ApiResult.Success -> strings.get(if (everywhere) R.string.notice_signed_out_everywhere else R.string.notice_signed_out)
-        is ApiResult.Failure -> strings.get(R.string.notice_signed_out_server_untold, result.error.userMessage ?: strings.get(R.string.no_connection_short))
+        is ApiResult.Failure -> strings.get(R.string.notice_signed_out_server_untold, result.error.message(strings) ?: strings.get(R.string.no_connection_short))
       }
       _uiState.update { it.copy(signingOut = false, notice = notice) }
     }

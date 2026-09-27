@@ -80,6 +80,9 @@ class ComposeViewModelTest {
     override suspend fun retry(id: Long) = Unit
     override suspend fun flush() = FlushOutcome()
     override suspend fun hasWaiting() = queued.isNotEmpty()
+    override val limitedUntil = kotlinx.coroutines.flow.MutableStateFlow<java.time.Instant?>(null)
+    val waits = mutableListOf<Long?>()
+    override fun waitOut(retryAfterSeconds: Long?) { waits += retryAfterSeconds; limitedUntil.value = java.time.Instant.parse("2026-09-27T20:45:00Z") }
   }
   private val outbox = FakeOutbox()
 
@@ -275,6 +278,19 @@ class ComposeViewModelTest {
     val queued = outbox.queued.single().third
     assertTrue(model.ui.value.queuedOffline)
     assertEquals("the key that went to the server is the key that was queued", letters.triedKeys.single(), queued.idempotencyKey)
+  }
+
+  @Test
+  fun `a 429 queues the letter to go by itself when the wait is over, under the key the first try used`() = runTest {
+    val letters = FakeLetters(fail = AppError.RateLimited("Too many letters and replies. Try again in 45 minute(s).", 2700))
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters)
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onBodyChange("Hello"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    val queued = outbox.queued.single().third
+    assertEquals("the outbox waits out the server's Retry-After", listOf<Long?>(2700), outbox.waits)
+    assertTrue(model.ui.value.queuedOffline); assertNull(model.ui.value.error)
+    assertEquals("the screen can say when it goes", java.time.Instant.parse("2026-09-27T20:45:00Z"), model.ui.value.queuedLimitedUntil)
+    assertEquals(letters.triedKeys.single(), queued.idempotencyKey)
   }
 
   @Test

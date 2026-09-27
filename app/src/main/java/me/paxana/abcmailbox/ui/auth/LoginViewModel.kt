@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -62,11 +63,11 @@ class LoginViewModel @Inject constructor(
 
 internal fun AppError.toLoginMessage(strings: Strings): String = when (this) {
   is AppError.Unauthorized -> strings.get(R.string.error_wrong_credentials)
-  // The server's sentence if it sent one; otherwise the wait it asked for, in the user's language.
-  is AppError.RateLimited -> info ?: retryAfterSeconds?.let { strings.plural(R.plurals.error_rate_limited_minutes, ((it + 59) / 60).toInt()) } ?: strings.get(R.string.error_too_many_sign_ins)
+  // The wait it asked for, in the user's language; the server's sentence is English ("Try again in 15 minute(s).").
+  is AppError.RateLimited -> retryAfterSeconds?.let { strings.plural(R.plurals.error_rate_limited_minutes, ((it + 59) / 60).coerceAtLeast(1).toInt()) } ?: strings.get(R.string.error_too_many_sign_ins)
   is AppError.Validation -> errors.joinToString(" ")
   is AppError.Network -> strings.get(R.string.error_network)
   // The server refused the form the password came in (API PR #114): a scheme this app does not speak, or one it fell behind on.
-  is AppError.Conflict -> if (name == "AuthSchemeError") strings.get(R.string.error_scheme_refused) else userMessage ?: strings.get(R.string.error_generic)
-  else -> userMessage ?: strings.get(R.string.error_generic)
+  is AppError.Conflict -> if (name == "AuthSchemeError") strings.get(R.string.error_scheme_refused) else message(strings) ?: strings.get(R.string.error_generic)
+  else -> message(strings) ?: strings.get(R.string.error_generic)
 }

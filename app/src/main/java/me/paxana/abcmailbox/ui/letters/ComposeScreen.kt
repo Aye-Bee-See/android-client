@@ -57,7 +57,8 @@ fun ComposeScreen(
   onBack: () -> Unit,
   onSent: (chatId: Int) -> Unit,
   /** No connection: the letter went to the outbox. The shell closes this screen and says so. */
-  onQueued: () -> Unit = {},
+  /** The letter went to the outbox; the time is set when the server is pacing the account rather than unreachable. */
+  onQueued: (java.time.Instant?) -> Unit = {},
   viewModel: ComposeViewModel = hiltViewModel(),
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -66,7 +67,7 @@ fun ComposeScreen(
   val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken -> viewModel.onPhotoResult(taken) }
 
   LaunchedEffect(ui.sentChatId) { ui.sentChatId?.let { if (ui.error == null) onSent(it) } }
-  LaunchedEffect(ui.queuedOffline) { if (ui.queuedOffline) onQueued() }
+  LaunchedEffect(ui.queuedOffline) { if (ui.queuedOffline) onQueued(ui.queuedLimitedUntil) }
   val draftRestored = stringResource(R.string.draft_restored)
   LaunchedEffect(ui.draftRestored) { if (ui.draftRestored) { snackbar.showSnackbar(draftRestored); viewModel.draftNoticeShown() } }
 

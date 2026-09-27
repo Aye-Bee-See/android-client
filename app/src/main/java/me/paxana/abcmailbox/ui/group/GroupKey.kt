@@ -1,6 +1,8 @@
 package me.paxana.abcmailbox.ui.group
 
 import androidx.compose.ui.platform.testTag
+import me.paxana.abcmailbox.text.rememberStrings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.ui.common.Tag
 import me.paxana.abcmailbox.ui.common.AlertBanner
 import me.paxana.abcmailbox.R
@@ -87,7 +89,7 @@ fun GroupKeyBanner(onMembers: () -> Unit, viewModel: GroupKeyViewModel = hiltVie
       title = stringResource(R.string.group_key_locked_title),
       body = stringResource(R.string.group_key_locked_text),
     ) {}
-    is GroupKeyState.Failed -> Notice(title = stringResource(R.string.group_key_failed_title), body = s.error.userMessage ?: stringResource(R.string.error_no_connection)) {
+    is GroupKeyState.Failed -> Notice(title = stringResource(R.string.group_key_failed_title), body = s.error.message(rememberStrings()) ?: stringResource(R.string.error_no_connection)) {
       OutlinedButton(onClick = viewModel::refresh) { Text(stringResource(R.string.action_try_again)) }
     }
   }

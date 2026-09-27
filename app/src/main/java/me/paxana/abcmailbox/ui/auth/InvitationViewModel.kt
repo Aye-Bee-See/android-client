@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
 import androidx.lifecycle.SavedStateHandle
+import me.paxana.abcmailbox.data.api.message
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
@@ -154,5 +155,5 @@ internal fun AppError.toInvitationMessage(strings: Strings): String = when (this
   // A refused acceptance (a taken username, say) leaves nothing behind and the invitation usable, and should say so.
   is AppError.Validation -> listOfNotNull(userMessage, strings.get(R.string.invitation_kept)).joinToString(" ")
   is AppError.Network -> strings.get(R.string.error_network)
-  else -> userMessage ?: strings.get(R.string.error_generic)
+  else -> message(strings) ?: strings.get(R.string.error_generic)
 }
