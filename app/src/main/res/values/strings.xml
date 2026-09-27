@@ -43,6 +43,7 @@
     <string name="error_rate_limited_later">The server has asked for a pause. Try again later.</string>
     <!-- Refusals worded from their code (API PR #133, docs/ERRORS.md); the server's English sentence is the fallback. -->
     <string name="error_wrong_encryption_mode">This version of the app cannot send letters to this server, which protects them in a way the app does not know. Update the app, then send the letter again.</string>
+    <string name="error_prisoner_gone">This person is no longer in the directory, so the letter cannot be sent. Nothing was sent, and the letter is still here.</string>
     <string name="form_check_fields">Check the fields marked in red.</string>
     <!-- %1$s is a field's label, capitalised, like "Username". -->
     <string name="form_required">%1$s is needed.</string>

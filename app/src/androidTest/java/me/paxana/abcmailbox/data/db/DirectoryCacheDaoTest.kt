@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.db
 
+import me.paxana.abcmailbox.data.offline.likeLiteral
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -60,6 +61,14 @@ class DirectoryCacheDaoTest {
     assertEquals(listOf(2), prisoners(q = "johnson"))
     assertEquals(3, dao.countPrisoners("", null, null, null, null))
     assertEquals(2, dao.countPrisoners("smith", null, null, null, null))
+  }
+
+  @Test
+  fun a_percent_sign_or_an_underscore_is_searched_for_not_matched_as_a_wildcard() = runTest {
+    // What OfflineDirectory hands the DAO (API #159: the server takes the search as plain text too).
+    assertEquals("a bare % would have listed everyone", emptyList<Int>(), prisoners(q = "%".likeLiteral()))
+    assertEquals(emptyList<Int>(), prisoners(q = "_".likeLiteral()))
+    assertEquals("ordinary searches are unchanged", listOf(1, 3), prisoners(q = "smith".likeLiteral()).sorted())
   }
 
   @Test

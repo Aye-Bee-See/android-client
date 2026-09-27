@@ -111,6 +111,7 @@
     </plurals>
     <string name="error_rate_limited_later">El servidor ha pedido una pausa. Inténtalo de nuevo más tarde.</string>
     <string name="error_wrong_encryption_mode">Esta versión de la app no puede enviar cartas a este servidor, que las protege de una forma que la app no conoce. Actualiza la app y vuelve a enviar la carta.</string>
+    <string name="error_prisoner_gone">Esta persona ya no está en el directorio, así que la carta no se puede enviar. No se envió nada y la carta sigue aquí.</string>
     <string name="form_check_fields">Revisa los campos marcados en rojo.</string>
     <string name="form_required">Falta «%1$s».</string>
     <plurals name="form_length">

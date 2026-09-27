@@ -62,7 +62,7 @@ class LettersRepositoryE2eTest {
       override suspend fun stage(uri: Uri): StagedFile = error("not used")
       override fun discard(staged: StagedFile) = Unit
       override fun downloadTarget(attachmentId: Int, name: String) = File(tmp, "${attachmentId}_$name")
-    }, codec)
+    }, codec, retrofit.create(me.paxana.abcmailbox.data.api.DirectoryApi::class.java))
   }
 
   @After fun tearDown() { server.shutdown(); tmp.deleteRecursively() }

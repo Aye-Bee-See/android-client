@@ -118,19 +118,19 @@ class RoomOfflineDirectory @Inject constructor(
   }
 
   override suspend fun prisoners(filter: PrisonerFilter, page: Int, pageSize: Int): Page<PrisonerDto> {
-    val q = filter.query.trim().lowercase()
+    val q = filter.query.trim().lowercase().likeLiteral()
     val rows = dao.prisoners(q, filter.status, filter.country, filter.featured, filter.facilityId, filter.sort, pageSize, (page - 1) * pageSize)
     return Page(rows.mapNotNull { it.decodeOrNull<PrisonerDto>() }, dao.countPrisoners(q, filter.status, filter.country, filter.featured, filter.facilityId), page, pageSize)
   }
 
   override suspend fun facilities(filter: FacilityFilter, page: Int, pageSize: Int): Page<PrisonDto> {
-    val q = filter.query.trim().lowercase()
+    val q = filter.query.trim().lowercase().likeLiteral()
     val rows = dao.facilities(q, filter.country, filter.routing, filter.relay, filter.sort, pageSize, (page - 1) * pageSize)
     return Page(rows.mapNotNull { it.decodeOrNull<PrisonDto>() }, dao.countFacilities(q, filter.country, filter.routing, filter.relay), page, pageSize)
   }
 
   override suspend fun groups(filter: GroupFilter, page: Int, pageSize: Int): Page<ChapterDto> {
-    val q = filter.query.trim().lowercase()
+    val q = filter.query.trim().lowercase().likeLiteral()
     val rows = dao.groups(q, filter.country, filter.service, filter.networkRole, filter.sort, pageSize, (page - 1) * pageSize)
     return Page(rows.mapNotNull { it.decodeOrNull<ChapterDto>() }, dao.countGroups(q, filter.country, filter.service, filter.networkRole), page, pageSize)
   }
@@ -152,3 +152,9 @@ class RoomOfflineDirectory @Inject constructor(
     const val MAX_PAGES = 200 // 20,000 records: far beyond any real directory, and a stop for a server that never says "done"
   }
 }
+
+/**
+ * The search text as the server takes it since API #159: plain text to find, so `%` and `_` are characters, not
+ * wildcards (a search for `%` finds a percent sign, not every record). Escaped for the queries' `ESCAPE '\'`.
+ */
+internal fun String.likeLiteral(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
