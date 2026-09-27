@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
 import androidx.compose.foundation.layout.Arrangement
+import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -95,7 +96,7 @@ class GroupNumbersViewModel @Inject constructor(private val group: GroupReposito
     viewModelScope.launch {
       when (val r = group.setLettersSentBefore(count)) {
         is ApiResult.Success -> { _ui.update { it.copy(busy = false, saved = true) }; load() }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_generic)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_generic)) }
       }
     }
   }

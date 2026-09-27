@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.data.api.message
 import androidx.compose.ui.res.pluralStringResource
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
@@ -48,7 +49,7 @@ class OfflineCopyViewModel @Inject constructor(private val offline: OfflineDirec
       val r = offline.download()
       _ui.update { OfflineCopyUiState(message = when (r) {
         is ApiResult.Success -> strings.get(R.string.offline_updated)
-        is ApiResult.Failure -> strings.get(R.string.offline_update_failed, r.error.userMessage ?: strings.get(R.string.no_connection_short))
+        is ApiResult.Failure -> strings.get(R.string.offline_update_failed, r.error.message(strings) ?: strings.get(R.string.no_connection_short))
       }) }
     }
   }

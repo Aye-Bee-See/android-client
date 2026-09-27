@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.letters
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.repo.OutboxRepository
@@ -72,6 +73,8 @@ data class ComposeUiState(
   val sentChatId: Int? = null,
   /** The server could not be reached, so the letter went to the outbox instead. The screen closes and says so. */
   val queuedOffline: Boolean = false,
+  /** Queued because the server is pacing this account (a `429`), not for want of a connection: when it goes. */
+  val queuedLimitedUntil: java.time.Instant? = null,
 ) {
   val characters: Int get() = body.length
   val pages: Int get() = estimatePages(characters)
@@ -259,7 +262,7 @@ class ComposeViewModel(
     viewModelScope.launch {
       if (route.editMessageId != null) {
         when (val r = letters.edit(LetterEdit(route.editMessageId, s.body, s.note.ifBlank { null }, relayChapter))) {
-          is ApiResult.Failure -> _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric(strings.get(R.string.error_save_letter))) }
+          is ApiResult.Failure -> _ui.update { it.copy(sending = false, progress = null, error = r.error.message(strings) ?: strings.get(R.string.error_save_letter)) }
           is ApiResult.Success -> uploadThen(route.editMessageId, s.attachments, chatIdOf(route.editMessageId))
         }
         return@launch
@@ -282,7 +285,13 @@ class ComposeViewModel(
           if (r.error.gotNoAnswer()) {
             outbox.queue(s.prisoner?.name ?: strings.get(R.string.prisoner_numbered, route.prisonerId), s.writingAs.takeIf { route.writerId != null }, letter, s.attachments)
             finishedWith(queued = true)
-          } else _ui.update { it.copy(sending = false, progress = null, error = r.error.orGeneric(strings.get(R.string.error_send_letter))) }
+          } else if (r.error is AppError.RateLimited) {
+            // Paced, not refused (API PR #128): the letter was not saved, and the outbox sends it under the same key
+            // once the wait is over, even if the app is closed by then. Nothing for the writer to do but know when.
+            outbox.queue(s.prisoner?.name ?: strings.get(R.string.prisoner_numbered, route.prisonerId), s.writingAs.takeIf { route.writerId != null }, letter, s.attachments)
+            outbox.waitOut(r.error.retryAfterSeconds)
+            finishedWith(queued = true, limitedUntil = outbox.limitedUntil.value)
+          } else _ui.update { it.copy(sending = false, progress = null, error = r.error.message(strings) ?: strings.get(R.string.error_send_letter)) }
         is ApiResult.Success -> {
           finishedWith(queued = false)
           uploadThen(r.value.id, s.attachments, r.value.threadId)
@@ -292,10 +301,10 @@ class ComposeViewModel(
   }
 
   /** The letter has left this screen, to the server or to the outbox: the draft and any outbox copy it came from are done with. */
-  private suspend fun finishedWith(queued: Boolean) {
+  private suspend fun finishedWith(queued: Boolean, limitedUntil: java.time.Instant? = null) {
     if (usesDrafts) userId?.let { drafts.delete(it, route.prisonerId) }
     route.outboxId?.let { old -> outbox.forget(old) }
-    if (queued) _ui.update { it.copy(sending = false, progress = null, attachments = emptyList(), queuedOffline = true) }
+    if (queued) _ui.update { it.copy(sending = false, progress = null, attachments = emptyList(), queuedOffline = true, queuedLimitedUntil = limitedUntil) }
   }
 
   /** No connection, a connection that died, or a reply that is not our API's (a Wi-Fi login page). A 5xx is an answer: the writer sees it. */

@@ -109,6 +109,15 @@
     <string name="notice_account_claimed">Аккаунт активирован. Вы вошли.</string>
     <string name="notice_password_changed_signed_in">Пароль изменён. Вы вошли.</string>
     <string name="notice_letter_queued">Нет соединения. Письмо сохранено на этом телефоне и будет отправлено, когда появится связь.</string>
+    <plurals name="error_rate_limited_wait">
+        <item quantity="one">Сервер попросил сделать паузу. Попробуйте снова через %d минуту.</item>
+        <item quantity="few">Сервер попросил сделать паузу. Попробуйте снова через %d минуты.</item>
+        <item quantity="many">Сервер попросил сделать паузу. Попробуйте снова через %d минут.</item>
+        <item quantity="other">Сервер попросил сделать паузу. Попробуйте снова через %d минуты.</item>
+    </plurals>
+    <string name="error_rate_limited_later">Сервер попросил сделать паузу. Попробуйте позже.</string>
+    <string name="notice_letter_queued_limited">За последний час сервер получил от этой учётной записи очень много. Письмо сохранено на телефоне и отправится само с %1$s.</string>
+    <string name="outbox_limited">За последний час сервер получил от этой учётной записи очень много. Эти письма в безопасности и отправятся сами с %1$s.</string>
     <string name="title_write_to">Кому написать…</string>
     <string name="title_write_as_to">Написать от имени %1$s…</string>
     <string name="outbox_channel_name">Письма, написанные без связи</string>

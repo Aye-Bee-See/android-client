@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
 import me.paxana.abcmailbox.ui.common.PasswordStrengthMeter
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.domain.PasswordRules
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
@@ -79,7 +80,7 @@ class ChangePasswordViewModel @Inject constructor(private val sessions: SessionR
         is ApiResult.Failure -> _ui.update {
           it.copy(busy = false, error = when (val e = r.error) {
             is AppError.Network -> strings.get(R.string.error_password_network)
-            else -> e.userMessage ?: strings.get(R.string.error_change_password)
+            else -> e.message(strings) ?: strings.get(R.string.error_change_password)
           })
         }
       }

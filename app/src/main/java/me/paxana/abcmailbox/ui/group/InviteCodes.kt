@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
 import androidx.activity.compose.BackHandler
+import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -131,7 +132,7 @@ class InviteCodesViewModel @Inject constructor(private val invites: InviteReposi
       when (val r = invites.issue(count, s.label, s.days)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, issued = r.value, label = "", daysText = "") }
         // Over the quota the server answers 409 with the numbers in its sentence; that sentence is what to show.
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_generic)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_generic)) }
       }
     }
   }
@@ -151,7 +152,7 @@ class InviteCodesViewModel @Inject constructor(private val invites: InviteReposi
     viewModelScope.launch {
       when (val r = invites.cancel(which.takeIf { it != ALL_BATCHES })) {
         is ApiResult.Success -> { _ui.update { it.copy(busy = false, cancelledNotice = r.value) }; load() }
-        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.userMessage ?: strings.get(R.string.error_generic)) }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, error = r.error.message(strings) ?: strings.get(R.string.error_generic)) }
       }
     }
   }

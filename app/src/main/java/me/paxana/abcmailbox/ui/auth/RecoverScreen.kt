@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.auth
 
 import me.paxana.abcmailbox.ui.common.PasswordStrengthMeter
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.domain.PasswordRules
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
@@ -99,7 +100,7 @@ class RecoverViewModel @Inject constructor(
             is AppError.NotFound -> strings.get(R.string.error_recover_no_account)
             is AppError.Unauthorized -> strings.get(R.string.error_recover_refused)
             is AppError.Network -> strings.get(R.string.error_recover_network)
-            else -> e.userMessage ?: strings.get(R.string.error_recover_failed)
+            else -> e.message(strings) ?: strings.get(R.string.error_recover_failed)
           })
         }
       }

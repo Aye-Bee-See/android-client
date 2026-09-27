@@ -20,6 +20,8 @@ private val shortDateTimeFormat get() = if (english) DateTimeFormatter.ofPattern
 fun LocalDate.long(): String = format(longDate)
 fun Instant.shortDate(): String = atZone(ZoneId.systemDefault()).toLocalDate().format(shortDate)
 fun Instant.shortDateTime(): String = atZone(ZoneId.systemDefault()).format(shortDateTimeFormat)
+/** A time today, as the phone's clock shows it ("21:40", "9:40 PM"). */
+fun Instant.shortTime(): String = atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault()))
 fun Instant.longDate(): String = atZone(ZoneId.systemDefault()).toLocalDate().format(longDate)
 
 /** "Verified 12 Jun 2026" or "Not yet verified", plus how long ago when it matters. */

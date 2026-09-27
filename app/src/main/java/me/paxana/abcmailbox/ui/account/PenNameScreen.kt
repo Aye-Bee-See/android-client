@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
 import androidx.compose.foundation.layout.Arrangement
+import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -119,7 +120,7 @@ class PenNameViewModel @Inject constructor(private val repo: PenNameRepository, 
           val message = when {
             limit != null -> refusal(limit)
             r.error is AppError.Network -> strings.get(R.string.pen_name_error_network)
-            else -> r.error.userMessage ?: strings.get(R.string.error_generic)
+            else -> r.error.message(strings) ?: strings.get(R.string.error_generic)
           }
           _ui.update { it.copy(busy = false, error = message) }
         }

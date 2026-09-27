@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.group
 
 import androidx.compose.foundation.clickable
+import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -105,7 +106,7 @@ class RecordReplyViewModel @Inject constructor(private val refs: ReferenceReposi
       _ui.update { s ->
         if (s.name != v) s else when (r) {
           is ApiResult.Success -> s.copy(searching = false, matches = r.value)
-          is ApiResult.Failure -> s.copy(searching = false, searchError = r.error.userMessage ?: strings.get(R.string.error_generic))
+          is ApiResult.Failure -> s.copy(searching = false, searchError = r.error.message(strings) ?: strings.get(R.string.error_generic))
         }
       }
     }
@@ -121,7 +122,7 @@ internal fun AppError.toReferenceMessage(strings: Strings): String = when {
   this is AppError.Validation && condition == "checksum" -> strings.get(R.string.error_reference_checksum)
   this is AppError.NotFound -> strings.get(R.string.error_reference_unknown)
   this is AppError.Network -> strings.get(R.string.error_network)
-  else -> userMessage ?: strings.get(R.string.error_generic)
+  else -> message(strings) ?: strings.get(R.string.error_generic)
 }
 
 @Composable

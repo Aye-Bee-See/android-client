@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.account
 
 import androidx.compose.foundation.layout.Arrangement
+import me.paxana.abcmailbox.data.api.message
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,7 +56,7 @@ class PushSettingViewModel @Inject constructor(private val push: PushRegistrar, 
       val message = if (on) when (val r = push.turnOn()) {
         // Turned on either way. If the server cannot ring phones yet, say so, or the switch would seem to do nothing.
         is ApiResult.Success -> strings.get(if (r.value) R.string.push_on else R.string.push_on_not_deliverable)
-        is ApiResult.Failure -> strings.get(R.string.push_failed, r.error.userMessage ?: strings.get(R.string.no_connection_short))
+        is ApiResult.Failure -> strings.get(R.string.push_failed, r.error.message(strings) ?: strings.get(R.string.no_connection_short))
       } else when (val r = push.turnOff()) {
         is ApiResult.Success -> strings.get(R.string.push_off)
         // It is off on this phone regardless; the server will forget the device at sign-out if it could not be told now.

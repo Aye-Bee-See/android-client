@@ -1,6 +1,10 @@
 package me.paxana.abcmailbox.data.repo
 
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -73,10 +77,15 @@ data class OutboxItem(
   val letterWasSent: Boolean,
 )
 
-data class FlushOutcome(val sent: Int = 0, val refused: Int = 0, val stillWaiting: Int = 0)
+/** [limitedUntil]: the server is pacing this account's writes (a `429`) and asked for nothing before then. */
+data class FlushOutcome(val sent: Int = 0, val refused: Int = 0, val stillWaiting: Int = 0, val limitedUntil: Instant? = null)
 
 /** Arranges for [OutboxRepository.flush] to run when there is a network, even if the app is closed by then. */
-interface OutboxScheduler { fun schedule() }
+interface OutboxScheduler {
+  fun schedule()
+  /** One run no earlier than [at] (the end of a `429`'s `Retry-After`), whatever else is scheduled meanwhile. */
+  fun scheduleAt(at: Instant)
+}
 
 interface OutboxRepository {
   /** The signed-in account's queued letters, oldest first. Empty when signed out. */
@@ -91,6 +100,16 @@ interface OutboxRepository {
   suspend fun retry(id: Long)
   /** Sends what can be sent now. Safe to call at any time and from anywhere; runs one at a time. */
   suspend fun flush(): FlushOutcome
+
+  /**
+   * Until when the server asked this account to send nothing more (a `429` on a write, API PR #128, with its
+   * `Retry-After`); null when it may send. Kept in memory only: after a restart the next try simply asks again, and
+   * a refused request does not count against the limit.
+   */
+  val limitedUntil: StateFlow<Instant?>
+
+  /** A `429` seen outside the outbox (compose sending while online): the outbox waits it out before asking again. */
+  fun waitOut(retryAfterSeconds: Long?)
   suspend fun hasWaiting(): Boolean
   /** The account was deleted: its unsent letters and their files go too. Takes the id, because by then nobody is signed in. Answers how many letters went. */
   suspend fun eraseFor(userId: Int): Int = 0
@@ -127,6 +146,18 @@ class DefaultOutboxRepository @Inject constructor(
 ) : OutboxRepository {
 
   private val flushing = Mutex()
+
+  /** The clock, replaceable in tests. */
+  internal var now: () -> Instant = Instant::now
+  private val _limitedUntil = MutableStateFlow<Instant?>(null)
+  override val limitedUntil: StateFlow<Instant?> = _limitedUntil.asStateFlow()
+
+  // Without a Retry-After, a minute: long enough not to hammer, short enough not to strand a letter night.
+  override fun waitOut(retryAfterSeconds: Long?) {
+    val until = now().plusSeconds((retryAfterSeconds ?: 60L).coerceAtLeast(1L))
+    _limitedUntil.value = until
+    scheduler.scheduleAt(until)
+  }
   private val myId: Int? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
 
   private fun seal(payload: OutboxPayload): String = Base64.getEncoder().encodeToString(cipher.encrypt(json.encodeToString(OutboxPayload.serializer(), payload).toByteArray()))
@@ -190,6 +221,11 @@ class DefaultOutboxRepository @Inject constructor(
 
   override suspend fun flush(): FlushOutcome = flushing.withLock {
     val userId = myId ?: return FlushOutcome(stillWaiting = dao.countWaiting())
+    // Asked to wait: every trigger (the network returning, the app opening, "Send now") waits it out rather than asking again.
+    _limitedUntil.value?.let { until ->
+      if (until.isAfter(now())) return FlushOutcome(stillWaiting = dao.waiting(userId).size, limitedUntil = until)
+      _limitedUntil.value = null
+    }
     var sent = 0; var refused = 0
     for (row in dao.waiting(userId)) {
       when (sendOne(row)) {
@@ -200,7 +236,7 @@ class DefaultOutboxRepository @Inject constructor(
         Step.LATER -> break
       }
     }
-    FlushOutcome(sent, refused, dao.waiting(userId).size)
+    FlushOutcome(sent, refused, dao.waiting(userId).size, _limitedUntil.value)
   }
 
   private enum class Step { SENT, REFUSED, LATER, DROPPED }
@@ -258,10 +294,11 @@ class DefaultOutboxRepository @Inject constructor(
 
   private fun judge(error: AppError): Verdict = when {
     error is AppError.Network || error is AppError.Server || error is AppError.Unexpected -> Verdict.Later // no answer, a 5xx, or a Wi-Fi login page
-    error is AppError.RateLimited -> Verdict.Later
+    // Paced, not refused: a limited letter was not saved, and the same key makes the later try safe (API PR #128).
+    error is AppError.RateLimited -> Verdict.Later.also { waitOut(error.retryAfterSeconds) }
     error is AppError.Unauthorized -> Verdict.Later                             // signed out: it waits for the next sign-in
     error is AppError.Conflict && error.isStillProcessing -> Verdict.Later      // our own earlier attempt is still in flight
     error == codec.locked -> Verdict.Later                                      // waits for the password
-    else -> Verdict.Refused(error.userMessage ?: strings.get(R.string.outbox_refused_no_reason))
+    else -> Verdict.Refused(error.message(strings) ?: strings.get(R.string.outbox_refused_no_reason))
   }
 }

@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.ui.common
 
 import me.paxana.abcmailbox.text.rememberStrings
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
@@ -233,8 +234,8 @@ fun EmptyBox(text: String, modifier: Modifier = Modifier) {
 fun AppError.readable(): String = when (this) {
   is AppError.Network -> stringResource(R.string.error_network)
   is AppError.NotFound -> info ?: stringResource(R.string.error_not_found)
-  // The server's own sentence when it sent one: it is more specific than anything the app could say.
-  else -> userMessage ?: stringResource(R.string.error_generic)
+  // The server's own sentence when it sent one: it is more specific than anything the app could say. A 429 is worded here.
+  else -> message(rememberStrings()) ?: stringResource(R.string.error_generic)
 }
 
 /**

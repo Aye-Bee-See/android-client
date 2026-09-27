@@ -84,9 +84,9 @@ class ClaimViewModelTest {
   }
 
   @Test
-  fun `rate limiting surfaces the server's sentence`() = runTest {
+  fun `rate limiting says the wait in the reader's language, not the server's English`() = runTest {
     val vm = ClaimViewModel(FakeSessionRepository(claimInfoError = AppError.RateLimited("Too many claim checks. Try again in 42 minute(s).", 2520)), ClaimRoute(), TestStrings(), FakePenNames())
     vm.onTokenChange(token); vm.check(); dispatcher.scheduler.advanceUntilIdle()
-    assertEquals("Too many claim checks. Try again in 42 minute(s).", vm.ui.value.error)
+    assertEquals("The server has asked for a pause. Try again in 42 minutes.", vm.ui.value.error)
   }
 }
