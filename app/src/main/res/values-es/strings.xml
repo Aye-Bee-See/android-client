@@ -553,6 +553,7 @@
     <string name="recovery_title">Guarda tu código de recuperación</string>
     <string name="recovery_explained">Tus cartas están cifradas con una clave que solo tienes tú. Tu contraseña la desbloquea. Si alguna vez olvidas la contraseña, este código es la única otra forma de entrar. No podemos verlo ni volver a enviártelo.</string>
     <string name="recovery_keep_safe">Apúntalo en papel o guárdalo en un gestor de contraseñas. No lo tengas solo en este teléfono, ni se lo envíes a nadie.</string>
+    <string name="recovery_lose_both">Si pierdes la contraseña y el código de recuperación, nadie podrá recuperar tus cartas, ni tu grupo ni nosotros.</string>
     <string name="recovery_saved">He guardado este código en un lugar seguro.</string>
     <string name="recovery_uploading">Configurando tu clave…</string>
     <string name="error_recovery_upload">No se pudo configurar tu clave. %1$s Tu código no ha cambiado: guárdalo e inténtalo de nuevo.</string>
