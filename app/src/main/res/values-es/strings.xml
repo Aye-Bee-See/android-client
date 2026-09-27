@@ -75,7 +75,7 @@
 
     <!-- Checking a claim token as it is typed -->
     <string name="token_empty">Escribe el código que te dio tu grupo.</string>
-    <string name="token_bad_character">Los códigos nunca contienen el carácter %1$s. Comprueba si es otro parecido (no se usan I, L, O ni U).</string>
+    <string name="token_bad_character">Los códigos nunca contienen el carácter %1$s. Comprueba si es otro parecido.</string>
     <plurals name="token_too_short">
         <item quantity="one">Eso es %1$d carácter; un código tiene %2$d.</item>
         <item quantity="many">Eso son %1$d caracteres; un código tiene %2$d.</item>
@@ -482,7 +482,7 @@
     <string name="title_claim">Activa tu cuenta</string>
     <string name="claim_intro">Un grupo de apoyo creó una cuenta para ti y te dio un código de un solo uso. Introdúcelo para tomar el control de tu correspondencia.</string>
     <string name="label_claim_token">Código de activación</string>
-    <string name="claim_token_help">24 letras y cifras. Se admiten guiones, espacios y minúsculas. Nunca se usan las letras I, L, O ni U.</string>
+    <string name="claim_token_help">24 letras y cifras. Se admiten guiones, espacios y minúsculas, y también una O escrita en lugar de un cero.</string>
     <string name="action_check_token">Comprobar el código</string>
     <string name="action_checking">Comprobando…</string>
     <string name="claim_setup_title">Configura tu cuenta</string>
@@ -503,7 +503,7 @@
     <string name="error_token_gone">Este código ya no se puede usar. Pide uno nuevo al grupo que creó tu cuenta; crearlo les lleva un momento.</string>
 
     <!-- Recovering an account -->
-    <string name="error_recovery_code_format">Un código de recuperación tiene 24 letras y cifras, y nunca I, L, O ni U.</string>
+    <string name="error_recovery_code_format">Eso no es un código de recuperación. Tiene 24 letras y cifras, tal como te lo mostró la app; se admiten guiones, espacios y minúsculas, y también una O escrita en lugar de un cero.</string>
     <string name="error_recover_no_account">Ninguna cuenta con ese nombre de usuario tiene código de recuperación.</string>
     <string name="error_recover_refused">La recuperación ha sido rechazada. Empieza de nuevo; cada intento vale diez minutos y funciona una vez.</string>
     <string name="error_recover_network">No se puede contactar con el servidor. No ha cambiado nada.</string>
@@ -984,7 +984,7 @@
     <string name="title_invitation">Aceptar una invitación</string>
     <string name="invitation_intro">Un grupo invita a personas a ayudar a llevarlo, y avala a los grupos nuevos que entran en la red, con un token de 24 letras y cifras. Quien invita lo entrega en persona o por un canal de confianza para ambos. Escribe el tuyo aquí.</string>
     <string name="label_invitation_token">Token de invitación</string>
-    <string name="invitation_token_help">24 letras y cifras. Los guiones, los espacios y las minúsculas dan igual. Nunca se usan las letras I, L, O ni U.</string>
+    <string name="invitation_token_help">24 letras y cifras. Se admiten guiones, espacios y minúsculas, y también una O escrita en lugar de un cero.</string>
     <string name="action_check_invitation">Comprobar la invitación</string>
     <string name="action_try_as_claim_token">Probarlo como token de reclamación</string>
     <string name="invitation_signed_in">Has iniciado sesión como @%1$s. Una invitación crea una cuenta nueva, así que cierra sesión primero.</string>

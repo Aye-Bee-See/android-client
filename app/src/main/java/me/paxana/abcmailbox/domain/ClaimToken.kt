@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.domain
 
 import me.paxana.abcmailbox.text.Strings
+import me.paxana.abcmailbox.crypto.SecretCodes
 import me.paxana.abcmailbox.R
 import java.time.Instant
 
@@ -16,8 +17,8 @@ object ClaimToken {
   const val LENGTH = 24
   private const val ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
-  /** Upper-cases and drops everything that is not a letter or digit. */
-  fun normalise(input: String): String = input.uppercase().filter { it.isLetterOrDigit() }
+  /** The rule every client shares for typed codes ([SecretCodes.normalise]): the hash the server looks up is of this. */
+  fun normalise(input: String): String = SecretCodes.normalise(input)
 
   fun isWellFormed(input: String): Boolean = normalise(input).let { t -> t.length == LENGTH && t.all { it in ALPHABET } }
 

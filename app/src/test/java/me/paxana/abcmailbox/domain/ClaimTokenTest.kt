@@ -23,7 +23,15 @@ class ClaimTokenTest {
     assertEquals("Enter the token your group gave you.", ClaimToken.problem("  ", TestStrings()))
     assertEquals("That is 23 characters; a token has 24.", ClaimToken.problem(good.dropLast(1), TestStrings()))
     assertEquals("That is 25 characters; a token has only 24.", ClaimToken.problem(good + "A", TestStrings()))
-    assertTrue(ClaimToken.problem(good.replaceRange(0, 1, "O"), TestStrings())!!.contains("never contain the character O"))
-    assertFalse(ClaimToken.isWellFormed(good.replaceRange(3, 4, "L")))
+    assertEquals("Tokens never contain the character U. Check for a look-alike.", ClaimToken.problem(good.replaceRange(0, 1, "U"), TestStrings()))
+    assertFalse(ClaimToken.isWellFormed(good.replaceRange(3, 4, "U")))
+  }
+
+  @Test
+  fun `an O typed for a zero and an I or L for a one are read as the digits, as the API and the other clients read them`() {
+    val withZeroAndOne = "0123-4567-89AB-CDEF-GHJK-MNPQ"
+    assertTrue(ClaimToken.isWellFormed("O123-4567-89ab-cdef-ghjk-mnpq"))
+    assertEquals(ClaimToken.normalise(withZeroAndOne), ClaimToken.normalise("O123-4567-89ab-cdef-ghjk-mnpq"))
+    assertEquals("0123", ClaimToken.normalise("oi23"))
   }
 }

@@ -78,7 +78,7 @@
 
     <!-- Checking a claim token as it is typed -->
     <string name="token_empty">Введите код, который вам дала группа.</string>
-    <string name="token_bad_character">В кодах не бывает символа %1$s. Проверьте, нет ли похожего (буквы I, L, O и U не используются).</string>
+    <string name="token_bad_character">В кодах не бывает символа %1$s. Проверьте, нет ли похожего.</string>
     <plurals name="token_too_short">
         <item quantity="one">Введено символов: %1$d; в коде их %2$d.</item>
         <item quantity="few">Введено символов: %1$d; в коде их %2$d.</item>
@@ -497,7 +497,7 @@
     <string name="title_claim">Активируйте аккаунт</string>
     <string name="claim_intro">Группа поддержки создала для вас аккаунт и дала одноразовый код. Введите его, чтобы самостоятельно управлять своей перепиской.</string>
     <string name="label_claim_token">Код активации</string>
-    <string name="claim_token_help">24 буквы и цифры. Дефисы, пробелы и строчные буквы допустимы. Буквы I, L, O и U не используются.</string>
+    <string name="claim_token_help">24 буквы и цифры. Дефисы, пробелы и строчные буквы допустимы, как и буква O вместо нуля.</string>
     <string name="action_check_token">Проверить код</string>
     <string name="action_checking">Проверяем…</string>
     <string name="claim_setup_title">Настройте аккаунт</string>
@@ -518,7 +518,7 @@
     <string name="error_token_gone">Этот код больше нельзя использовать. Попросите новый у группы, создавшей ваш аккаунт; это займёт у них минуту.</string>
 
     <!-- Recovering an account -->
-    <string name="error_recovery_code_format">Код восстановления состоит из 24 букв и цифр и не содержит I, L, O и U.</string>
+    <string name="error_recovery_code_format">Это не код восстановления. В нём 24 буквы и цифры, как его показало приложение; дефисы, пробелы и строчные буквы допустимы, как и буква O вместо нуля.</string>
     <string name="error_recover_no_account">Аккаунта с таким именем и кодом восстановления нет.</string>
     <string name="error_recover_refused">В восстановлении отказано. Начните заново: каждая попытка действует десять минут и срабатывает один раз.</string>
     <string name="error_recover_network">Не удаётся связаться с сервером. Ничего не изменилось.</string>
@@ -1027,7 +1027,7 @@
     <string name="title_invitation">Принять приглашение</string>
     <string name="invitation_intro">Группа приглашает людей помогать её вести и ручается за новые группы, которые входят в сеть, с помощью токена из 24 букв и цифр. Пригласивший передаёт его лично или по каналу, которому вы оба доверяете. Введите его здесь.</string>
     <string name="label_invitation_token">Токен приглашения</string>
-    <string name="invitation_token_help">24 буквы и цифры. Дефисы, пробелы и строчные буквы не мешают. Буквы I, L, O и U никогда не используются.</string>
+    <string name="invitation_token_help">24 буквы и цифры. Дефисы, пробелы и строчные буквы допустимы, как и буква O вместо нуля.</string>
     <string name="action_check_invitation">Проверить приглашение</string>
     <string name="action_try_as_claim_token">Попробовать как токен передачи</string>
     <string name="invitation_signed_in">Вы вошли как @%1$s. Приглашение создаёт новую учётную запись, поэтому сначала выйдите.</string>

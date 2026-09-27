@@ -138,7 +138,7 @@
 
     <!-- Checking a claim token as it is typed -->
     <string name="token_empty">Enter the token your group gave you.</string>
-    <string name="token_bad_character">Tokens never contain the character %1$s. Check for a look-alike (I, L, O, and U are not used).</string>
+    <string name="token_bad_character">Tokens never contain the character %1$s. Check for a look-alike.</string>
     <plurals name="token_too_short">
         <item quantity="one">That is %1$d character; a token has %2$d.</item>
         <item quantity="other">That is %1$d characters; a token has %2$d.</item>
@@ -519,7 +519,7 @@
     <string name="title_claim">Claim your account</string>
     <string name="claim_intro">A support group created an account for you and gave you a one-time token. Enter it to take control of your correspondence.</string>
     <string name="label_claim_token">Claim token</string>
-    <string name="claim_token_help">24 letters and digits. Dashes, spaces, and lower case are fine. The letters I, L, O, and U are never used.</string>
+    <string name="claim_token_help">24 letters and digits. Dashes, spaces, and lower case are fine, and so is an O typed for a zero.</string>
     <string name="action_check_token">Check token</string>
     <string name="action_checking">Checking…</string>
     <string name="claim_setup_title">Set up your account</string>
@@ -541,7 +541,7 @@
     <string name="error_token_gone">This token can no longer be used. Ask the group that set up your account for a new one; making one takes them a moment.</string>
 
     <!-- Recovering an account -->
-    <string name="error_recovery_code_format">A recovery code has 24 letters and digits, and never I, L, O, or U.</string>
+    <string name="error_recovery_code_format">That is not a recovery code. It has 24 letters and digits, as the app showed it to you; dashes, spaces, and lower case are fine, and so is an O typed for a zero.</string>
     <string name="error_recover_no_account">No account with that username has a recovery code.</string>
     <string name="error_recover_refused">Recovery was refused. Start again; each attempt is valid for ten minutes and works once.</string>
     <string name="error_recover_network">Can\'t reach the server. Nothing has changed.</string>
@@ -1009,7 +1009,7 @@
     <string name="title_invitation">Accept an invitation</string>
     <string name="invitation_intro">A group invites people to help run it, and vouches for new groups joining the network, with a token of 24 letters and digits. The inviter hands it over in person or over a channel you both trust. Type yours here.</string>
     <string name="label_invitation_token">Invitation token</string>
-    <string name="invitation_token_help">24 letters and digits. Dashes, spaces, and lower case are fine. The letters I, L, O, and U are never used.</string>
+    <string name="invitation_token_help">24 letters and digits. Dashes, spaces, and lower case are fine, and so is an O typed for a zero.</string>
     <string name="action_check_invitation">Check the invitation</string>
     <string name="action_try_as_claim_token">Try it as a claim token</string>
     <string name="invitation_signed_in">You are signed in as @%1$s. An invitation makes a new account, so sign out first.</string>
