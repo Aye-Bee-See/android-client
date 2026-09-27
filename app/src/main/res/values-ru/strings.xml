@@ -117,6 +117,7 @@
     </plurals>
     <string name="error_rate_limited_later">Сервер попросил сделать паузу. Попробуйте позже.</string>
     <string name="error_wrong_encryption_mode">Эта версия приложения не может отправлять письма на этот сервер: он защищает их способом, который приложению неизвестен. Обновите приложение и отправьте письмо снова.</string>
+    <string name="error_prisoner_gone">Этого человека больше нет в справочнике, поэтому письмо нельзя отправить. Ничего не отправлено, письмо сохранено здесь.</string>
     <string name="form_check_fields">Проверьте поля, отмеченные красным.</string>
     <string name="form_required">Нужно заполнить поле «%1$s».</string>
     <plurals name="form_length">

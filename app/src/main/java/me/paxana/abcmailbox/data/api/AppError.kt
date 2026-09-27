@@ -24,7 +24,15 @@ sealed class AppError : Exception() {
   data class Forbidden(val info: String) : AppError()
 
   /** [condition] where the API has a code (`unknown` on a reply reference: not this group's, or never issued). */
-  data class NotFound(val info: String?, val condition: String? = null) : AppError()
+  data class NotFound(val info: String?, val condition: String? = null) : AppError() {
+    companion object {
+      /**
+       * Set by the app, not the API: a letter refused with a bare 404 whose prisoner the directory no longer shows
+       * this reader either (API #156: a hidden or deleted prisoner is `404 not_found`, with no condition to say so).
+       */
+      const val PRISONER_GONE = "prisoner_gone"
+    }
+  }
 
   /** A lifecycle or state conflict (409), for example moving a letter backwards. */
   /** [name] is the API's error name (`KeyVersionError`, `LetterStatusError`, `IdempotencyError`), for the few callers that must tell them apart. */

@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.repo
 
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.domain.LetterStatus
 import me.paxana.abcmailbox.domain.ReturnReason
 import me.paxana.abcmailbox.domain.HeldReason
@@ -42,7 +43,8 @@ class LettersRepositoryTest {
       .build().create(LettersApi::class.java)
     val authApi = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(me.paxana.abcmailbox.data.api.AuthApi::class.java)
     val codec = me.paxana.abcmailbox.data.crypto.LetterCodec(me.paxana.abcmailbox.data.crypto.FixedMode(me.paxana.abcmailbox.data.crypto.EncryptionMode.SERVER), me.paxana.abcmailbox.data.crypto.FakeCryptoEngine(), me.paxana.abcmailbox.data.crypto.InMemoryVault(), me.paxana.abcmailbox.ui.auth.FakeSessionRepository(), authApi, json, me.paxana.abcmailbox.data.crypto.FakeKeyring(), TestStrings())
-    repo = DefaultLettersRepository(api, json, FakeLocalFiles(tmp), codec)
+    val directory = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(me.paxana.abcmailbox.data.api.DirectoryApi::class.java)
+    repo = DefaultLettersRepository(api, json, FakeLocalFiles(tmp), codec, directory)
   }
 
   @After
@@ -210,5 +212,26 @@ class LettersRepositoryTest {
     override suspend fun stage(uri: Uri): StagedFile = error("not used")
     override fun discard(staged: StagedFile) = Unit
     override fun downloadTarget(attachmentId: Int, name: String) = File(dir, "${attachmentId}_$name")
+  }
+
+  private val notFound = MockResponse().setResponseCode(404).setBody("""{"success":false,"name":"NotFoundError","info":"Error sending message.","status":404,"code":"not_found","error":"Prisoner 12 not found"}""")
+
+  @Test
+  fun `a letter for a prisoner the directory no longer shows is refused as the prisoner being gone, in the app's words`() = runTest {
+    server.enqueue(notFound)
+    server.enqueue(MockResponse().setResponseCode(404).setBody("""{"success":false,"name":"NotFoundError","info":"Error getting prisoner.","status":404,"error":"Prisoner 12 not found"}"""))
+    val r = repo.send(NewLetter(12, "Dear friend", null, null)) as ApiResult.Failure
+    assertEquals(AppError.NotFound("Prisoner 12 not found", AppError.NotFound.PRISONER_GONE), r.error)
+    server.takeRequest(); assertEquals("/prisoner/prisoner?id=12&full=true", server.takeRequest().path)
+    assertEquals("This person is no longer in the directory, so the letter cannot be sent. Nothing was sent, and the letter is still here.", r.error.message(TestStrings()))
+  }
+
+  @Test
+  fun `a 404 about something else the letter names is the server's sentence, as before`() = runTest {
+    server.enqueue(MockResponse().setResponseCode(404).setBody("""{"success":false,"name":"NotFoundError","status":404,"error":"Message 7 not found"}"""))
+    server.enqueue(MockResponse().setBody("""{"data":{"id":12,"birthName":"Alex Johnson"},"success":true,"status":200}"""))
+    val r = repo.send(NewLetter(12, "Dear friend", null, null, resendOf = 7)) as ApiResult.Failure
+    assertEquals(AppError.NotFound("Message 7 not found"), r.error)
+    assertEquals("Message 7 not found", r.error.message(TestStrings()))
   }
 }

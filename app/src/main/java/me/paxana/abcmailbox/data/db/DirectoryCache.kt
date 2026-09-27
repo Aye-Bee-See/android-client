@@ -73,21 +73,21 @@ private const val ORDER = """
   LIMIT :limit OFFSET :offset"""
 
 private const val PRISONER_WHERE = """
-  WHERE (:q = '' OR searchText LIKE '%' || :q || '%')
+  WHERE (:q = '' OR searchText LIKE '%' || :q || '%' ESCAPE '\')
     AND (:status IS NULL OR status = :status)
     AND (:country IS NULL OR country = :country)
     AND (:featured IS NULL OR featured = :featured)
     AND (:facilityId IS NULL OR facilityId = :facilityId)"""
 
 private const val FACILITY_WHERE = """
-  WHERE (:q = '' OR searchText LIKE '%' || :q || '%')
+  WHERE (:q = '' OR searchText LIKE '%' || :q || '%' ESCAPE '\')
     AND (:country IS NULL OR country = :country)
     AND (:routing IS NULL OR routing = :routing)
     AND (:relay IS NULL OR hasRelay = :relay)"""
 
 // A group marked `both` answers to either role, as on the server.
 private const val GROUP_WHERE = """
-  WHERE (:q = '' OR searchText LIKE '%' || :q || '%')
+  WHERE (:q = '' OR searchText LIKE '%' || :q || '%' ESCAPE '\')
     AND (:country IS NULL OR country = :country)
     AND (:service IS NULL OR services LIKE '%|' || :service || '|%')
     AND (:role IS NULL OR networkRole = :role OR networkRole = 'both')"""

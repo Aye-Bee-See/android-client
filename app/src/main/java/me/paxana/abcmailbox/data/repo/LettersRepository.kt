@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.data.repo
 
 import me.paxana.abcmailbox.domain.Resent
+import me.paxana.abcmailbox.data.api.DirectoryApi
 import me.paxana.abcmailbox.domain.LetterStatus
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.awaitAll
@@ -88,6 +89,7 @@ class DefaultLettersRepository @Inject constructor(
   private val json: Json,
   private val files: LocalFilesContract,
   private val codec: LetterCodec,
+  private val directory: DirectoryApi,
 ) : LettersRepository {
 
   private fun me.paxana.abcmailbox.data.api.ChatDto.decoded() = toDomain(letter = codec::incoming, preview = codec::preview)
@@ -162,10 +164,22 @@ class DefaultLettersRepository @Inject constructor(
           r.error is AppError.WrongEncryptionMode && modeChecks == 0 -> { modeChecks++; if (!codec.modeChanged()) return r }
           // Only a rotated group key is worth an immediate second try. "Still processing" means our own earlier attempt is in flight.
           r.error is AppError.Conflict && !r.error.isStillProcessing && rotations == 0 -> { rotations++; codec.refreshKeys() }
+          r.error is AppError.NotFound && r.error.condition == null -> return prisonerGoneOr(r, letter.prisonerId)
           else -> return r
         }
       }
     }
+  }
+
+  /**
+   * A bare 404 on a send may be the prisoner, gone from the directory for this reader since the letter was written
+   * (API #156), or something else the letter names. Asking for the prisoner's own record tells the two apart
+   * without reading the server's English: if that is a 404 too, the refusal is worded as the prisoner being gone.
+   */
+  private suspend fun prisonerGoneOr(refused: ApiResult.Failure, prisonerId: Int): ApiResult.Failure {
+    val lookup = apiCall(json) { directory.prisoner(prisonerId) }
+    if (lookup !is ApiResult.Failure || lookup.error !is AppError.NotFound) return refused
+    return ApiResult.Failure(AppError.NotFound((refused.error as AppError.NotFound).info, AppError.NotFound.PRISONER_GONE))
   }
 
   override suspend fun chooseRelay(messageId: Int, groupId: Int): ApiResult<Unit> =
