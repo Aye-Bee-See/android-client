@@ -45,4 +45,22 @@ class SplitAuthTest {
     val r = split.fields.recovery
     assertArrayEquals(kp.privateKey, AccountKeys.unlockWithCode(split.fields.publicKey, r.wrapped, "abcd efgh jklm npqr stuv wxyz", r.salt, r.params).privateKey)
   }
+
+  /**
+   * The first step, pinned to the API README's vector (as iOS does, ios-client #12): password to master, and on to
+   * the two keys. Password `correct horse battery staple`, salt 00…0f, the agreed recipe.
+   */
+  @Test
+  fun `the password to master step matches the API's vector`() {
+    val salt = ByteArray(16) { it.toByte() }
+    assertEquals("AAECAwQFBgcICQoLDA0ODw==", Sodium.toBase64(salt))
+    assertEquals("wFzkxN1+DkXuYBHMWdBoreR98bAfwM+c1GeL32ilt7A=", Sodium.toBase64(KdfParams().derive("correct horse battery staple", salt)))
+    val keys = SplitAuth.derive("correct horse battery staple", salt)
+    assertEquals("tOggbVRmxTeDlXjvpt6YS1UxcYLSb8DRaDfpFMXoEv8=", Sodium.toBase64(keys.wrapKey))
+    assertEquals("OY25VECyUEJUDcyPZSqK4R+oG5BvSzBlQNOrdiwgkR4=", keys.authKeyBase64)
+    // NFKC: café with a precomposed é and with e + combining acute is one password.
+    for (cafe in listOf("caf\u00E9", "cafe\u0301")) {
+      assertEquals(cafe, "lEpmh4tmC0xaD5DhMboQo/3Hw7JqT3VThdqq0n1pImc=", Sodium.toBase64(KdfParams().derive(cafe, salt)))
+    }
+  }
 }

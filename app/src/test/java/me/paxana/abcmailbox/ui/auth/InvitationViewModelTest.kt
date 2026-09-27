@@ -36,7 +36,7 @@ class InvitationViewModelTest {
     vm.onTokenChange("7k2m-9qx4-t8v"); vm.check(); idle()
     assertEquals("That is 11 characters; a token has 24.", vm.ui.value.error)
     vm.onTokenChange("7k2m-9qx4-t8vb-3n6y-1rzc-5wdU"); vm.check(); idle()
-    assertEquals("Tokens never contain the character U. Check for a look-alike (I, L, O, and U are not used).", vm.ui.value.error)
+    assertEquals("Tokens never contain the character U. Check for a look-alike.", vm.ui.value.error)
     assertNull(vm.ui.value.inviteCode)
 
     vm.onTokenChange("7q4m-2xkd-9hbt"); vm.check(); idle()
