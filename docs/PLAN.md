@@ -337,6 +337,8 @@ Every write a signed-in account makes is now counted per account per hour (240 l
 
 Verified on the emulator against a scratch end-to-end API at the API's `main` allowing one letter per two minutes: a letter over the limit was refused (`429`), queued with "will be sent by itself from 9:01 PM", shown in the outbox with the same time, and sent by itself at the end of the wait with one request and no retry before it; the server held each letter once.
 
+**No push on Android (27 September 2026).** Decided by the project owner after reviewing what push sends Google (`docs/DECISIONS.md`, 2026-09-27). Firebase and Google Play services are gone from the build and the manifest (the built APKs contain none of their classes), with the switch on the Account tab, its strings, `docs/PUSH.md`'s set-up and `firebase.properties`. The feed is checked every three hours instead of six (and on every opening); `UPDATE` replaces an older phone's six-hourly schedule. A phone that had push on removes its device record from the server once, the next time it runs signed in (`PushRetirement`); account deletion only forgets the old settings. The developer dialog's "Simulate a push" is "Check for news in 8 s". Checked on the emulator: signed in, the Account tab has no notifications switch, and WorkManager holds the periodic check at 3.0 hours.
+
 **What is left before a public release** is not code: a domain and hosting (release API address, verified App Links for claim links, the Play listing), a release keystore that the project owner makes and backs up, a privacy policy, and a native-speaker review of the Spanish and Russian (`docs/TRANSLATING.md`).
 
 Total: roughly five to six working weeks for one developer, with e2e and group features being the two largest blocks.

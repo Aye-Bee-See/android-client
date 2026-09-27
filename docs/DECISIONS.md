@@ -2,6 +2,16 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-09-27: no push on Android; the app checks every three hours
+
+**Context.** Push was opt-in (19 September, below), but a ring through Google still tells Google that a phone has this app, when it is rung, and from what address: a record tied to a Google account that can be asked for. The people this app is for are security-minded, and what they get from push is small: replies take weeks by post, and a group working a letter night has the app open, which checks on every opening. Checking the account's own feed needs nobody else.
+
+**Decision.** Push is taken out of the Android app: Firebase is no longer a dependency, the switch and its code are gone, and the app checks the feed every three hours (Android stretches that while the phone sleeps) and whenever it is opened. A phone that had push on removes its device record from the server once, the next time it runs signed in (`PushRetirement`), so the server stops ringing Google for it.
+
+**Consequences.** The app contains no Google or Firebase code (checked in the built APKs), so it can be offered where such code is refused (F-Droid), and every phone, with or without Google's services, gets the same app. News can be up to three hours late with the app closed, longer on a phone left idle. Google keeps a stale copy of an old push address, which the app can no longer ask it to delete and which reaches nothing. The API's push sender stays for iOS, where Apple's push is the only dependable way to wake an app; `push: []` on a server means nothing is sent anyway. Bringing push back would mean UnifiedPush (a distributor app, and a sender on the API), not Firebase.
+
+**Rejected.** Keeping opt-in Firebase push (the trade is the wrong one for this audience, and the library's presence is itself a cost). Checking every 15 minutes (Android's floor): half an hour's difference to mail that takes weeks, for eight times the requests.
+
 ## 2026-09-23: "Make owner" is offered only to a holder of the key
 
 **Context.** API PR #115 gives each group one group-owner admin, the only account that hands the key out, takes it back, rotates it, or passes the role on. `PUT /auth/chapter-owner` lets the role go to any group admin of the chapter, holder of the key or not, and answers `holdsGroupKey` so the client knows which.
@@ -52,7 +62,7 @@ A refusal that can be known in advance is shown in advance: in end-to-end mode t
 
 **Consequences.** The deletion is only as recoverable as the person's own memory of it, by design; support cannot undo it. The phone-side wipe (`AccountEraser`) must be kept in step with every new store that holds something per account: a new one needs a `forget`/`eraseFor` and a line in `AccountEraserTest`. When either app changes this screen, the other should follow.
 
-## 2026-09-19: push is a doorbell, opt-in, and Firebase starts only when asked
+## 2026-09-19: push is a doorbell, opt-in, and Firebase starts only when asked (superseded 27 September: no push on Android)
 
 **Context.** The API rings phones through FCM with an empty payload and keeps what happened in a feed. People who write to political prisoners include people who do not want Google to know they have this app.
 

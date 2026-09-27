@@ -12,7 +12,7 @@ import me.paxana.abcmailbox.data.repo.GroupRepository
 import me.paxana.abcmailbox.data.session.Role
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.data.files.LocalFilesContract
-import me.paxana.abcmailbox.data.push.PushRegistrar
+import me.paxana.abcmailbox.data.push.PushRetirement
 import me.paxana.abcmailbox.data.repo.DraftsRepository
 import me.paxana.abcmailbox.data.repo.LettersRepository
 import me.paxana.abcmailbox.data.repo.OutboxRepository
@@ -46,7 +46,7 @@ data class DeletionPreview(
  *
  * Signing out deliberately keeps things (unsent letters wait for the person to come back; drafts too).
  * Deleting keeps nothing that was theirs: unsent letters and their files, drafts, attachments opened for
- * reading, the push registration, their place in the notification feed, their keys, the session. What stays
+ * reading, what is left of the old push settings, their place in the notification feed, their keys, the session. What stays
  * is what was never theirs: the offline copy of the public directory, fetched anonymously.
  *
  * A class of its own because every one of those stores depends on [SessionRepository], so the session
@@ -67,7 +67,7 @@ class DefaultAccountEraser @Inject constructor(
   private val outbox: OutboxRepository,
   private val drafts: DraftsRepository,
   private val files: LocalFilesContract,
-  private val push: PushRegistrar,
+  private val push: PushRetirement,
   private val activity: ActivityRepository,
   private val modes: EncryptionModeRepository,
   private val group: GroupRepository,

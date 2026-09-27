@@ -13,8 +13,7 @@ import me.paxana.abcmailbox.data.crypto.EncryptionMode
 import me.paxana.abcmailbox.data.crypto.FixedMode
 import me.paxana.abcmailbox.data.files.LocalFilesContract
 import me.paxana.abcmailbox.data.files.StagedFile
-import me.paxana.abcmailbox.data.push.PushProvider
-import me.paxana.abcmailbox.data.push.PushRegistrar
+import me.paxana.abcmailbox.data.push.PushRetirement
 import me.paxana.abcmailbox.data.repo.DraftsRepository
 import me.paxana.abcmailbox.data.repo.GroupRepository
 import me.paxana.abcmailbox.data.repo.LettersRepository
@@ -52,12 +51,8 @@ class AccountEraserTest {
     override fun downloadTarget(attachmentId: Int, name: String): File = error("not used")
     override fun emptyCaches() { told += "caches" }
   }
-  private val push = object : PushRegistrar {
-    override val availability = PushProvider.Availability.READY
-    override val enabled = flowOf(true)
-    override suspend fun turnOn(): ApiResult<Boolean> = error("not used")
-    override suspend fun turnOff(): ApiResult<Unit> = error("the server's record went with the account; asking it would only fail")
-    override fun onNewToken(token: String) = Unit
+  private val push = object : PushRetirement {
+    override fun start() = error("not used: the server's record went with the account; asking it would only fail")
     override suspend fun forgetLocally() { told += "push" }
   }
   private val activity = object : ActivityRepository {

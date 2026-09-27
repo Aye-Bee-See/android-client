@@ -37,7 +37,7 @@ fun DevServerDialog(
   onSave: (String) -> Unit,
   onReset: () -> Unit,
   onDismiss: () -> Unit,
-  onSimulatePush: () -> Unit = {},
+  onCheckSoon: () -> Unit = {},
 ) {
   var text by remember { mutableStateOf(current) }
   AlertDialog(
@@ -64,7 +64,7 @@ fun DevServerDialog(
         TextButton(onClick = { text = default; onReset() }, enabled = !checking) { Text("Use default") }
         // Where the default already is the test API (the internal build), "Use default" is this button.
         if (testServer != default) TextButton(onClick = { text = testServer; onSave(testServer) }, enabled = !checking) { Text("Use the test API (${testServer.removePrefix("https://").trimEnd('/')})") }
-        TextButton(onClick = { onSimulatePush(); onDismiss() }) { Text("Simulate a push in 8 s") }
+        TextButton(onClick = { onCheckSoon(); onDismiss() }) { Text("Check for news in 8 s") }
       }
     },
     confirmButton = { TextButton(onClick = { onSave(text) }, enabled = !checking) { Text(if (checking) "Checking…" else "Save and check") } },

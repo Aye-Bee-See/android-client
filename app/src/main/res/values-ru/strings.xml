@@ -669,14 +669,6 @@
     </plurals>
 
     <!-- Instant notifications (the optional push doorbell) -->
-    <string name="push_title">Мгновенные уведомления</string>
-    <string name="push_explained">Без этого приложение проверяет новости несколько раз в день и при каждом открытии. С этим сервер «звонит» на телефон сразу, как только что-то происходит. Звонок идёт через службу уведомлений Google и ничего не содержит — ни имён, ни текста: Google узнаёт только то, что на этом телефоне есть это приложение, и когда ему звонят.</string>
-    <string name="push_unavailable_build">В этой сборке недоступно.</string>
-    <string name="push_unavailable_device">На этом телефоне нет службы уведомлений Google, поэтому приложение продолжит проверять само.</string>
-    <string name="push_on_not_deliverable">Включено. Сервер пока не настроен, чтобы звонить на телефоны, поэтому до тех пор приложение продолжит проверять само.</string>
-    <string name="push_on">Включено.</string>
-    <string name="push_off">Выключено. На этот телефон больше не будут звонить.</string>
-    <string name="push_failed">Не удалось изменить: %1$s</string>
 
     <!-- Notification channels: people can silence each kind separately in Android's settings -->
     <string name="channel_replies">Ответы и письма, требующие вашего решения</string>
