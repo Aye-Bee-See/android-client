@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +67,8 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, busy: Boolean = false,
     SecretCodeText(code, modifier = Modifier.testTag("recovery-code"))
     OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(code))) }) { Text(stringResource(R.string.action_copy)) }
     AlertBanner(stringResource(R.string.recovery_keep_safe))
+    // Agreed wording for the site, both apps and the guide: said where the code is first shown, not left for help.
+    Text(stringResource(R.string.recovery_lose_both), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
     // The whole row is the control: tapping the sentence ticks the box, and a screen reader hears one checkbox with its label.
     Row(
       verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
