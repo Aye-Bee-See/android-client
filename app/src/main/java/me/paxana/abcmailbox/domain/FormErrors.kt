@@ -41,7 +41,13 @@ data class FormErrors(
       val what = label?.replaceFirstChar { it.uppercaseChar() }
       return when {
         p.code == "required" && what != null -> strings.get(R.string.form_required, what)
-        p.code == "length_out_of_range" && what != null && p.min != null && p.max != null -> strings.plural(R.plurals.form_length, p.max, what, p.min) // the helper puts the count (the maximum) first
+        // The helper puts the count (the maximum) first. No minimum worth saying ("0 to 80") reads as a maximum alone.
+        p.code == "length_out_of_range" && what != null && p.max != null && (p.min == null || p.min <= 0) -> strings.plural(R.plurals.form_length_at_most, p.max, what)
+        p.code == "length_out_of_range" && what != null && p.min != null && p.max != null -> strings.plural(R.plurals.form_length, p.max, what, p.min)
+        p.code == "out_of_range" && what != null && p.min != null && p.max != null -> strings.get(R.string.form_range, what, p.min, p.max)
+        p.code == "out_of_range" && what != null && p.min != null -> strings.get(R.string.form_at_least, what, p.min)
+        // A maximum alone is not guessed at: the API's sentence says which limit it is ("cannot be negative").
+        p.code == "not_a_number" && what != null -> strings.get(R.string.form_whole_number, what)
         p.code == "not_unique" && label != null -> strings.get(R.string.form_not_unique, label)
         p.code == "not_an_email" -> strings.get(R.string.form_not_an_email)
         p.code == "not_a_url" -> strings.get(R.string.form_not_a_url)

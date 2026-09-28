@@ -126,6 +126,18 @@
         <item quantity="many">Поле «%2$s» должно содержать от %3$d до %1$d символов.</item>
         <item quantity="other">Поле «%2$s» должно содержать от %3$d до %1$d символа.</item>
     </plurals>
+    <plurals name="form_length_at_most">
+        <item quantity="one">Поле «%2$s» может содержать не больше %1$d символа.</item>
+        <item quantity="few">Поле «%2$s» может содержать не больше %1$d символов.</item>
+        <item quantity="many">Поле «%2$s» может содержать не больше %1$d символов.</item>
+        <item quantity="other">Поле «%2$s» может содержать не больше %1$d символа.</item>
+    </plurals>
+    <string name="form_range">Значение поля «%1$s» должно быть от %2$d до %3$d.</string>
+    <string name="form_at_least">Значение поля «%1$s» должно быть не меньше %2$d.</string>
+    <string name="form_whole_number">В поле «%1$s» должно быть целое число.</string>
+    <string name="field_number">число</string>
+    <string name="field_label">метка</string>
+    <string name="field_note">заметка</string>
     <string name="form_not_unique">Такое значение поля «%1$s» уже занято. Выберите другое.</string>
     <string name="form_reserved">Такое значение поля «%1$s» зарезервировано для самого сайта. Выберите другое.</string>
     <string name="form_not_an_email">Это не похоже на адрес электронной почты.</string>

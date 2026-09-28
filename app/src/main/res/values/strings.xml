@@ -52,6 +52,16 @@
         <item quantity="other">%2$s must be %3$d to %1$d characters.</item>
     </plurals>
     <!-- %1$s is a field's label, in lower case, like "username". -->
+    <plurals name="form_length_at_most">
+        <item quantity="one">%2$s can be at most %1$d character.</item>
+        <item quantity="other">%2$s can be at most %1$d characters.</item>
+    </plurals>
+    <string name="form_range">%1$s must be from %2$d to %3$d.</string>
+    <string name="form_at_least">%1$s must be %2$d or more.</string>
+    <string name="form_whole_number">%1$s must be a whole number.</string>
+    <string name="field_number">number</string>
+    <string name="field_label">label</string>
+    <string name="field_note">note</string>
     <string name="form_not_unique">That %1$s is already taken. Choose another.</string>
     <string name="form_reserved">That %1$s is kept for the site\'s own use. Choose another.</string>
     <string name="form_not_an_email">That does not look like an email address.</string>

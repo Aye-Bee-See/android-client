@@ -235,11 +235,11 @@ fun AddWriterScreen(onBack: () -> Unit, onDone: (ManagedWriter, thenWrite: Boole
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
       Text(stringResource(R.string.add_writer_intro), style = MaterialTheme.typography.bodyLarge)
       Text(stringResource(R.string.add_writer_anonymous_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-      OutlinedTextField(ui.name, viewModel::onName, label = { Text(stringResource(R.string.label_name)) }, supportingText = { Text(stringResource(R.string.add_writer_name_help)) }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.name, viewModel::onName, label = { Text(stringResource(R.string.label_name)) }, isError = ui.fieldErrors["name"] != null, supportingText = { Text(ui.fieldErrors["name"] ?: stringResource(R.string.add_writer_name_help)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("writer-name"))
-      OutlinedTextField(ui.email, viewModel::onEmail, label = { Text(stringResource(R.string.label_email_optional)) }, singleLine = true, enabled = !ui.busy,
+      OutlinedTextField(ui.email, viewModel::onEmail, label = { Text(stringResource(R.string.label_email_optional)) }, isError = ui.fieldErrors["email"] != null, supportingText = ui.fieldErrors["email"]?.let { e -> { Text(e) } }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
-      OutlinedTextField(ui.note, viewModel::onNote, label = { Text(stringResource(R.string.label_internal_note)) }, supportingText = { Text(stringResource(R.string.internal_note_help)) }, minLines = 2, enabled = !ui.busy, modifier = Modifier.fillMaxWidth())
+      OutlinedTextField(ui.note, viewModel::onNote, label = { Text(stringResource(R.string.label_internal_note)) }, isError = ui.fieldErrors["managerNote"] != null, supportingText = { Text(ui.fieldErrors["managerNote"] ?: stringResource(R.string.internal_note_help)) }, minLines = 2, enabled = !ui.busy, modifier = Modifier.fillMaxWidth())
       ui.error?.let { ErrorText(it) }
       Button(onClick = { viewModel.submit(thenWrite = true) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_add_writer_and_write)) }
       OutlinedButton(onClick = { viewModel.submit(thenWrite = false) }, enabled = ui.canSubmit, modifier = Modifier.fillMaxWidth().testTag("writer-add")) { Text(stringResource(R.string.action_add_writer)) }
