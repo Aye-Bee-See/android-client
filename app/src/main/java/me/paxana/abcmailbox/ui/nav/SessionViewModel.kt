@@ -75,10 +75,14 @@ class SessionViewModel @Inject constructor(
   private val _recoveryOutcome = MutableSharedFlow<RecoveryOutcome>(extraBufferCapacity = 1)
   val recoveryOutcome: SharedFlow<RecoveryOutcome> = _recoveryOutcome.asSharedFlow()
   val keysLocked: StateFlow<Boolean> = repository.keysLocked
+  /** API #175: required of this account and not set up; the shell opens the settings for it. */
+  val twoFactorSetupRequired: StateFlow<List<String>?> = repository.twoFactorSetupRequired
   private val penNamePrompt = PenNamePrompt(viewModelScope, repository.state, penNames)
   /** A writer's account with no pen name (made before API #168): the shell opens the pen name screen once. */
   val askPenName: StateFlow<Boolean> = penNamePrompt.ask
   fun penNameAsked() = penNamePrompt.asked()
+  /** The way out of a required two-factor set-up, which nothing else on the server allows until it is done. */
+  fun signOut() { viewModelScope.launch { repository.logout() } }
   val mode: StateFlow<EncryptionMode> = modes.mode
 
   init {

@@ -12,6 +12,7 @@ import me.paxana.abcmailbox.data.api.AppError
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -72,5 +73,35 @@ class LoginViewModelTest {
     assertEquals("", vm.uiState.value.password)
     assertEquals(null, vm.uiState.value.error)
     assertEquals(listOf("user1" to "password1"), repo.attempts)
+  }
+
+  @Test
+  fun `a right password with two-factor sign-in on shows the code step, a wrong code stays there, and a code signs in`() = runTest {
+    val repo = FakeSessionRepository(nextError = AppError.TwoFactorNeeded(null))
+    val vm = LoginViewModel(repo, TestStrings())
+    vm.onUsernameChange("carol"); vm.onPasswordChange("carolpass"); vm.onSubmit(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(vm.uiState.value.needsCode); assertNull("not an error", vm.uiState.value.error); assertEquals("the password is not kept", "", vm.uiState.value.password)
+
+    val code = TwoFactorCodeViewModel(repo, TestStrings())
+    code.onCode("12a3 4567"); assertEquals("digits only, six of them", "123456", code.ui.value.code)
+    repo.twoFactorError = AppError.Validation(listOf("That code is not right."))
+    code.submit(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("That code is not right. Check the app shows this account, and type the code it shows now.", code.ui.value.error); assertFalse(code.ui.value.expired)
+
+    repo.twoFactorError = null
+    code.toggleRecovery(); code.onCode("abcde-12345"); code.submit(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf("123456" to false, "abcde-12345" to true), repo.twoFactorCodes)
+    assertTrue(repo.state.value is me.paxana.abcmailbox.data.session.SessionState.SignedIn)
+  }
+
+  @Test
+  fun `an expired sign-in goes back to the password with the reason`() = runTest {
+    val repo = FakeSessionRepository(nextError = AppError.TwoFactorNeeded(null)).apply { twoFactorError = AppError.Unauthorized(null) }
+    val vm = LoginViewModel(repo, TestStrings()); val code = TwoFactorCodeViewModel(repo, TestStrings())
+    vm.onUsernameChange("carol"); vm.onPasswordChange("carolpass"); vm.onSubmit(); dispatcher.scheduler.advanceUntilIdle()
+    code.onCode("123456"); code.submit(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(code.ui.value.expired)
+    vm.codeExpired(code.ui.value.error.orEmpty())
+    assertFalse(vm.uiState.value.needsCode); assertEquals("That took too long. Enter your password again.", vm.uiState.value.error)
   }
 }

@@ -3,6 +3,7 @@ package me.paxana.abcmailbox.data.api
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import me.paxana.abcmailbox.crypto.KdfParams
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -27,8 +28,34 @@ interface AuthApi {
   @GET("auth/login-params")
   suspend fun loginParams(@Query("username") username: String): ApiEnvelope<LoginParamsDto>
 
+  /** With two-factor sign-in on, the right password answers a challenge and no session (API #173). */
   @POST("auth/login")
   suspend fun login(@Body body: LoginRequest): ApiEnvelope<LoginData>
+
+  /** The second step: the challenge and a code (or a recovery code). Answers what a one-step sign-in does. */
+  @POST("auth/login/two-factor")
+  suspend fun loginTwoFactor(@Body body: TwoFactorLoginRequest): ApiEnvelope<LoginData>
+
+  // Two-factor sign-in, the account's own settings (API #173, #175) ------------------------
+
+  @GET("auth/two-factor")
+  suspend fun twoFactor(): ApiEnvelope<TwoFactorStatusDto>
+
+  /** A secret to set up; nothing changes until it is confirmed. Asking again replaces it. */
+  @POST("auth/two-factor/setup")
+  suspend fun twoFactorSetup(@Body body: JsonObject = JsonObject(emptyMap())): ApiEnvelope<TwoFactorSetupDto>
+
+  /** Switches it on with the first code, and answers the recovery codes: the only time they are shown. */
+  @POST("auth/two-factor/confirm")
+  suspend fun twoFactorConfirm(@Body body: TwoFactorCodeRequest): ApiEnvelope<TwoFactorCodesDto>
+
+  /** A fresh set of recovery codes; the old ones stop working. */
+  @POST("auth/two-factor/recovery-codes")
+  suspend fun twoFactorNewCodes(@Body body: TwoFactorCodeRequest): ApiEnvelope<TwoFactorCodesDto>
+
+  /** Off, with a code or a recovery code: a session alone is not enough. 409 `required` while it is required. */
+  @HTTP(method = "DELETE", path = "auth/two-factor", hasBody = true)
+  suspend fun twoFactorOff(@Body body: TwoFactorCodeRequest): ApiEnvelope<JsonElement>
 
   /** Ends this token, or every token for the account with `everywhere = true`. */
   @POST("auth/logout")
@@ -290,13 +317,35 @@ data class DeletionReportDto(val deleted: Int = 0, val letters: Int = 0, val rep
 @Serializable
 data class LogoutRequest(val everywhere: Boolean = false)
 
+/**
+ * What sign-in answers. With two-factor sign-in on (API #173), the right password answers [twoFactor] with a challenge
+ * and none of the rest: no user, no token, no keys, until the code is given.
+ */
 @Serializable
 data class LoginData(
-  val user: UserDto,
-  val token: TokenDto,
+  val user: UserDto? = null,
+  val token: TokenDto? = null,
   /** End-to-end mode only. An account with no keys yet gets an object of nulls. */
   val keys: KeyBundleDto? = null,
+  val twoFactor: TwoFactorLoginDto? = null,
+) {
+  /** The password was right, and a code is needed before there is a session. */
+  val challenge: String? get() = twoFactor?.challenge?.takeIf { it.isNotBlank() && token == null }
+}
+
+/** A challenge to answer with a code, or (with a session) a requirement not yet met: set it up first (API #175). */
+@Serializable
+data class TwoFactorLoginDto(val challenge: String? = null, val expiresAt: String? = null, val setupRequired: Boolean = false, val because: List<String> = emptyList())
+
+@Serializable data class TwoFactorLoginRequest(val challenge: String, val code: String? = null, val recoveryCode: String? = null)
+@Serializable data class TwoFactorCodeRequest(val code: String? = null, val recoveryCode: String? = null)
+@Serializable
+data class TwoFactorStatusDto(
+  val enabled: Boolean = false, val enabledAt: String? = null, val settingUp: Boolean = false, val recoveryCodesLeft: Int = 0,
+  val required: Boolean = false, val requiredBecause: List<String> = emptyList(),
 )
+@Serializable data class TwoFactorSetupDto(val secret: String, val otpauthUri: String)
+@Serializable data class TwoFactorCodesDto(val recoveryCodes: List<String> = emptyList(), val enabledAt: String? = null)
 
 @Serializable
 data class KeyBundleDto(

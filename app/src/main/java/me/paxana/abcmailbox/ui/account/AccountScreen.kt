@@ -46,6 +46,7 @@ fun AccountScreen(
   onGroupNumbers: () -> Unit = {},
   onInviteCodes: () -> Unit = {},
   onBlocks: () -> Unit = {},
+  onTwoFactor: () -> Unit = {},
   onPenName: () -> Unit = {},
   viewModel: AccountViewModel = hiltViewModel(),
 ) {
@@ -94,6 +95,7 @@ fun AccountScreen(
           TextButton(onClick = onBlocks, modifier = Modifier.testTag("blocks")) { Text(stringResource(R.string.title_blocked_writers)) }
         }
         TextButton(onClick = onChangePassword) { Text(stringResource(R.string.action_change_password)) }
+        TextButton(onClick = onTwoFactor, modifier = Modifier.testTag("two-factor-open")) { Text(stringResource(R.string.title_two_factor)) }
         OutlinedButton(
           onClick = { viewModel.signOut(everywhere = false) },
           enabled = !ui.signingOut,

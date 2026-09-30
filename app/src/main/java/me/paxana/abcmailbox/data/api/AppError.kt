@@ -50,6 +50,12 @@ sealed class AppError : Exception() {
       (condition == "changed_meanwhile" || (condition == null && info?.contains("someone else", ignoreCase = true) == true))
   }
 
+  /**
+   * Not a failure: the password was right, and two-factor sign-in is on (API #173). The sign-in waits for a code, until
+   * [expiresAt], in the repository ([me.paxana.abcmailbox.data.session.SessionRepository.completeTwoFactor]).
+   */
+  data class TwoFactorNeeded(val expiresAt: java.time.Instant?) : AppError()
+
   /** A used or expired claim token (410). */
   /**
    * `condition` says why, where the server says so: a claim token that is `expired` sends the person to their group
@@ -78,6 +84,7 @@ sealed class AppError : Exception() {
       is Gone -> info
       is RateLimited -> info ?: retryAfterSeconds?.let { "Too many attempts. Try again in ${(it + 59) / 60} minute(s)." } ?: "Too many attempts. Try again later."
       is Server -> info
+      is TwoFactorNeeded -> null
       is WrongEncryptionMode -> "This version of the app cannot send letters to this server, which protects them in a way the app does not know. Update the app, then send the letter again."
       is Network -> null
       is Unexpected -> null

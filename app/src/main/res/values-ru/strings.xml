@@ -1381,4 +1381,64 @@
         <item quantity="many">Разблокирован. %d задержанных писем вернулись в очередь.</item>
         <item quantity="other">Разблокирован. %d задержанных письма вернулись в очередь.</item>
     </plurals>
+
+    <!-- API #173, #175: two-factor sign-in -->
+    <string name="title_two_factor">Двухэтапный вход</string>
+    <string name="two_factor_intro">Входите с паролем и шестизначным кодом из приложения-аутентификатора на телефоне. Тот, кто узнает ваш пароль, всё равно не войдёт без кода.</string>
+    <string name="two_factor_intro_apps">Подойдёт любое приложение-аутентификатор, например Aegis, 2FAS или Ente Auth. Вы также получите десять кодов восстановления на случай потери телефона.</string>
+    <string name="action_set_up_two_factor">Настроить двухэтапный вход</string>
+    <string name="two_factor_step_add">1. Добавьте этот аккаунт в приложение-аутентификатор</string>
+    <string name="two_factor_step_add_text">Если приложение на этом телефоне, откройте его отсюда. Иначе отсканируйте код или введите ключ.</string>
+    <string name="action_open_authenticator">Открыть в аутентификаторе</string>
+    <string name="two_factor_no_app">На этом телефоне нет приложения, которое это откроет. Установите аутентификатор или введите ключ ниже.</string>
+    <string name="two_factor_or_scan">Или отсканируйте это аутентификатором на другом устройстве:</string>
+    <string name="two_factor_qr_description">QR-код для приложения-аутентификатора</string>
+    <string name="two_factor_or_type">Или введите этот ключ в приложение:</string>
+    <string name="action_copy_key">Скопировать ключ</string>
+    <string name="two_factor_step_confirm">2. Введите код, который показывает приложение</string>
+    <string name="label_two_factor_code">Шестизначный код</string>
+    <string name="action_switch_on">Включить</string>
+    <string name="two_factor_codes_title">Сохраните коды восстановления</string>
+    <string name="two_factor_codes_text">Если вы потеряете телефон, каждый из них один раз заменит код при входе. Они показываются только сейчас. Запишите их на бумаге или сохраните в менеджере паролей, а не только на этом телефоне.</string>
+    <string name="action_copy_all">Скопировать все</string>
+    <string name="two_factor_codes_saved">Я сохранил(а) эти коды в надёжном месте.</string>
+    <string name="action_done">Готово</string>
+    <string name="two_factor_codes_unsaved_title">Сначала сохраните коды</string>
+    <string name="two_factor_codes_unsaved_text">Эти коды восстановления больше не покажут. Сохраните их и отметьте флажок, чтобы продолжить.</string>
+    <string name="two_factor_on_since">Включён с %s</string>
+    <string name="two_factor_on">Включён</string>
+    <string name="action_new_recovery_codes">Новые коды восстановления…</string>
+    <string name="action_switch_off">Выключить</string>
+    <string name="two_factor_required_cannot_off">Для вашего аккаунта он обязателен, поэтому выключить его нельзя.</string>
+    <string name="two_factor_new_codes_title">Новые коды восстановления</string>
+    <string name="two_factor_new_codes_text">Введите код из приложения-аутентификатора. Нынешние коды восстановления перестанут работать.</string>
+    <string name="action_make_new_codes">Создать новые коды</string>
+    <string name="two_factor_off_title">Выключить двухэтапный вход</string>
+    <string name="two_factor_off_text">Введите код из аутентификатора или один из кодов восстановления. После этого для входа хватит пароля.</string>
+    <string name="notice_two_factor_off">Двухэтапный вход выключен.</string>
+    <string name="two_factor_required_banner">%s требует двухэтапный вход. Настройте его, чтобы продолжить: до этого ничего не работает.</string>
+    <string name="two_factor_because_group">Ваша группа</string>
+    <string name="two_factor_because_all_groups">Сайт — для всех администраторов групп —</string>
+    <string name="two_factor_because_superadmins">Сайт — для всех суперадминистраторов —</string>
+    <string name="two_factor_because_site">Сайт</string>
+    <string name="two_factor_code_title">Введите код</string>
+    <string name="two_factor_code_explained">Пароль верный. Теперь введите шестизначный код, который аутентификатор показывает для этого аккаунта.</string>
+    <string name="two_factor_code_recovery_explained">Введите один из кодов восстановления, сохранённых при настройке. Каждый работает один раз.</string>
+    <string name="label_recovery_code_2fa">Код восстановления</string>
+    <string name="action_signing_in_2fa">Вход…</string>
+    <string name="action_use_recovery_code">Использовать код восстановления</string>
+    <string name="action_use_app_code">Использовать код из приложения</string>
+    <string name="action_back_to_password">Назад к паролю</string>
+    <string name="two_factor_wrong_code">Код неверный. Проверьте, что приложение показывает этот аккаунт, и введите текущий код.</string>
+    <string name="two_factor_wrong_recovery_code">Код восстановления неверный или уже использован.</string>
+    <string name="two_factor_expired">Прошло слишком много времени. Введите пароль ещё раз.</string>
+    <string name="error_unlock_two_factor">Ваш аккаунт при входе просит код, а разблокировка его спросить не может. Выйдите и войдите снова.</string>
+    <string name="recover_done_code_next">Пароль изменён. Двухэтапный вход включён, поэтому вход завершит код.</string>
+    <string name="recover_sign_in_with_new">Пароль изменён. Войдите с ним и кодом.</string>
+    <plurals name="two_factor_codes_left">
+        <item quantity="one">Остался %d код восстановления.</item>
+        <item quantity="few">Осталось %d кода восстановления.</item>
+        <item quantity="many">Осталось %d кодов восстановления.</item>
+        <item quantity="other">Осталось %d кода восстановления.</item>
+    </plurals>
 </resources>

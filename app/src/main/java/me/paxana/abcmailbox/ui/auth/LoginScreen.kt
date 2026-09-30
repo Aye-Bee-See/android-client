@@ -73,6 +73,10 @@ fun LoginScreen(
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
     Text(stringResource(R.string.action_sign_in), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
+    if (ui.needsCode) {
+      TwoFactorCodeStep(onBack = viewModel::backToPassword, onExpired = viewModel::codeExpired)
+      return@Column
+    }
     Text(
       stringResource(R.string.login_who),
       style = MaterialTheme.typography.bodyMedium,

@@ -1325,4 +1325,63 @@
         <item quantity="many">Desbloqueada. %d cartas retenidas volvieron a la cola.</item>
         <item quantity="other">Desbloqueada. %d cartas retenidas volvieron a la cola.</item>
     </plurals>
+
+    <!-- API #173, #175: two-factor sign-in -->
+    <string name="title_two_factor">Inicio de sesión en dos pasos</string>
+    <string name="two_factor_intro">Entra con tu contraseña y un código de seis cifras de una app de autenticación en tu teléfono. Quien sepa tu contraseña no podrá entrar sin el código.</string>
+    <string name="two_factor_intro_apps">Sirve cualquier app de autenticación, como Aegis, 2FAS o Ente Auth. También recibes diez códigos de recuperación, por si pierdes el teléfono.</string>
+    <string name="action_set_up_two_factor">Configurar el inicio en dos pasos</string>
+    <string name="two_factor_step_add">1. Añade esta cuenta a tu app de autenticación</string>
+    <string name="two_factor_step_add_text">Si la app está en este teléfono, ábrela desde aquí. Si no, escanea el código con ella o escribe la clave.</string>
+    <string name="action_open_authenticator">Abrir en la app de autenticación</string>
+    <string name="two_factor_no_app">Ninguna app de este teléfono lo abre. Instala una app de autenticación o escribe la clave de abajo en una.</string>
+    <string name="two_factor_or_scan">O escanéalo con una app de autenticación en otro dispositivo:</string>
+    <string name="two_factor_qr_description">Código QR para tu app de autenticación</string>
+    <string name="two_factor_or_type">O escribe esta clave en la app:</string>
+    <string name="action_copy_key">Copiar la clave</string>
+    <string name="two_factor_step_confirm">2. Escribe el código que muestra la app</string>
+    <string name="label_two_factor_code">Código de seis cifras</string>
+    <string name="action_switch_on">Activar</string>
+    <string name="two_factor_codes_title">Guarda tus códigos de recuperación</string>
+    <string name="two_factor_codes_text">Si pierdes el teléfono, cada uno te deja entrar una vez en lugar de un código. Solo se muestran ahora. Escríbelos en papel o guárdalos en un gestor de contraseñas, no solo en este teléfono.</string>
+    <string name="action_copy_all">Copiar todos</string>
+    <string name="two_factor_codes_saved">He guardado estos códigos en un lugar seguro.</string>
+    <string name="action_done">Hecho</string>
+    <string name="two_factor_codes_unsaved_title">Guarda antes los códigos</string>
+    <string name="two_factor_codes_unsaved_text">Estos códigos de recuperación no se vuelven a mostrar. Guárdalos y marca la casilla para seguir.</string>
+    <string name="two_factor_on_since">Activado desde el %s</string>
+    <string name="two_factor_on">Activado</string>
+    <string name="action_new_recovery_codes">Nuevos códigos de recuperación…</string>
+    <string name="action_switch_off">Desactivar</string>
+    <string name="two_factor_required_cannot_off">Es obligatorio para tu cuenta, así que no se puede desactivar.</string>
+    <string name="two_factor_new_codes_title">Nuevos códigos de recuperación</string>
+    <string name="two_factor_new_codes_text">Escribe un código de tu app de autenticación. Tus códigos de recuperación actuales dejarán de funcionar.</string>
+    <string name="action_make_new_codes">Crear códigos nuevos</string>
+    <string name="two_factor_off_title">Desactivar el inicio en dos pasos</string>
+    <string name="two_factor_off_text">Escribe un código de tu app de autenticación o uno de tus códigos de recuperación. Después bastará tu contraseña para entrar.</string>
+    <string name="notice_two_factor_off">El inicio en dos pasos está desactivado.</string>
+    <string name="two_factor_required_banner">%s exige el inicio en dos pasos. Configúralo para seguir; nada más funciona hasta entonces.</string>
+    <string name="two_factor_because_group">Tu grupo</string>
+    <string name="two_factor_because_all_groups">El sitio, para quienes administran grupos,</string>
+    <string name="two_factor_because_superadmins">El sitio, para la superadministración,</string>
+    <string name="two_factor_because_site">El sitio</string>
+    <string name="two_factor_code_title">Escribe tu código</string>
+    <string name="two_factor_code_explained">La contraseña era correcta. Ahora escribe el código de seis cifras que muestra tu app de autenticación para esta cuenta.</string>
+    <string name="two_factor_code_recovery_explained">Escribe uno de los códigos de recuperación que guardaste al configurarlo. Cada uno sirve una vez.</string>
+    <string name="label_recovery_code_2fa">Código de recuperación</string>
+    <string name="action_signing_in_2fa">Entrando…</string>
+    <string name="action_use_recovery_code">Usar un código de recuperación</string>
+    <string name="action_use_app_code">Usar un código de la app</string>
+    <string name="action_back_to_password">Volver a la contraseña</string>
+    <string name="two_factor_wrong_code">Ese código no es correcto. Comprueba que la app muestra esta cuenta y escribe el código que muestra ahora.</string>
+    <string name="two_factor_wrong_recovery_code">Ese código de recuperación no es correcto o ya se usó.</string>
+    <string name="two_factor_expired">Ha tardado demasiado. Vuelve a escribir tu contraseña.</string>
+    <string name="error_unlock_two_factor">Tu cuenta pide un código al entrar, y desbloquear no puede pedirlo. Cierra la sesión y vuelve a entrar.</string>
+    <string name="recover_done_code_next">Tu contraseña ha cambiado. El inicio en dos pasos está activado, así que un código termina de entrar.</string>
+    <string name="recover_sign_in_with_new">Tu contraseña ha cambiado. Entra con ella y un código.</string>
+    <plurals name="two_factor_codes_left">
+        <item quantity="one">Queda %d código de recuperación.</item>
+        <item quantity="many">Quedan %d códigos de recuperación.</item>
+        <item quantity="other">Quedan %d códigos de recuperación.</item>
+    </plurals>
 </resources>

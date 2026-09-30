@@ -20,6 +20,16 @@ class FakeSessionRepository(
 ) : SessionRepository {
 
   val attempts = mutableListOf<Pair<String, String>>()
+  /** Two-factor sign-in (API #173): the codes given, and a refusal to answer them with. */
+  val twoFactorCodes = mutableListOf<Pair<String, Boolean>>(); var twoFactorError: AppError? = null; var twoFactorCancelled = 0
+  override suspend fun completeTwoFactor(code: String, recovery: Boolean): ApiResult<Session> {
+    twoFactorCodes += code to recovery
+    twoFactorError?.let { return ApiResult.Failure(it) }
+    val session = Session("tok", 0L, SessionUser(1, attempts.lastOrNull()?.first ?: "carol", null, null, "user", null))
+    _state.value = SessionState.SignedIn(session)
+    return ApiResult.Success(session)
+  }
+  override fun cancelTwoFactor() { twoFactorCancelled++ }
   val claimChecks = mutableListOf<String>()
   val claims = mutableListOf<List<String?>>()
   /** The pen name the group gave the writer, as `GET /auth/claim` answers it (API #168). */

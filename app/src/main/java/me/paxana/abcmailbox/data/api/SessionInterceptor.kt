@@ -37,10 +37,17 @@ class SessionInterceptor(private val cache: SessionCache) : Interceptor {
     if (token != null && response.code == HttpURLConnection.HTTP_UNAUTHORIZED) {
       cache.reportUnauthorized(token)
     }
+    // API #175: two-factor sign-in is required of this account and not set up. Every request but setting it up is
+    // refused so, and it can start mid-session; the code is read from a copy of the body, which the caller still gets.
+    if (token != null && response.code == HttpURLConnection.HTTP_FORBIDDEN && runCatching { response.peekBody(4096).string() }.getOrNull()?.contains(SETUP_REQUIRED) == true) {
+      cache.reportTwoFactorSetupRequired(token)
+    }
     return response
   }
 
   private companion object {
-    val PUBLIC_AUTH_PATHS = listOf("/auth/login", "/auth/claim", "/auth/recover")
+    // The second step of a two-factor sign-in is public too: the challenge is its credential, and its 401 is "too late".
+    val PUBLIC_AUTH_PATHS = listOf("/auth/login", "/auth/login/two-factor", "/auth/claim", "/auth/recover")
+    const val SETUP_REQUIRED = "two_factor_required.setup_required"
   }
 }
