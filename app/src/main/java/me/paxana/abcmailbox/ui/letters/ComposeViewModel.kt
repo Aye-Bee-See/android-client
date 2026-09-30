@@ -291,13 +291,31 @@ class ComposeViewModel(
             outbox.queue(s.prisoner?.name ?: strings.get(R.string.prisoner_numbered, route.prisonerId), s.writingAs.takeIf { route.writerId != null }, letter, s.attachments)
             outbox.waitOut(r.error.retryAfterSeconds)
             finishedWith(queued = true, limitedUntil = outbox.limitedUntil.value)
-          } else _ui.update { it.copy(sending = false, progress = null, error = r.error.message(strings) ?: strings.get(R.string.error_send_letter)) }
+          } else if ((r.error as? AppError.Forbidden)?.isGroupBlock == true) groupBlocked(relayChapter)
+          else _ui.update { it.copy(sending = false, progress = null, error = r.error.message(strings) ?: strings.get(R.string.error_send_letter)) }
         is ApiResult.Success -> {
           finishedWith(queued = false)
           uploadThen(r.value.id, s.attachments, r.value.threadId)
         }
       }
     }
+  }
+
+  /**
+   * The group that would mail this letter blocked the writer (API #171): only that group. Where the facility has another,
+   * the choice is offered again without it; where it has none, nothing can carry this letter for now, and the screen
+   * says so. The letter stays on the screen either way.
+   */
+  private fun groupBlocked(relayChapter: Int?) = _ui.update { st ->
+    val relay = st.relay
+    val name = when (relay) {
+      is RelayChoice.Choose -> relay.options.firstOrNull { it.id == relayChapter }?.name
+      is RelayChoice.Automatic -> relay.group.name
+      else -> null
+    } ?: strings.get(R.string.the_relay_group)
+    val others = (relay as? RelayChoice.Choose)?.options?.filter { it.id != relayChapter }.orEmpty()
+    if (others.isNotEmpty()) st.copy(sending = false, progress = null, relay = RelayChoice.Choose(others, required = true), selectedRelay = null, error = strings.get(R.string.error_group_block_choose, name))
+    else st.copy(sending = false, progress = null, error = strings.get(R.string.error_group_block_only, name))
   }
 
   /** The letter has left this screen, to the server or to the outbox: the draft and any outbox copy it came from are done with. */

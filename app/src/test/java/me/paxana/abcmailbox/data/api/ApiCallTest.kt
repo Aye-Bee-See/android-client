@@ -142,4 +142,12 @@ class ApiCallTest {
     val mode = apiCall(json) { throw http(400, """{"success":false,"errors":["messageText is not accepted by an end-to-end server."],"problems":[{"field":"messageText","code":"wrong_encryption_mode"}]}""") }
     assertEquals(AppError.WrongEncryptionMode, (mode as ApiResult.Failure).error)
   }
+
+  @Test
+  fun `a 403 keeps the API's name and code, so a group's block of the writer can be told apart (API 171)`() = runTest {
+    val body = """{"success":false,"name":"GroupBlockError","info":"Error creating message.","error":"The group that mails to this facility (group 1) is not mailing letters from this account.","status":403,"code":"group_block"}"""
+    val e = (apiCall(json) { throw http(403, body) } as ApiResult.Failure).error as AppError.Forbidden
+    assertTrue(e.isGroupBlock); assertEquals("Error creating message.", e.info)
+    assertFalse(AppError.Forbidden("Your group is pending approval.").isGroupBlock)
+  }
 }

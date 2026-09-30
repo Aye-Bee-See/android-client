@@ -106,6 +106,7 @@ fun ThreadScreen(
           thread = t.value,
           retentionDays = ui.retentionDays,
           busyMessageId = ui.busyMessageId,
+          blockNotices = ui.blockNotices,
           onPrisoner = onPrisoner,
           onOpen = viewModel::open,
           showWriter = ui.isStaff,
@@ -183,6 +184,7 @@ private fun ThreadBody(
   showWriter: Boolean = false,
   onSendAgain: (letterId: Int, replacesHeld: Boolean) -> Unit = { _, _ -> },
   onChooseRelay: (letterId: Int) -> Unit = {},
+  blockNotices: Map<Int, me.paxana.abcmailbox.data.activity.GroupBlockNotice> = emptyMap(),
 ) {
   // A reply that arrives while the conversation is open lands at the bottom, possibly off screen. Go to it, as a
   // messaging app would, but only when the conversation grew while it was showing: the first load, a deletion
@@ -220,14 +222,14 @@ private fun ThreadBody(
       item("empty") { Text(stringResource(R.string.thread_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp)) }
     }
     items(thread.letters, key = { it.id }) { letter ->
-      LetterCard(letter, answered = letter.repliesToId?.let { id -> thread.letters.find { it.id == id } }, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) }, onSendAgain = { onSendAgain(letter.id, letter.heldReason == HeldReason.RESEAL_NEEDED) }, onChooseRelay = { onChooseRelay(letter.id) })
+      LetterCard(letter, answered = letter.repliesToId?.let { id -> thread.letters.find { it.id == id } }, busy = busyMessageId == letter.id, mayChange = mayChange, onOpen = onOpen, onEdit = { onEdit(letter.id) }, onDelete = { onDelete(letter.id) }, onSendAgain = { onSendAgain(letter.id, letter.heldReason == HeldReason.RESEAL_NEEDED) }, onChooseRelay = { onChooseRelay(letter.id) }, blockNotice = letter.relayGroupId?.let { blockNotices[it] })
       HorizontalDivider()
     }
   }
 }
 
 @Composable
-private fun LetterCard(letter: Letter, answered: Letter? = null, busy: Boolean, mayChange: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onSendAgain: () -> Unit = {}, onChooseRelay: () -> Unit = {}) {
+private fun LetterCard(letter: Letter, answered: Letter? = null, busy: Boolean, mayChange: Boolean, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onSendAgain: () -> Unit = {}, onChooseRelay: () -> Unit = {}, blockNotice: me.paxana.abcmailbox.data.activity.GroupBlockNotice? = null) {
   Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(
@@ -278,7 +280,7 @@ private fun LetterCard(letter: Letter, answered: Letter? = null, busy: Boolean, 
     if (statusLine.isNotBlank() && !letter.isHeld) Text(statusLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     if (letter.status == LetterStatus.RETURNED) ReturnedNotice(letter, mayChange = mayChange, busy = busy, onSendAgain = onSendAgain)
     if (letter.status == LetterStatus.DECLINED) DeclinedNotice(letter, mayChange = mayChange, busy = busy, onSendAgain = onSendAgain)
-    letter.heldReason?.takeIf { letter.isHeld }?.let { HeldNotice(it, mayChange = mayChange, busy = busy, canResend = !letter.locked, onChoose = onChooseRelay, onSendAgain = onSendAgain) }
+    letter.heldReason?.takeIf { letter.isHeld }?.let { HeldNotice(it, mayChange = mayChange, busy = busy, canResend = !letter.locked, onChoose = onChooseRelay, onSendAgain = onSendAgain, groupName = blockNotice?.groupName ?: letter.relayGroupName, blockReason = blockNotice?.reason) }
     if (letter.canEdit && !letter.locked && mayChange) {
       Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         TextButton(onClick = onEdit, enabled = !busy) { Text(stringResource(R.string.action_edit)) }
@@ -347,19 +349,26 @@ private fun DeclinedNotice(letter: Letter, mayChange: Boolean, busy: Boolean, on
  * to change: they read "the writer", not "you", and are offered nothing.
  */
 @Composable
-private fun HeldNotice(reason: HeldReason, mayChange: Boolean, busy: Boolean, canResend: Boolean, onChoose: () -> Unit, onSendAgain: () -> Unit) {
+private fun HeldNotice(reason: HeldReason, mayChange: Boolean, busy: Boolean, canResend: Boolean, onChoose: () -> Unit, onSendAgain: () -> Unit, groupName: String? = null, blockReason: String? = null) {
   NoticeBox {
-    Text(stringResource(when (reason) {
-      HeldReason.CHOOSE_RELAY -> if (mayChange) R.string.held_choose_relay else R.string.held_choose_relay_writer
-      HeldReason.RESEAL_NEEDED -> if (mayChange) R.string.held_reseal_needed else R.string.held_reseal_needed_writer
-      HeldReason.PRISONER_FREE -> if (mayChange) R.string.held_prisoner_free else R.string.held_prisoner_free_writer
-      HeldReason.OTHER -> R.string.held_other
-    }), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+    Text(when (reason) {
+      HeldReason.CHOOSE_RELAY -> stringResource(if (mayChange) R.string.held_choose_relay else R.string.held_choose_relay_writer)
+      HeldReason.RESEAL_NEEDED -> stringResource(if (mayChange) R.string.held_reseal_needed else R.string.held_reseal_needed_writer)
+      HeldReason.PRISONER_FREE -> stringResource(if (mayChange) R.string.held_prisoner_free else R.string.held_prisoner_free_writer)
+      // API #171: the group that would mail it blocked the writer. Only that group: another may mail to this person.
+      HeldReason.WRITER_BLOCKED -> if (mayChange) stringResource(R.string.held_writer_blocked, groupName ?: stringResource(R.string.the_relay_group)) else stringResource(R.string.held_writer_blocked_writer)
+      HeldReason.OTHER -> stringResource(R.string.held_other)
+    }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+    // The reason the group gave, which the writer was told (kept from the feed, GroupBlockNotices): theirs, labelled so.
+    if (reason == HeldReason.WRITER_BLOCKED && mayChange) blockReason?.let { r ->
+      Text(stringResource(R.string.block_reason_from, groupName ?: stringResource(R.string.the_relay_group)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      androidx.compose.foundation.text.selection.SelectionContainer { Text(r, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("block-reason")) }
+    }
     if (mayChange) when (reason) {
       HeldReason.CHOOSE_RELAY -> OutlinedButton(onClick = onChoose, enabled = !busy, modifier = Modifier.testTag("held-choose")) { Text(stringResource(R.string.action_choose_who_mails)) }
       HeldReason.RESEAL_NEEDED -> if (canResend) OutlinedButton(onClick = onSendAgain, enabled = !busy, modifier = Modifier.testTag("held-resend")) { Text(stringResource(R.string.action_send_again)) }
       // Freed: nothing to press here. Deleting it is the ordinary Delete below; printing it anyway is the group's decision.
-      HeldReason.PRISONER_FREE, HeldReason.OTHER -> Unit
+      HeldReason.PRISONER_FREE, HeldReason.WRITER_BLOCKED, HeldReason.OTHER -> Unit
     }
   }
 }

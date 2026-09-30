@@ -63,6 +63,8 @@ import kotlinx.serialization.Serializable
 /** `token` is set when the join screen handed on a 24-character token it was given. */
 @Serializable data class InvitationRoute(val token: String? = null)
 @Serializable data object InviteCodesRoute
+/** The group's blocked writers and its site-wide recommendations (API #171, #172). */
+@Serializable data object BlocksRoute
 @Serializable data object RecoverRoute
 @Serializable data object ChangePasswordRoute
 @Serializable data object DeleteAccountRoute

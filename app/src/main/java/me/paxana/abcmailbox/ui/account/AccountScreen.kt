@@ -45,6 +45,7 @@ fun AccountScreen(
   onDeleteAccount: () -> Unit = {},
   onGroupNumbers: () -> Unit = {},
   onInviteCodes: () -> Unit = {},
+  onBlocks: () -> Unit = {},
   onPenName: () -> Unit = {},
   viewModel: AccountViewModel = hiltViewModel(),
 ) {
@@ -90,6 +91,7 @@ fun AccountScreen(
         if (user.role == Role.CHAPTER && user.chapterId != null) {
           TextButton(onClick = onInviteCodes, modifier = Modifier.testTag("invite-codes")) { Text(stringResource(R.string.title_invite_codes)) }
           TextButton(onClick = onGroupNumbers) { Text(stringResource(R.string.title_group_numbers)) }
+          TextButton(onClick = onBlocks, modifier = Modifier.testTag("blocks")) { Text(stringResource(R.string.title_blocked_writers)) }
         }
         TextButton(onClick = onChangePassword) { Text(stringResource(R.string.action_change_password)) }
         OutlinedButton(

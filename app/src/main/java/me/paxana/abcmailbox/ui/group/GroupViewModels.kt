@@ -170,9 +170,10 @@ class LetterWorkViewModel(
   private val route: LetterWorkRoute,
   private val strings: Strings,
   isSuperadmin: Boolean = false,
+  private val blocks: me.paxana.abcmailbox.data.repo.BlocksRepository? = null,
 ) : ViewModel() {
-  @Inject constructor(group: GroupRepository, letters: LettersRepository, strings: Strings, sessions: SessionRepository, handle: SavedStateHandle) :
-    this(group, letters, handle.toRoute<LetterWorkRoute>(), strings, (sessions.state.value as? SessionState.SignedIn)?.session?.user?.role == me.paxana.abcmailbox.data.session.Role.ADMIN)
+  @Inject constructor(group: GroupRepository, letters: LettersRepository, strings: Strings, sessions: SessionRepository, blocks: me.paxana.abcmailbox.data.repo.BlocksRepository, handle: SavedStateHandle) :
+    this(group, letters, handle.toRoute<LetterWorkRoute>(), strings, (sessions.state.value as? SessionState.SignedIn)?.session?.user?.role == me.paxana.abcmailbox.data.session.Role.ADMIN, blocks)
 
   private val _ui = MutableStateFlow(LetterWorkUiState(mayDecline = !isSuperadmin))
   val ui: StateFlow<LetterWorkUiState> = _ui.asStateFlow()
@@ -263,6 +264,40 @@ class LetterWorkViewModel(
           if (meanwhile) load()
         }
       }
+    }
+  }
+
+  /**
+   * This group will not mail this writer's letters any more (API #171). The writer is told, with [reason]; their other
+   * letters waiting here are held. A superadmin bans instead, and is not offered this.
+   */
+  fun blockWriter(reason: String) {
+    val writerId = (_ui.value.item as? Loadable.Loaded)?.value?.letter?.writerId ?: return
+    val repo = blocks ?: return
+    if (!_ui.value.mayDecline || reason.isBlank()) return
+    _ui.update { it.copy(busy = true) }
+    viewModelScope.launch {
+      when (val r = repo.block(writerId, reason)) {
+        is ApiResult.Success -> { _ui.update { it.copy(busy = false, notice = strings.plural(R.plurals.notice_writer_blocked, r.value, r.value)) }; load() }
+        is ApiResult.Failure -> _ui.update { it.copy(busy = false, notice = r.error.message(strings) ?: strings.get(R.string.error_block_writer)) }
+      }
+    }
+  }
+
+  /** A request to the superadmins to block this writer everywhere (API #172). The writer is not told. */
+  fun recommendBan(reason: String) {
+    val writerId = (_ui.value.item as? Loadable.Loaded)?.value?.letter?.writerId ?: return
+    val repo = blocks ?: return
+    if (!_ui.value.mayDecline || reason.isBlank()) return
+    _ui.update { it.copy(busy = true) }
+    viewModelScope.launch {
+      val r = repo.recommendBan(writerId, reason)
+      _ui.update { it.copy(busy = false, notice = when {
+        r is ApiResult.Success -> strings.get(R.string.notice_ban_recommended)
+        // One waiting recommendation per group and writer: already asked, and nothing lost.
+        (r as ApiResult.Failure).error.let { e -> e is AppError.Conflict && e.condition == "pending" } -> strings.get(R.string.notice_ban_already_recommended)
+        else -> r.error.message(strings) ?: strings.get(R.string.error_recommend_ban)
+      }) }
     }
   }
 

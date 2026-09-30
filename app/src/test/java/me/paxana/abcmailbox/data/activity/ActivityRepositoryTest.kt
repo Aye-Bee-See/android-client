@@ -42,13 +42,20 @@ class ActivityRepositoryTest {
   private val shown = mutableListOf<List<Activity>>(); private var cleared = 0
   private val keyring = me.paxana.abcmailbox.data.crypto.FakeKeyring()
   private lateinit var repo: DefaultActivityRepository
+  /** What the writer was told when a group blocked them, as the app keeps it (API #171). */
+  private val notices = object : GroupBlockNotices {
+    val kept = mutableMapOf<Int, MutableMap<Int, GroupBlockNotice>>()
+    override fun notices(userId: Int) = kotlinx.coroutines.flow.flowOf(kept[userId].orEmpty().toMap())
+    override suspend fun blocked(userId: Int, groupId: Int, notice: GroupBlockNotice) { kept.getOrPut(userId) { mutableMapOf() }[groupId] = notice }
+    override suspend fun lifted(userId: Int, groupId: Int) { kept[userId]?.remove(groupId) }
+  }
 
   @Before
   fun setUp() {
     server.start()
     val api = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(NotificationsApi::class.java)
     val store = PreferenceDataStoreFactory.create(scope = scope) { File(tmp.root, "test.preferences_pb") }
-    repo = DefaultActivityRepository(api, sessions, store, object : ActivityNotifier { override fun show(fresh: List<Activity>) { shown += fresh }; override fun clear() { cleared++ } }, json, keyring)
+    repo = DefaultActivityRepository(api, sessions, store, object : ActivityNotifier { override fun show(fresh: List<Activity>) { shown += fresh }; override fun clear() { cleared++ } }, json, keyring, notices)
     sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
   }
 
@@ -222,5 +229,30 @@ class ActivityRepositoryTest {
     assertEquals("Your group decided not to send one of your letters.", one.sentence(TestStrings()))
     assertEquals("Ваша группа решила не отправлять 21 ваше письмо.", Activity(10, Activity.Kind.DECLINED, null, null, count = 21).sentence(TestStrings("ru")))
     assertEquals("Tu grupo decidió no enviar 3 de tus cartas.", Activity(11, Activity.Kind.DECLINED, null, null, count = 3).sentence(TestStrings("es")))
+  }
+
+  @Test
+  fun `a group's block reaches the writer as a sentence naming nobody, and its name and reason are kept for the app to say inside (API 171)`() = runTest {
+    server.enqueue(feed(
+      entry(41, "writer.block", """{"action":"blocked","chapter":{"id":3,"name":"PDX ABC"},"reason":"Threats in two letters."}""", chat = null),
+      entry(42, "writer.block", """{"action":"blocked","chapter":{"id":4,"name":"Riverside ABC"},"reason":"Spam."}""", chat = null),
+      entry(43, "writer.block", """{"action":"lifted","chapter":{"id":4,"name":"Riverside ABC"}}""", chat = null),
+    ))
+    val fresh = repo.sync()
+    assertEquals(listOf(Activity.Kind.WRITER_BLOCKED, Activity.Kind.WRITER_BLOCKED, Activity.Kind.WRITER_UNBLOCKED), fresh.map { it.kind })
+    val said = fresh.first().sentence(TestStrings())
+    assertEquals("A group will not mail your letters any more. Open the app to see which, and why.", said)
+    assertFalse("the lock screen names no group and quotes nothing", said.contains("PDX") || said.contains("Threats"))
+    assertEquals(mapOf(3 to GroupBlockNotice("PDX ABC", "Threats in two letters.")), notices.kept[2])
+  }
+
+  @Test
+  fun `a group hears of its own blocks and of what the superadmins decided (API 171, 172)`() {
+    assertEquals(Activity.Kind.GROUP_BLOCKED, Activity.kindOf("group.block", null, "blocked"))
+    assertEquals(Activity.Kind.GROUP_UNBLOCKED, Activity.kindOf("group.block", null, "lifted"))
+    assertEquals(Activity.Kind.BAN_BANNED, Activity.kindOf("ban.decided", null, "banned"))
+    assertEquals(Activity.Kind.BAN_DISMISSED, Activity.kindOf("ban.decided", null, "dismissed"))
+    assertEquals("A superadmin decided not to block a writer your group recommended.", Activity(1, Activity.Kind.BAN_DISMISSED, null, null).sentence(TestStrings()))
+    assertEquals("Ваша группа заблокировала автора писем.", Activity(2, Activity.Kind.GROUP_BLOCKED, null, null).sentence(TestStrings("ru")))
   }
 }

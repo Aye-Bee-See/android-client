@@ -1278,4 +1278,69 @@
         <item quantity="one">Don’t send %d letter</item>
         <item quantity="other">Don’t send %d letters</item>
     </plurals>
+
+    <!-- API #171, #172: blocking a writer, recommending a site-wide block -->
+    <string name="error_group_block">The group that mails to this facility is not mailing letters from your account.</string>
+    <string name="error_group_block_choose">%1$s is not mailing letters from your account. Another group mails to this facility: choose it below, then send.</string>
+    <string name="error_group_block_only">%1$s is not mailing letters from your account, and no other group mails to this facility, so this letter cannot go for now. It is still here; nothing was sent.</string>
+    <string name="held_queue_writer_blocked">Held: your group blocked this writer</string>
+    <string name="held_group_writer_blocked">Held: your group blocked this writer, so it will not go out by accident. Don’t send it, or print it anyway if your group means to.</string>
+    <string name="held_writer_blocked">%1$s is not mailing letters from your account any more, so this letter is waiting. Other groups are not affected. You can delete it.</string>
+    <string name="held_writer_blocked_writer">The group that would mail it blocked the writer, so it is waiting. That group prints it only on purpose.</string>
+    <string name="block_reason_from">Why, in the words of %s</string>
+    <string name="activity_writer_blocked">A group will not mail your letters any more. Open the app to see which, and why.</string>
+    <string name="activity_writer_unblocked">A group will mail your letters again.</string>
+    <string name="activity_group_blocked">Your group blocked a writer from its letters.</string>
+    <string name="activity_group_unblocked">Your group lifted a block on a writer.</string>
+    <string name="activity_ban_banned">A writer your group recommended blocking has been blocked everywhere.</string>
+    <string name="activity_ban_dismissed">A superadmin decided not to block a writer your group recommended.</string>
+    <string name="activity_ban_recommended">A group recommends blocking a writer everywhere.</string>
+    <string name="error_block_writer">The writer could not be blocked.</string>
+    <string name="notice_ban_recommended">Recommended. A superadmin will decide; the writer is not told.</string>
+    <string name="notice_ban_already_recommended">Your group already recommended this, and it is waiting for a superadmin.</string>
+    <string name="error_recommend_ban">The recommendation could not be sent.</string>
+    <string name="block_writer_title">Block this writer from your group</string>
+    <string name="block_writer_text">Your group will not mail their letters any more. Their letters waiting here are held, and they cannot send you new ones. Other groups are not affected. The writer is told, with the reason below, and so is everyone who runs your group. You can lift it later.</string>
+    <string name="help_block_reason">%1$d of %2$d. Required. The writer reads this.</string>
+    <string name="action_block_writer_confirm">Block</string>
+    <string name="recommend_ban_title">Recommend blocking this writer everywhere</string>
+    <string name="recommend_ban_text">A superadmin decides whether to block the account on the whole site. Only superadmins read the reason; the writer is not told of a recommendation. Your group sees what was decided.</string>
+    <string name="help_recommend_reason">%1$d of %2$d. Required. Only superadmins read this.</string>
+    <string name="action_recommend_ban_confirm">Recommend</string>
+    <string name="action_block_writer">Block this writer from our group…</string>
+    <string name="action_recommend_ban">Recommend a site-wide block…</string>
+    <string name="label_reason">Reason</string>
+    <string name="title_blocked_writers">Blocked writers</string>
+    <string name="blocks_intro">Writers your group does not mail letters for. Each was told why. Lifting a block puts their held letters back in the queue.</string>
+    <string name="blocks_none">Your group has not blocked anyone.</string>
+    <string name="writer_numbered">Writer %d</string>
+    <string name="writer_unknown">A writer</string>
+    <string name="block_reason_line">Reason: %s</string>
+    <string name="blocked_by_on">Blocked by %1$s on %2$s</string>
+    <string name="blocked_by">Blocked by %s</string>
+    <string name="blocked_on">Blocked on %s</string>
+    <string name="action_unblock">Unblock</string>
+    <string name="unblock_title">Unblock %s?</string>
+    <string name="unblock_text">Your group will mail their letters again, and the ones it held go back into the queue. The writer is told.</string>
+    <string name="error_unblock">The block could not be lifted.</string>
+    <string name="section_ban_recommendations">Site-wide block recommendations</string>
+    <string name="ban_recommendations_intro">What your group asked the superadmins, and what they decided.</string>
+    <string name="ban_recommendations_failed">The recommendations could not be loaded.</string>
+    <string name="ban_recommendations_none">Your group has not recommended anyone.</string>
+    <string name="recommendation_pending_since">Waiting for a superadmin since %s</string>
+    <string name="recommendation_pending">Waiting for a superadmin</string>
+    <string name="recommendation_banned_on">Blocked everywhere on %s</string>
+    <string name="recommendation_banned">Blocked everywhere</string>
+    <string name="recommendation_dismissed_on">Not blocked: decided on %s</string>
+    <string name="recommendation_dismissed">Not blocked</string>
+    <string name="recommendation_your_reason">Your group’s reason: %s</string>
+    <string name="recommendation_note">The superadmin’s note: %s</string>
+    <plurals name="notice_writer_blocked">
+        <item quantity="one">Blocked. The writer has been told; %d of their letters here is now held.</item>
+        <item quantity="other">Blocked. The writer has been told; %d of their letters here are now held.</item>
+    </plurals>
+    <plurals name="notice_unblocked">
+        <item quantity="one">Unblocked. %d held letter went back into the queue.</item>
+        <item quantity="other">Unblocked. %d held letters went back into the queue.</item>
+    </plurals>
 </resources>

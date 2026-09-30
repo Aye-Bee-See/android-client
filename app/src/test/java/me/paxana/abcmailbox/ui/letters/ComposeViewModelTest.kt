@@ -381,4 +381,21 @@ class ComposeViewModelTest {
     override fun discard(staged: StagedFile) = Unit
     override fun downloadTarget(attachmentId: Int, name: String) = File("x")
   }
+
+  @Test
+  fun `refused because the chosen group blocked the writer, the choice is offered again without it, and with no other group the letter stays put (API 171)`() = runTest {
+    val blocked = AppError.Forbidden("Error creating message.", "GroupBlockError", "group_block")
+    val vm = vm(Routing.RELAY_ONLY, listOf(group(1), group(2)), FakeLetters(fail = blocked))
+    dispatcher.scheduler.advanceUntilIdle()
+    vm.onBodyChange("Hello"); vm.onSelectRelay(2); vm.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(1), (vm.ui.value.relay as RelayChoice.Choose).options.map { it.id })
+    assertNull(vm.ui.value.selectedRelay); assertFalse(vm.ui.value.canSend)
+    assertEquals("Group 2 is not mailing letters from your account. Another group mails to this facility: choose it below, then send.", vm.ui.value.error)
+    assertEquals("the letter is still on the screen", "Hello", vm.ui.value.body)
+
+    val only = vm(Routing.RELAY_ONLY, listOf(group(1)), FakeLetters(fail = blocked))
+    dispatcher.scheduler.advanceUntilIdle()
+    only.onBodyChange("Hello"); only.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(only.ui.value.error!!.startsWith("Group 1 is not mailing letters from your account, and no other group mails to this facility"))
+  }
 }

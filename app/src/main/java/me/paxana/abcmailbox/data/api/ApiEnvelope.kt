@@ -25,6 +25,8 @@ data class ApiEnvelope<T>(
   val unread: Int? = null,
   /** On some refusals: a code for why (a claim token that is `expired` or `used`). Asked of the API; not sent yet, see [goneCondition]. */
   val condition: String? = null,
+  /** On any refusal below 500 (API PR #133): its code, such as `group_block` on a 403 (API #171). */
+  val code: String? = null,
   /** On a 400 (API PR #133): one entry per sentence in [errors], in the same order, saying which field and why. */
   val problems: List<ProblemDto>? = null,
 )
