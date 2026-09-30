@@ -135,11 +135,12 @@ data class InviteBatchDto(
 @Serializable data class CancelledInviteCodesDto(val chapter: Int? = null, val cancelled: Int = 0, val outstanding: Int = 0)
 
 /**
- * `reason` (required) and `note` go with `returned` only; on any other move they are a 400. `release` is what
- * prints a held letter on purpose: without it the server answers 409 `LetterHeldError`.
+ * `reason` (required) and `note` go with `returned` and `declined` only, `rule` with a `facility_rule` decline only
+ * (API #170); on any other move they are a 400. `release` is what prints a held letter on purpose: without it the
+ * server answers 409 `LetterHeldError`. Declining a held letter needs no `release`.
  */
-@Serializable data class StatusRequest(val id: Int, val status: String, val reason: String? = null, val note: String? = null, val release: Boolean? = null)
-@Serializable data class BatchStatusRequest(val ids: List<Int>, val status: String, val reason: String? = null, val note: String? = null, val release: Boolean? = null)
+@Serializable data class StatusRequest(val id: Int, val status: String, val reason: String? = null, val note: String? = null, val release: Boolean? = null, val rule: String? = null)
+@Serializable data class BatchStatusRequest(val ids: List<Int>, val status: String, val reason: String? = null, val note: String? = null, val release: Boolean? = null, val rule: String? = null)
 @Serializable data class BatchStatusDto(val status: String? = null, val count: Int = 0, val ids: List<Int> = emptyList())
 @Serializable data class LettersSentBeforeRequest(val id: Int, val lettersSentBefore: Int)
 @Serializable data class WriterRef(val writer: Int)

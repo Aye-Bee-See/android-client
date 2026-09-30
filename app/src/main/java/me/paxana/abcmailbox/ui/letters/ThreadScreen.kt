@@ -55,6 +55,7 @@ import me.paxana.abcmailbox.domain.LetterStatus
 import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.OutlinedButton
 import me.paxana.abcmailbox.domain.ReturnReason
+import me.paxana.abcmailbox.domain.DeclineReason
 import me.paxana.abcmailbox.domain.HeldReason
 import me.paxana.abcmailbox.domain.Thread
 import me.paxana.abcmailbox.ui.common.DetailScaffold
@@ -271,10 +272,12 @@ private fun LetterCard(letter: Letter, answered: Letter? = null, busy: Boolean, 
       LetterStatus.MAILED -> (letter.relayGroupName ?: stringResource(R.string.the_relay_group)).let { who -> letter.statusChangedAt?.let { stringResource(R.string.status_mailed_by_on, who, it.longDate()) } ?: stringResource(R.string.status_mailed_by, who) }
       LetterStatus.RECEIVED -> stringResource(R.string.status_recorded_by_group)
       LetterStatus.RETURNED -> letter.returnedAt?.let { stringResource(R.string.status_returned_on, it.longDate()) } ?: stringResource(R.string.status_returned_undated)
+      LetterStatus.DECLINED -> (letter.relayGroupName ?: stringResource(R.string.the_relay_group)).let { who -> letter.declinedAt?.let { stringResource(R.string.status_declined_by_on, who, it.longDate()) } ?: stringResource(R.string.status_declined_by, who) }
       LetterStatus.UNKNOWN -> ""
     }
     if (statusLine.isNotBlank() && !letter.isHeld) Text(statusLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     if (letter.status == LetterStatus.RETURNED) ReturnedNotice(letter, mayChange = mayChange, busy = busy, onSendAgain = onSendAgain)
+    if (letter.status == LetterStatus.DECLINED) DeclinedNotice(letter, mayChange = mayChange, busy = busy, onSendAgain = onSendAgain)
     letter.heldReason?.takeIf { letter.isHeld }?.let { HeldNotice(it, mayChange = mayChange, busy = busy, canResend = !letter.locked, onChoose = onChooseRelay, onSendAgain = onSendAgain) }
     if (letter.canEdit && !letter.locked && mayChange) {
       Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -297,6 +300,34 @@ private fun ReturnedNotice(letter: Letter, mayChange: Boolean, busy: Boolean, on
     // Labelled as the group's words about the envelope: not the app's opinion, and not the prison's.
     letter.returnNote?.let { note ->
       Text(stringResource(R.string.return_note_from, letter.relayGroupName ?: stringResource(R.string.the_relay_group)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      androidx.compose.foundation.text.selection.SelectionContainer { Text(note, style = MaterialTheme.typography.bodyMedium) }
+    }
+    val again = letter.resentAs.lastOrNull()
+    if (again != null) {
+      val state = stringResource(again.status.labelRes).lowercase()
+      Text(again.at?.let { stringResource(R.string.return_sent_again_on, it.longDate(), state) } ?: stringResource(R.string.return_sent_again, state), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    } else if (mayChange && !letter.fromPrisoner) {
+      Text(stringResource(reason.adviceRes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      if (!letter.locked) OutlinedButton(onClick = onSendAgain, enabled = !busy, modifier = Modifier.testTag("send-again")) { Text(stringResource(R.string.action_send_again)) }
+    }
+  }
+}
+
+/**
+ * A letter its group would not mail (API #170): why, in the app's words, the facility's rule by its name when one is
+ * named, the group's own note labelled as theirs, and the way to send a better version. As a return is shown.
+ */
+@Composable
+private fun DeclinedNotice(letter: Letter, mayChange: Boolean, busy: Boolean, onSendAgain: () -> Unit) {
+  NoticeBox {
+    val reason = letter.declineReason ?: DeclineReason.OTHER
+    val strings = me.paxana.abcmailbox.text.rememberStrings()
+    Text(stringResource(reason.labelRes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+    letter.declineRule?.takeIf { reason == DeclineReason.FACILITY_RULE }?.let { tag ->
+      Text(stringResource(R.string.decline_rule_line, me.paxana.abcmailbox.domain.MailRuleCatalog.Compiled.resolve(tag).label(strings)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("decline-rule"))
+    }
+    letter.declineNote?.let { note ->
+      Text(stringResource(R.string.decline_note_from, letter.relayGroupName ?: stringResource(R.string.the_relay_group)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       androidx.compose.foundation.text.selection.SelectionContainer { Text(note, style = MaterialTheme.typography.bodyMedium) }
     }
     val again = letter.resentAs.lastOrNull()

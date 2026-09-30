@@ -22,13 +22,13 @@ data class Activity(
   /** `group.owner` with `owner: null`: the owner left the group or was demoted, and a superadmin has to name a new one. */
   val ownerless: Boolean = false,
 ) {
-  enum class Kind { REPLY, PRINTED, MAILED, RETURNED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, GROUP_KEY_SET, GROUP_KEY_HANDED, GROUP_KEY_REMOVED, GROUP_KEY_ROTATED, GROUP_OWNER, GROUP_WAITING, OTHER }
+  enum class Kind { REPLY, PRINTED, MAILED, RETURNED, DECLINED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, GROUP_KEY_SET, GROUP_KEY_HANDED, GROUP_KEY_REMOVED, GROUP_KEY_ROTATED, GROUP_OWNER, GROUP_WAITING, OTHER }
 
   /** The group's key changed hands or was replaced: what this phone holds may be stale. */
   val touchesGroupKey: Boolean get() = kind == Kind.GROUP_KEY_SET || kind == Kind.GROUP_KEY_HANDED || kind == Kind.GROUP_KEY_REMOVED || kind == Kind.GROUP_KEY_ROTATED
 
   /** Something the person has to do, not only know. These share the replies' channel: a letter that waits for its writer goes nowhere until they look. */
-  val needsThem: Boolean get() = kind == Kind.RETURNED || ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0)
+  val needsThem: Boolean get() = kind == Kind.RETURNED || kind == Kind.DECLINED || ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0)
 
   fun sentence(strings: Strings): String = base(strings) + if ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0) " " + strings.plural(R.plurals.activity_waiting, held) else ""
 
@@ -37,6 +37,7 @@ data class Activity(
       Kind.PRINTED -> return strings.plural(R.plurals.activity_printed_many, count)
       Kind.MAILED -> return strings.plural(R.plurals.activity_mailed_many, count)
       Kind.RETURNED -> return strings.plural(R.plurals.activity_returned_many, count)
+      Kind.DECLINED -> return strings.plural(R.plurals.activity_declined_many, count)
       else -> Unit
     }
     return single(strings)
@@ -48,6 +49,7 @@ data class Activity(
       Kind.PRINTED -> R.string.activity_printed
       Kind.MAILED -> R.string.activity_mailed
       Kind.RETURNED -> R.string.activity_returned
+      Kind.DECLINED -> R.string.activity_declined
       Kind.MOVED -> R.string.activity_moved
       Kind.FREED -> R.string.activity_freed
       Kind.QUEUED_FOR_GROUP -> R.string.activity_queued
@@ -70,7 +72,7 @@ data class Activity(
       "group.owner" -> Kind.GROUP_OWNER
       "group.waiting" -> Kind.GROUP_WAITING
       "letter.reply" -> Kind.REPLY
-      "letter.status" -> when (status) { "printed" -> Kind.PRINTED; "mailed" -> Kind.MAILED; "returned" -> Kind.RETURNED; else -> Kind.OTHER }
+      "letter.status" -> when (status) { "printed" -> Kind.PRINTED; "mailed" -> Kind.MAILED; "returned" -> Kind.RETURNED; "declined" -> Kind.DECLINED; else -> Kind.OTHER }
       "prisoner.moved" -> Kind.MOVED
       // The API sends this event for `free` only, today. Any other status it may one day announce gets the cautious sentence.
       "prisoner.status" -> if (status == "free") Kind.FREED else Kind.OTHER

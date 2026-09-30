@@ -65,4 +65,24 @@ class LettersMappersTest {
     val dto = MessageDto(id = 9, sender = "user", prisoner = 1, status = "queued", ciphertext = "…", nonce = "…")
     assertEquals("", dto.toDomain().body)
   }
+
+  @Test
+  fun `a declined letter carries why, the facility's rule and the group's note, its history speaks the decline's vocabulary, and it can be sent again (API 170)`() {
+    val raw = """{"id":41,"chat":41,"sender":"user","prisoner":3,"status":"declined","relayChapter":2,"keep":false,"user":1,
+      "declineReason":"facility_rule","declineRule":"handwritten_only","declineNote":"This facility only takes handwritten letters.",
+      "status_history":[{"id":3,"fromStatus":"queued","toStatus":"declined","changedBy":2,"createdAt":"2026-09-30T10:00:00.000Z","reason":"facility_rule","rule":"handwritten_only","note":"This facility only takes handwritten letters."}],
+      "messageText":"probe"}"""
+    val l = json.decodeFromString<MessageDto>(raw).toDomain()
+    assertEquals(LetterStatus.DECLINED, l.status)
+    assertEquals(me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE, l.declineReason)
+    assertEquals("handwritten_only", l.declineRule); assertEquals("This facility only takes handwritten letters.", l.declineNote)
+    val row = l.history.single()
+    assertEquals(me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE, row.declineReason); assertEquals("handwritten_only", row.rule)
+    assertNull("facility_rule is not a return reason, and must not read as an unknown one", row.reason)
+    assertEquals(java.time.Instant.parse("2026-09-30T10:00:00Z"), l.declinedAt)
+    assertTrue(l.canSendAgain); assertFalse(l.canDecline); assertNull(l.returnReason)
+
+    // A reason a later API adds is still a decline, said without a why.
+    assertEquals(me.paxana.abcmailbox.domain.DeclineReason.OTHER, json.decodeFromString<MessageDto>(raw.replace("\"facility_rule\"", "\"duplicate\"")).toDomain().declineReason)
+  }
 }

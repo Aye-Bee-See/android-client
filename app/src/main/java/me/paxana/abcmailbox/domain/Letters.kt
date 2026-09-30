@@ -12,6 +12,8 @@ enum class LetterStatus(val key: String, @StringRes val labelRes: Int, @StringRe
   RECEIVED("received", R.string.status_received, R.string.status_received_meaning),
   /** The post brought it back (API PR #105). From `mailed` only, and final. Why is in [Letter.returnReason]. */
   RETURNED("returned", R.string.status_returned, R.string.status_returned_meaning),
+  /** Its group decided not to mail it (API #170). From `queued` or `printed`, and final. Why is in [Letter.declineReason]. */
+  DECLINED("declined", R.string.status_declined, R.string.status_declined_meaning),
   UNKNOWN("", R.string.status_unknown, null);
 
   companion object {
@@ -27,8 +29,30 @@ data class Attachment(val id: Int, val messageId: Int, val name: String, val mim
   }
 }
 
-/** `reason` and `note` come with a move to `returned` only. The note is what the envelope said, in the group's words; it is never encrypted. */
-data class StatusChange(val from: LetterStatus?, val to: LetterStatus, val at: Instant?, val byUserId: Int?, val reason: ReturnReason? = null, val note: String? = null)
+/**
+ * `reason` and `note` come with a move to `returned` or `declined` only, and `rule` with a `facility_rule` decline. The note
+ * is the group's words to the writer (what the envelope said, or why they would not send it); it is never encrypted.
+ */
+data class StatusChange(
+  val from: LetterStatus?, val to: LetterStatus, val at: Instant?, val byUserId: Int?, val reason: ReturnReason? = null, val note: String? = null,
+  val declineReason: DeclineReason? = null, val rule: String? = null,
+)
+
+/**
+ * Why a group would not mail a letter (API #170). Like a return, a code the phone words in the reader's language.
+ * [labelRes] is the writer's sentence, [adviceRes] what they can do about it, [choiceRes] what a group admin picks.
+ */
+enum class DeclineReason(val key: String, @StringRes val labelRes: Int, @StringRes val adviceRes: Int, @StringRes val choiceRes: Int) {
+  /** It would break one of the facility's mail rules, named in [Letter.declineRule]. */
+  FACILITY_RULE("facility_rule", R.string.decline_facility_rule, R.string.decline_facility_rule_advice, R.string.decline_choice_facility_rule),
+  CONTENT("content", R.string.decline_content, R.string.decline_content_advice, R.string.decline_choice_content),
+  OTHER("other", R.string.decline_other, R.string.decline_other_advice, R.string.decline_choice_other);
+
+  companion object {
+    /** A reason this version has not heard of is still a decline: said without a why. */
+    fun fromKey(key: String?): DeclineReason? = if (key.isNullOrEmpty()) null else entries.firstOrNull { it.key == key } ?: OTHER
+  }
+}
 
 /**
  * Why a letter came back. The server sends a code and the phone chooses the words, so they can be in the
@@ -70,7 +94,7 @@ enum class HeldReason(val key: String, /** One line for the group's queue. */ @S
   companion object { fun fromKey(key: String?): HeldReason? = if (key.isNullOrEmpty()) null else entries.firstOrNull { it.key == key } ?: OTHER }
 }
 
-/** A letter sent to replace one that came back. */
+/** A letter sent to replace one that came back, or one its group would not send. */
 data class Resent(val id: Int, val status: LetterStatus, val at: Instant?)
 
 data class Letter(
@@ -93,11 +117,15 @@ data class Letter(
   val locked: Boolean = false,
   /** Set when [status] is `RETURNED`. */
   val returnReason: ReturnReason? = null,
+  /** Set when [status] is `DECLINED` (API #170): why, the facility's rule for a `facility_rule` decline, and the group's words. */
+  val declineReason: DeclineReason? = null,
+  val declineRule: String? = null,
+  val declineNote: String? = null,
   /** Set while a queued letter is held. */
   val heldReason: HeldReason? = null,
-  /** The returned letter this one replaces. */
+  /** The returned or declined letter this one replaces. */
   val resendOfId: Int? = null,
-  /** On a returned letter: what was sent in its place. Only on a full read. */
+  /** On a returned or declined letter: what was sent in its place. */
   val resentAs: List<Resent> = emptyList(),
   /** The note as the letter itself carries it (API PR #117). [returnNoteKnown] false means an older API that puts it on the history only. */
   val returnNoteOnLetter: String? = null,
@@ -113,8 +141,11 @@ data class Letter(
   /** What the envelope said when it came back, if the group wrote it down. It lives on the history row, so only a full read has it. */
   val returnNote: String? get() = returnNoteOnLetter?.takeIf { it.isNotBlank() } ?: history.lastOrNull { it.to == LetterStatus.RETURNED }?.note?.takeIf { it.isNotBlank() }
   val returnedAt: Instant? get() = history.lastOrNull { it.to == LetterStatus.RETURNED }?.at ?: statusChangedAt.takeIf { status == LetterStatus.RETURNED }
+  val declinedAt: Instant? get() = history.lastOrNull { it.to == LetterStatus.DECLINED }?.at ?: statusChangedAt.takeIf { status == LetterStatus.DECLINED }
   /** Offered once: a letter already sent again shows what replaced it. Not for a letter this device cannot open, which has no text to send. */
-  val canSendAgain: Boolean get() = !fromPrisoner && status == LetterStatus.RETURNED && resentAs.isEmpty() && !locked
+  val canSendAgain: Boolean get() = !fromPrisoner && (status == LetterStatus.RETURNED || status == LetterStatus.DECLINED) && resentAs.isEmpty() && !locked
+  /** A group may decline a letter it has not mailed yet, held ones included (API #170). */
+  val canDecline: Boolean get() = !fromPrisoner && (status == LetterStatus.QUEUED || status == LetterStatus.PRINTED)
   /** The brief's rule: a writer may edit or delete only while the letter is queued. */
   val canEdit: Boolean get() = !fromPrisoner && status == LetterStatus.QUEUED
 }

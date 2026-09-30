@@ -54,8 +54,8 @@ class GroupViewModelsTest {
     override fun queue(groupId: Int, status: LetterStatus): Flow<PagingData<QueueItem>> = emptyFlow()
     var looks = 0
     // Letter nights (API PR #111) and the group's numbers (PR #112).
-    val batches = mutableListOf<Pair<List<Int>, LetterStatus>>(); var batchRefusal: AppError? = null
-    override suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus): ApiResult<Int> { batchRefusal?.let { return ApiResult.Failure(it) }; batches += messageIds to status; return ApiResult.Success(messageIds.size) }
+    val batches = mutableListOf<Pair<List<Int>, LetterStatus>>(); var batchRefusal: AppError? = null; val batchDeclined = mutableListOf<me.paxana.abcmailbox.data.repo.DeclinedAs?>()
+    override suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus, declined: me.paxana.abcmailbox.data.repo.DeclinedAs?): ApiResult<Int> { batchRefusal?.let { return ApiResult.Failure(it) }; batches += messageIds to status; batchDeclined += declined; return ApiResult.Success(messageIds.size) }
     var numbers: me.paxana.abcmailbox.data.repo.GroupNumbers? = me.paxana.abcmailbox.data.repo.GroupNumbers("Test Chapter", before = 0, countedHere = 1, published = null, averageDaysToMail = null)
     val savedBefore = mutableListOf<Int>()
     override suspend fun numbers() = ApiResult.Success(numbers)
@@ -64,13 +64,14 @@ class GroupViewModelsTest {
     val footer = me.paxana.abcmailbox.domain.LetterFooter("Sam Hollow", false, 1, "Test Chapter", "5476-3594-6", false)
     override suspend fun queueItem(messageId: Int): ApiResult<QueueItem> { looks++; return ApiResult.Success(QueueItem(letter().copy(footer = footer, replyReference = "5476-3594-6"), null)) }
     /** What came with each move: how it came back, and whether a hold was knowingly released. */
-    val returnedAs = mutableListOf<me.paxana.abcmailbox.data.repo.ReturnedAs?>(); val releases = mutableListOf<Boolean>()
+    val returnedAs = mutableListOf<me.paxana.abcmailbox.data.repo.ReturnedAs?>(); val releases = mutableListOf<Boolean>(); val declinedAs = mutableListOf<me.paxana.abcmailbox.data.repo.DeclinedAs?>()
     /** Set to make the letter held, as the server would after someone is freed. */
     var held: me.paxana.abcmailbox.domain.HeldReason? = null
-    override suspend fun setStatus(messageId: Int, status: LetterStatus, returned: me.paxana.abcmailbox.data.repo.ReturnedAs?, release: Boolean): ApiResult<Letter> {
+    override suspend fun setStatus(messageId: Int, status: LetterStatus, returned: me.paxana.abcmailbox.data.repo.ReturnedAs?, release: Boolean, declined: me.paxana.abcmailbox.data.repo.DeclinedAs?): ApiResult<Letter> {
       refuse?.let { return ApiResult.Failure(it) }
       if (held != null && status == LetterStatus.PRINTED && !release) return ApiResult.Failure(AppError.Conflict("This letter is held.", "LetterHeldError"))
-      moves += status; returnedAs += returned; releases += release; this.status = status; held = null; return ApiResult.Success(letter())
+      moves += status; returnedAs += returned; releases += release; declinedAs += declined; this.status = status; held = null
+      return ApiResult.Success(letter().copy(declineReason = declined?.reason, declineRule = declined?.rule, declineNote = declined?.note))
     }
     override suspend fun writers() = ApiResult.Success(emptyList<ManagedWriter>())
     override suspend fun addWriter(name: String, email: String?, note: String?): ApiResult<ManagedWriter> = refuse?.let { ApiResult.Failure(it) } ?: ApiResult.Success(ManagedWriter(47, name.trim(), email, note, null))
@@ -306,5 +307,54 @@ class GroupViewModelsTest {
     vm.onTyped("5"); vm.save(); dispatcher.scheduler.advanceUntilIdle()
     assertEquals("Number must be from 0 to 100000.", vm.ui.value.fieldError)
     assertEquals(null, vm.ui.value.error)
+  }
+
+  // API #170: a group declines to mail a letter ----------------------------------------------------------------
+
+  @Test
+  fun `a letter not yet mailed is declined with its reason, a held one without releasing it, and a mailed one cannot be`() = runTest {
+    val group = FakeGroup().apply { held = HeldReason.PRISONER_FREE }
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(vm.ui.value.mayDecline)
+    val why = me.paxana.abcmailbox.data.repo.DeclinedAs(me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE, "handwritten_only", "This facility only takes handwritten letters.")
+    vm.decline(why); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(LetterStatus.DECLINED), group.moves); assertEquals(listOf(why), group.declinedAs); assertEquals(listOf(false), group.releases)
+    assertEquals("Not sent. The writer has been told.", vm.ui.value.notice)
+    assertEquals(LetterStatus.DECLINED, (vm.ui.value.item as Loadable.Loaded).value.letter.status)
+
+    val mailed = FakeGroup(LetterStatus.MAILED); val late = LetterWorkViewModel(mailed, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    late.decline(why); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("a mailed letter is in the post: there is nothing left to decline", mailed.moves.isEmpty())
+  }
+
+  @Test
+  fun `a superadmin is not offered it, since the API lets only the relay group decline`() = runTest {
+    val group = FakeGroup()
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings(), isSuperadmin = true); dispatcher.scheduler.advanceUntilIdle()
+    assertFalse(vm.ui.value.mayDecline)
+    vm.decline(me.paxana.abcmailbox.data.repo.DeclinedAs(me.paxana.abcmailbox.domain.DeclineReason.CONTENT)); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(group.moves.isEmpty())
+  }
+
+  @Test
+  fun `ticked letters are declined together, and a rule is offered only when every one of their facilities has it`() = runTest {
+    fun rule(tag: String) = me.paxana.abcmailbox.domain.MailRule(tag, "paper_and_ink", tag, null)
+    val sel = QueueSelection(selected = setOf(1, 2), rulesOf = mapOf(1 to listOf(rule("handwritten_only"), rule("no_stickers")), 2 to listOf(rule("no_stickers"))))
+    assertEquals(listOf("no_stickers"), sel.commonRules.map { it.tag })
+    assertTrue(QueueSelection(selected = setOf(1, 2), rulesOf = mapOf(1 to listOf(rule("a")), 2 to listOf(rule("b")))).commonRules.isEmpty())
+
+    val group = FakeGroup(); val vm = queueVm(group); vm.startSelecting(); vm.toggle(queued(47)); vm.toggle(queued(48))
+    val why = me.paxana.abcmailbox.data.repo.DeclinedAs(me.paxana.abcmailbox.domain.DeclineReason.CONTENT, note = "Threats.")
+    vm.declineSelected(why); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(listOf(47, 48) to LetterStatus.DECLINED), group.batches); assertEquals(listOf(why), group.batchDeclined)
+    assertEquals("2 letters not sent. Their writers have been told.", vm.selection.value.notice); assertFalse(vm.selection.value.selecting)
+  }
+
+  @Test
+  fun `a rule goes with a facility-rule decline only, and the note is trimmed to the API's limit`() {
+    val r = me.paxana.abcmailbox.data.repo.DeclinedAs(me.paxana.abcmailbox.domain.DeclineReason.CONTENT, rule = "handwritten_only", note = "  " + "x".repeat(250) + " ")
+    assertNull("the server refuses a rule on any other reason", r.cleanRule)
+    assertEquals(200, r.cleanNote!!.length)
+    assertNull(me.paxana.abcmailbox.data.repo.DeclinedAs(me.paxana.abcmailbox.domain.DeclineReason.OTHER, note = "   ").cleanNote)
   }
 }

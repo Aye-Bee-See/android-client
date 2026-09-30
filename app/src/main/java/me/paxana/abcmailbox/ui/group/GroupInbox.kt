@@ -91,7 +91,7 @@ fun GroupInbox(
 }
 
 /** In the order the work happens, with the held letters next to the queued ones they were taken out of. (The same five as the iOS app.) */
-private val queueFilters = listOf(QueueFilter.ByStatus(LetterStatus.QUEUED), QueueFilter.Held, QueueFilter.ByStatus(LetterStatus.PRINTED), QueueFilter.ByStatus(LetterStatus.MAILED), QueueFilter.ByStatus(LetterStatus.RETURNED))
+private val queueFilters = listOf(QueueFilter.ByStatus(LetterStatus.QUEUED), QueueFilter.Held, QueueFilter.ByStatus(LetterStatus.PRINTED), QueueFilter.ByStatus(LetterStatus.MAILED), QueueFilter.ByStatus(LetterStatus.RETURNED), QueueFilter.ByStatus(LetterStatus.DECLINED))
 
 @Composable
 private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltViewModel()) {
@@ -106,6 +106,7 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
   val selection by viewModel.selection.collectAsStateWithLifecycle()
   val snackbar = remember { SnackbarHostState() }
   var confirmMailed by remember { mutableStateOf(false) }
+  var declineMany by remember { mutableStateOf(false) }
   LaunchedEffect(selection.notice) { selection.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
   LaunchedEffect(selection.done) { if (selection.done > 0) items.refresh() }
   val next = viewModel.nextStep
@@ -117,7 +118,7 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
         modifier = Modifier.weight(1f),
         emptyText = stringResource(when (val f = filter) {
           QueueFilter.Held -> R.string.queue_empty_held
-          is QueueFilter.ByStatus -> when (f.status) { LetterStatus.QUEUED -> R.string.queue_empty_queued; LetterStatus.PRINTED -> R.string.queue_empty_printed; LetterStatus.RETURNED -> R.string.queue_empty_returned; else -> R.string.queue_empty_mailed }
+          is QueueFilter.ByStatus -> when (f.status) { LetterStatus.QUEUED -> R.string.queue_empty_queued; LetterStatus.PRINTED -> R.string.queue_empty_printed; LetterStatus.RETURNED -> R.string.queue_empty_returned; LetterStatus.DECLINED -> R.string.queue_empty_declined; else -> R.string.queue_empty_mailed }
         }),
         header = {
           item("status") {
@@ -148,6 +149,8 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
           TextButton(onClick = viewModel::stopSelecting, enabled = !selection.busy) { Text(stringResource(R.string.action_cancel)) }
           Text(pluralStringResource(R.plurals.selected_count, selection.count, selection.count), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+          // A letter night turns up letters that must not go (API #170): not sent together, for one reason.
+          TextButton(onClick = { declineMany = true }, enabled = selection.count > 0 && !selection.busy, modifier = Modifier.testTag("decline-selected")) { Text(stringResource(R.string.action_decline), color = MaterialTheme.colorScheme.error) }
           Button(
             // "Mailed" cannot be taken back, for one letter or for thirty: the same question first.
             onClick = { if (next == LetterStatus.MAILED) confirmMailed = true else viewModel.markSelected() },
@@ -158,6 +161,12 @@ private fun QueueTab(onLetter: (Int) -> Unit, viewModel: QueueViewModel = hiltVi
     }
     SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (selection.selecting) 64.dp else 0.dp)) { Snackbar(it) }
   }
+
+  if (declineMany) DeclineDialog(
+    title = pluralStringResource(R.plurals.decline_many_title, selection.count, selection.count), rules = selection.commonRules,
+    noRulesText = stringResource(if (selection.count > 1) R.string.decline_no_common_rules else R.string.decline_no_rules),
+    onDismiss = { declineMany = false }, onDecline = { declineMany = false; viewModel.declineSelected(it) },
+  )
 
   if (confirmMailed) AlertDialog(
     onDismissRequest = { confirmMailed = false },
@@ -182,6 +191,7 @@ private fun QueueRow(q: QueueItem, onClick: (() -> Unit)?, modifier: Modifier = 
     // A held letter says so before anything else: it is in the list, and it is not to be printed like the others.
     notice = q.letter.heldReason?.takeIf { q.letter.isHeld }?.let { stringResource(it.queueNoticeRes) }
       ?: q.letter.returnReason?.takeIf { q.letter.status == LetterStatus.RETURNED }?.let { stringResource(R.string.queue_came_back, stringResource(it.choiceRes).lowercase()) }
+      ?: q.letter.declineReason?.takeIf { q.letter.status == LetterStatus.DECLINED }?.let { stringResource(R.string.queue_declined, stringResource(it.choiceRes).lowercase()) }
       ?: q.letter.relayNote?.let { stringResource(R.string.note_prefixed, it) },
     onClick = onClick,
     modifier = modifier,

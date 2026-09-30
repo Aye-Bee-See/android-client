@@ -66,6 +66,14 @@ data class GroupNumbers(val groupName: String, val before: Int, val countedHere:
 
 data class ReturnedAs(val reason: me.paxana.abcmailbox.domain.ReturnReason, val note: String? = null) { companion object { const val NOTE_MAX = 200 } }
 
+/** Why a group will not mail a letter (API #170). [rule] is a tag of the letter's facility's rules, for `FACILITY_RULE` only. */
+data class DeclinedAs(val reason: me.paxana.abcmailbox.domain.DeclineReason, val rule: String? = null, val note: String? = null) {
+  companion object { const val NOTE_MAX = 200 }
+  internal val cleanNote: String? get() = note?.trim()?.take(NOTE_MAX)?.ifBlank { null }
+  /** The server refuses a rule on any other reason. */
+  internal val cleanRule: String? get() = rule?.takeIf { reason == me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE }
+}
+
 /**
  * An API from before PR #106 ignores `held=true` and lists every queued letter, which would show a group its whole
  * queue under "Held". So the page is checked on the phone (the iOS app found this on its simulator). If the server
@@ -86,9 +94,9 @@ interface GroupRepository {
   suspend fun numbers(): ApiResult<GroupNumbers?> = ApiResult.Success(null)
   suspend fun setLettersSentBefore(count: Int): ApiResult<Unit> = ApiResult.Failure(AppError.Unexpected(UnsupportedOperationException()))
   /** Moves several letters together, all or none (API PR #111). Answers how many moved; a failure names the letter that stopped it. */
-  suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus): ApiResult<Int> = ApiResult.Failure(AppError.Unexpected(UnsupportedOperationException()))
-  /** [returned] is required for, and only for, `RETURNED`. [release] prints a held letter knowingly. */
-  suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs? = null, release: Boolean = false): ApiResult<Letter>
+  suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus, declined: DeclinedAs? = null): ApiResult<Int> = ApiResult.Failure(AppError.Unexpected(UnsupportedOperationException()))
+  /** [returned] is required for, and only for, `RETURNED`; [declined] for `DECLINED`. [release] prints a held letter knowingly. */
+  suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs? = null, release: Boolean = false, declined: DeclinedAs? = null): ApiResult<Letter>
   suspend fun writers(): ApiResult<List<ManagedWriter>>
   suspend fun addWriter(name: String, email: String?, note: String?): ApiResult<ManagedWriter>
   suspend fun issueToken(writerId: Int): ApiResult<IssuedToken>
@@ -198,11 +206,11 @@ class DefaultGroupRepository @Inject constructor(
     return apiCall(json) { api.setLettersSentBefore(LettersSentBeforeRequest(groupId, count)) }.map { }
   }
 
-  override suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus): ApiResult<Int> {
+  override suspend fun setStatusOfMany(messageIds: List<Int>, status: LetterStatus, declined: DeclinedAs?): ApiResult<Int> {
     if (messageIds.isEmpty()) return ApiResult.Success(0)
     // The API takes 200 at a time. More than that would stop being all-or-none, so it is refused here, not split quietly.
     if (messageIds.size > BATCH_MAX) return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_batch_too_many, BATCH_MAX))))
-    return when (val r = apiCall(json) { api.setStatusBatch(BatchStatusRequest(messageIds.distinct(), status.key)) }) {
+    return when (val r = apiCall(json) { api.setStatusBatch(BatchStatusRequest(messageIds.distinct(), status.key, reason = declined?.reason?.key, note = declined?.cleanNote, rule = declined?.cleanRule)) }) {
       is ApiResult.Success -> ApiResult.Success(r.value.data?.count ?: messageIds.size)
       // An API from before PR #111 has no such address. Say that, not "not found", which would read as a missing letter.
       // Express answers an address it does not have with "Cannot PUT /…"; a letter that does not exist reads "Message 42 not found".
@@ -210,9 +218,10 @@ class DefaultGroupRepository @Inject constructor(
     }
   }
 
-  override suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs?, release: Boolean): ApiResult<Letter> {
+  override suspend fun setStatus(messageId: Int, status: LetterStatus, returned: ReturnedAs?, release: Boolean, declined: DeclinedAs?): ApiResult<Letter> {
     codec.ready()
-    val request = StatusRequest(messageId, status.key, reason = returned?.reason?.key, note = returned?.note?.trim()?.take(ReturnedAs.NOTE_MAX)?.ifBlank { null }, release = true.takeIf { release })
+    val request = if (declined != null) StatusRequest(messageId, status.key, reason = declined.reason.key, note = declined.cleanNote, rule = declined.cleanRule)
+      else StatusRequest(messageId, status.key, reason = returned?.reason?.key, note = returned?.note?.trim()?.take(ReturnedAs.NOTE_MAX)?.ifBlank { null }, release = true.takeIf { release })
     return apiCall(json) { api.setStatus(request) }.map { codec.incoming(checkNotNull(it.data)) }
   }
 

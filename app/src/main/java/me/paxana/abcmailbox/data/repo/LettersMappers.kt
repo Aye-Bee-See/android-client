@@ -13,6 +13,7 @@ import me.paxana.abcmailbox.domain.LetterStatus
 import me.paxana.abcmailbox.domain.Resent
 import me.paxana.abcmailbox.domain.HeldReason
 import me.paxana.abcmailbox.domain.ReturnReason
+import me.paxana.abcmailbox.domain.DeclineReason
 import me.paxana.abcmailbox.domain.StatusChange
 import me.paxana.abcmailbox.domain.Thread
 
@@ -23,8 +24,11 @@ fun StatusHistoryDto.toDomain() = StatusChange(
   to = LetterStatus.fromKey(toStatus),
   at = createdAt.toInstantOrNull(),
   byUserId = changedBy,
-  reason = ReturnReason.fromKey(reason),
+  // The same field, two vocabularies: a decline's reasons are not a return's.
+  reason = ReturnReason.fromKey(reason).takeIf { toStatus != LetterStatus.DECLINED.key },
   note = note,
+  declineReason = DeclineReason.fromKey(reason).takeIf { toStatus == LetterStatus.DECLINED.key },
+  rule = rule?.takeIf { it.isNotBlank() },
 )
 
 fun MessageDto.toDomain(): Letter = Letter(
@@ -45,6 +49,9 @@ fun MessageDto.toDomain(): Letter = Letter(
   history = statusHistory.orEmpty().map { it.toDomain() },
   attachments = attachments.orEmpty().map { it.toDomain() },
   returnReason = ReturnReason.fromKey(returnReason),
+  declineReason = DeclineReason.fromKey(declineReason),
+  declineRule = declineRule?.takeIf { it.isNotBlank() },
+  declineNote = declineNote?.takeIf { it.isNotBlank() },
   heldReason = HeldReason.fromKey(heldReason),
   resendOfId = resendOf,
   resentAs = resentAs.orEmpty().map { Resent(it.id, LetterStatus.fromKey(it.status), it.createdAt.toInstantOrNull()) },

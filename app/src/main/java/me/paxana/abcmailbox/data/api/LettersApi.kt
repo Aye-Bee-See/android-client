@@ -134,7 +134,7 @@ data class SendMessageRequest(
   /** Omitted (not null) when unset, so the server resolves the relay group itself. */
   val relayChapter: Int? = null,
   val relayNote: String? = null,
-  /** One of this writer's returned letters to the same prisoner, which this letter replaces. It is routed afresh. */
+  /** One of this writer's returned or declined letters to the same prisoner, which this letter replaces. It is routed afresh. */
   val resendOf: Int? = null,
   /** A reply filed by the number the prisoner copied (API PR #120): the server fills in `user`, `prisoner` and `repliesTo` from it. */
   val reference: String? = null,
@@ -219,6 +219,10 @@ data class MessageDto(
    */
   @Serializable(with = ReturnNoteField::class) val returnNote: String = ReturnNoteField.ABSENT,
   val heldReason: String? = null,
+  // API #170: why the relay group would not mail it, the facility rule's tag, and the group's words. Never encrypted.
+  val declineReason: String? = null,
+  val declineRule: String? = null,
+  val declineNote: String? = null,
   val resendOf: Int? = null,
   @SerialName("resent_as") val resentAs: List<ResentDto>? = null,
   /**
@@ -262,9 +266,10 @@ data class StatusHistoryDto(
   val toStatus: String,
   val changedBy: Int? = null,
   val createdAt: String? = null,
-  /** With a move to `returned` only: why it came back, and what the envelope said. */
+  /** With a move to `returned` or `declined` only: why, and the group's note; `rule` with a `facility_rule` decline. */
   val reason: String? = null,
   val note: String? = null,
+  val rule: String? = null,
 )
 
 @Serializable

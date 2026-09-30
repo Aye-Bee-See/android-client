@@ -84,6 +84,7 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
   var confirmMailed by remember { mutableStateOf(false) }
   var confirmRelease by remember { mutableStateOf(false) }
   var recordReturn by remember { mutableStateOf(false) }
+  var decline by remember { mutableStateOf(false) }
   var choosePartner by remember { mutableStateOf(false) }
 
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
@@ -106,6 +107,7 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
           onAdvance = { if (s.value.letter.status == LetterStatus.PRINTED) confirmMailed = true else viewModel.advance() },
           onRelease = { confirmRelease = true },
           onCameBack = { recordReturn = true },
+          onDecline = { decline = true }.takeIf { ui.mayDecline },
           onPrint = { PrintLetter.print(context, strings.get(R.string.print_job_name, s.value.prisoner?.name ?: strings.get(R.string.print_job_prisoner)), s.value.letter.body, s.value.letter.footer?.sentence(strings)) },
           onOpen = viewModel::open,
           onThread = { s.value.letter.threadId?.let(onThread) },
@@ -138,6 +140,13 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
     dismissButton = { TextButton(onClick = { confirmRelease = false }) { Text(stringResource(R.string.action_leave_it_held)) } },
   )
 
+  (ui.item as? Loadable.Loaded)?.value?.takeIf { decline }?.let { item ->
+    DeclineDialog(
+      title = stringResource(R.string.decline_dialog_title), rules = item.prisoner?.facility?.rules?.rules.orEmpty(), noRulesText = stringResource(R.string.decline_no_rules),
+      onDismiss = { decline = false }, onDecline = { decline = false; viewModel.decline(it) },
+    )
+  }
+
   if (recordReturn) ReturnDialog(onDismiss = { recordReturn = false }, onRecord = { reason, note -> recordReturn = false; viewModel.markReturned(reason, note) })
 
   if (confirmMailed) AlertDialog(
@@ -153,6 +162,8 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
 private fun LetterWorkBody(
   item: QueueItem, busy: Boolean, onAdvance: () -> Unit, onPrint: () -> Unit, onOpen: (me.paxana.abcmailbox.domain.Attachment) -> Unit, onThread: () -> Unit,
   canShare: Boolean = false, onShare: () -> Unit = {}, onCameBack: () -> Unit = {}, onRelease: () -> Unit = {},
+  /** Null for someone who may not decline (a superadmin). */
+  onDecline: (() -> Unit)? = null,
 ) {
   val letter = item.letter
   val p = item.prisoner
@@ -218,8 +229,17 @@ private fun LetterWorkBody(
         Text(letter.returnedAt?.let { stringResource(R.string.returned_group_line_on, it.longDate(), why) } ?: stringResource(R.string.returned_group_line, why), color = MaterialTheme.colorScheme.onSurfaceVariant)
         letter.returnNote?.let { Text(stringResource(R.string.return_group_note, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
       }
+      LetterStatus.DECLINED -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        val strings = rememberStrings()
+        val why = letter.declineRule?.let { tag -> p?.facility?.rules?.rules?.firstOrNull { it.tag == tag } ?: me.paxana.abcmailbox.domain.MailRuleCatalog.Compiled.resolve(tag) }?.label(strings)
+          ?: stringResource((letter.declineReason ?: me.paxana.abcmailbox.domain.DeclineReason.OTHER).choiceRes).lowercase()
+        Text(letter.declinedAt?.let { stringResource(R.string.declined_group_line_on, it.longDate(), why) } ?: stringResource(R.string.declined_group_line, why), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        letter.declineNote?.let { Text(stringResource(R.string.decline_group_note, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+      }
       else -> Unit
     }
+    // Not sending it is the other way out of the queue, and the safe one for a held letter. Quiet, in the error colour: final.
+    if (onDecline != null && letter.canDecline) TextButton(onClick = onDecline, enabled = !busy, modifier = Modifier.testTag("decline")) { Text(stringResource(R.string.action_decline), color = MaterialTheme.colorScheme.error) }
     // End-to-end only, and only where the facility has another relay group: the server permits no other readers.
     if (canShare && (letter.status == LetterStatus.QUEUED || letter.status == LetterStatus.PRINTED)) OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.share_title)) }
     TextButton(onClick = onThread) { Text(stringResource(R.string.action_open_conversation)) }
@@ -321,6 +341,64 @@ private fun ReturnDialog(onDismiss: () -> Unit, onRecord: (ReturnReason, String)
       }
     },
     confirmButton = { TextButton(onClick = { reason?.let { onRecord(it, note) } }, enabled = reason != null, modifier = Modifier.testTag("return-record")) { Text(stringResource(R.string.action_record_return)) } },
+    dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+  )
+}
+
+/**
+ * Not sending a letter, or several (API #170). The three reasons are the API's codes, worded for the person deciding;
+ * a facility's rule is picked from that facility's own list, since the server takes no other. As with a return, the
+ * note is the only free text, and the warning beside it is the point: the writer reads it, and it is never encrypted.
+ * [rules] empty turns the rule reason off, with [noRulesText] saying why.
+ */
+@Composable
+internal fun DeclineDialog(title: String, rules: List<me.paxana.abcmailbox.domain.MailRule>, noRulesText: String, onDismiss: () -> Unit, onDecline: (me.paxana.abcmailbox.data.repo.DeclinedAs) -> Unit) {
+  var reason by remember { mutableStateOf<me.paxana.abcmailbox.domain.DeclineReason?>(null) }
+  var rule by remember { mutableStateOf<String?>(null) }
+  var note by remember { mutableStateOf("") }
+  val strings = rememberStrings()
+  val ready = reason != null && (reason != me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE || rule != null)
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(title) },
+    text = {
+      Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(stringResource(R.string.decline_dialog_text), style = MaterialTheme.typography.bodyMedium)
+        me.paxana.abcmailbox.domain.DeclineReason.entries.forEach { r ->
+          val possible = r != me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE || rules.isNotEmpty()
+          Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected = reason == r, enabled = possible, role = Role.RadioButton, onClick = { reason = r }).testTag("decline-${r.key}"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            RadioButton(selected = reason == r, onClick = null, enabled = possible)
+            Text(stringResource(r.choiceRes), style = MaterialTheme.typography.bodyLarge, color = if (possible) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+          }
+          if (r == me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE && !possible) Text(noRulesText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 40.dp))
+        }
+        if (reason == me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE) {
+          Text(stringResource(R.string.label_decline_rule), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp, start = 16.dp))
+          rules.forEach { r ->
+            Row(
+              Modifier.fillMaxWidth().heightIn(min = 44.dp).selectable(selected = rule == r.tag, role = Role.RadioButton, onClick = { rule = r.tag }).padding(start = 16.dp).testTag("decline-rule-${r.tag}"),
+              verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              RadioButton(selected = rule == r.tag, onClick = null)
+              Text(r.label(strings), style = MaterialTheme.typography.bodyMedium)
+            }
+          }
+        }
+        OutlinedTextField(
+          note, { note = it.take(me.paxana.abcmailbox.data.repo.DeclinedAs.NOTE_MAX) }, label = { Text(stringResource(R.string.label_decline_note)) },
+          supportingText = { Text(stringResource(R.string.help_decline_note, note.length, me.paxana.abcmailbox.data.repo.DeclinedAs.NOTE_MAX)) },
+          minLines = 2, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).testTag("decline-note"),
+        )
+      }
+    },
+    confirmButton = {
+      TextButton(onClick = { reason?.let { onDecline(me.paxana.abcmailbox.data.repo.DeclinedAs(it, rule.takeIf { _ -> it == me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE }, note)) } }, enabled = ready, modifier = Modifier.testTag("decline-confirm")) {
+        Text(stringResource(R.string.action_decline_confirm), color = if (ready) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+      }
+    },
     dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
   )
 }

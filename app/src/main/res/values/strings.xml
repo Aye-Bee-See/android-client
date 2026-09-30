@@ -1233,4 +1233,49 @@
     <!-- Mail rules that came with API PR #120 (labels for Spanish and Russian; English comes from the server) -->
     <string name="rule_no_reference_numbers">No reference numbers</string>
     <string name="rule_reply_sheet_allowed">Reply sheet allowed</string>
+
+    <!-- API #170: a group declines to mail a letter -->
+    <string name="status_declined">Not mailed</string>
+    <string name="status_declined_meaning">Its group decided not to mail it. It did not go.</string>
+    <string name="status_declined_by_on">%1$s decided not to send it, on %2$s</string>
+    <string name="status_declined_by">%1$s decided not to send it</string>
+    <string name="decline_facility_rule">Not sent: it would have broken one of the facility’s mail rules.</string>
+    <string name="decline_facility_rule_advice">Change what the rule is about, then send it again. Mail that breaks a rule is usually thrown away or sent back, and can count against the person inside.</string>
+    <string name="decline_content">Not sent: the group judged it inappropriate or unsafe to send.</string>
+    <string name="decline_content_advice">Read it again with that in mind. You can write a new version and send it.</string>
+    <string name="decline_other">Not sent: the group decided not to mail it.</string>
+    <string name="decline_other_advice">The group’s note may say why. You can change it and send it again.</string>
+    <string name="decline_rule_line">The rule: %s</string>
+    <string name="decline_note_from">From %s, about why</string>
+    <string name="decline_choice_facility_rule">It would break one of the facility’s rules</string>
+    <string name="decline_choice_content">It is inappropriate or unsafe to send</string>
+    <string name="decline_choice_other">Something else (say what in the note)</string>
+    <string name="action_decline">Don’t send…</string>
+    <string name="action_decline_confirm">Don’t send it</string>
+    <string name="decline_dialog_title">Don’t send this letter</string>
+    <string name="decline_dialog_text">The writer is told it was not sent, and why, and can change it and send it again. It cannot be undone.</string>
+    <string name="label_decline_rule">Which rule</string>
+    <string name="decline_no_rules">No rules are recorded for this facility, so this reason cannot be chosen.</string>
+    <string name="decline_no_common_rules">These letters go to facilities with no rule in common. To name a rule, decline them one at a time.</string>
+    <string name="label_decline_note">A few words to the writer (optional)</string>
+    <string name="help_decline_note">%1$d of %2$d. The writer reads this note, and it is not encrypted, even when letters are. Say why, and do not quote the letter.</string>
+    <string name="notice_declined">Not sent. The writer has been told.</string>
+    <string name="declined_group_line_on">Not sent: declined on %1$s (%2$s). The writer has been told and can send it again.</string>
+    <string name="declined_group_line">Not sent (%1$s). The writer has been told and can send it again.</string>
+    <string name="decline_group_note">Your group’s note: %s</string>
+    <string name="queue_declined">Not sent: %s</string>
+    <string name="queue_empty_declined">No letter has been declined.</string>
+    <string name="activity_declined">Your group decided not to send one of your letters.</string>
+    <plurals name="activity_declined_many">
+        <item quantity="one">Your group decided not to send %d of your letters.</item>
+        <item quantity="other">Your group decided not to send %d of your letters.</item>
+    </plurals>
+    <plurals name="notice_many_declined">
+        <item quantity="one">%d letter not sent. Its writer has been told.</item>
+        <item quantity="other">%d letters not sent. Their writers have been told.</item>
+    </plurals>
+    <plurals name="decline_many_title">
+        <item quantity="one">Don’t send %d letter</item>
+        <item quantity="other">Don’t send %d letters</item>
+    </plurals>
 </resources>
