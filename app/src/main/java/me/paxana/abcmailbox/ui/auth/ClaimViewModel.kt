@@ -41,12 +41,12 @@ data class ClaimUiState(
   val tokenDead: Boolean = false,
   /** The account was claimed and signed in from this screen: the session that follows is the new one, and the screen may leave. */
   val claimed: Boolean = false,
-  /** The pen name as typed and checked (API PR #120); optional, so an empty one never blocks. */
+  /** The pen name as typed and checked (API PR #120); required since API #168, and filled in when the group already chose one. */
   val penName: PenNameState = PenNameState(),
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && token.isNotBlank()
-  val canClaim: Boolean get() = !busy && info != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && understood && !penName.blocks
+  val canClaim: Boolean get() = !busy && info != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && understood && penName.ready
 }
 
 /**
@@ -98,7 +98,11 @@ class ClaimViewModel(
     _ui.update { it.copy(busy = true, error = null, tokenDead = false) }
     viewModelScope.launch {
       when (val r = sessions.claimInfo(ClaimToken.normalise(typed))) {
-        is ApiResult.Success -> _ui.update { it.copy(busy = false, info = r.value, token = ClaimToken.pretty(typed)) }
+        is ApiResult.Success -> {
+          // The group already named the writer (API #168): theirs to keep or change. Not over a name typed already.
+          r.value.penName?.let { given -> if (_ui.value.penName.missing) penName.prefill(given) }
+          _ui.update { it.copy(busy = false, info = r.value, token = ClaimToken.pretty(typed)) }
+        }
         is ApiResult.Failure -> _ui.update { it.copy(busy = false, tokenDead = r.error is AppError.Gone, error = r.error.toClaimMessage(strings)) }
       }
     }
@@ -109,7 +113,7 @@ class ClaimViewModel(
     if (!s.canClaim) return
     _ui.update { it.copy(busy = true, error = null) }
     viewModelScope.launch {
-      when (val r = sessions.claim(ClaimToken.normalise(s.token), s.username, s.password, s.email, s.penName.value.ifBlank { null })) {
+      when (val r = sessions.claim(ClaimToken.normalise(s.token), s.username, s.password, s.email, s.penName.value.takeUnless { s.penName.keepsGiven }?.ifBlank { null })) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", claimed = true) }
         is ApiResult.Failure -> {

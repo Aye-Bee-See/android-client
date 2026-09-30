@@ -22,6 +22,8 @@ class FakeSessionRepository(
   val attempts = mutableListOf<Pair<String, String>>()
   val claimChecks = mutableListOf<String>()
   val claims = mutableListOf<List<String?>>()
+  /** The pen name the group gave the writer, as `GET /auth/claim` answers it (API #168). */
+  var claimPenName: String? = null
   var passwordChangedTo: String? = null
   override val expired = MutableSharedFlow<Unit>()
   private val _state = MutableStateFlow<SessionState>(SessionState.SignedOut)
@@ -46,7 +48,7 @@ class FakeSessionRepository(
   override suspend fun claimInfo(token: String): ApiResult<ClaimInfo> {
     claimChecks += token
     claimInfoError?.let { return ApiResult.Failure(it) }
-    return ApiResult.Success(ClaimInfo("Alex", "Test Chapter", Instant.parse("2026-09-20T00:00:00Z")))
+    return ApiResult.Success(ClaimInfo("Alex", "Test Chapter", Instant.parse("2026-09-20T00:00:00Z"), penName = claimPenName))
   }
 
   override suspend fun claim(token: String, username: String, password: String, email: String?, penName: String?): ApiResult<Session> {
@@ -78,8 +80,8 @@ class FakeSessionRepository(
     invitationError?.let { return ApiResult.Failure(it) }
     return ApiResult.Success(invitation)
   }
-  override suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: me.paxana.abcmailbox.domain.NewGroupProfile?, groupFields: Set<String>): ApiResult<me.paxana.abcmailbox.domain.InvitationAccepted> {
-    acceptances += listOf(token, username, password, email, name) to group
+  override suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: me.paxana.abcmailbox.domain.NewGroupProfile?, groupFields: Set<String>, penName: String?): ApiResult<me.paxana.abcmailbox.domain.InvitationAccepted> {
+    acceptances += listOf(token, username, password, email, name, penName) to group
     nextError?.let { return ApiResult.Failure(it) }
     return when (val r = login(username, password)) {
       is ApiResult.Failure -> r

@@ -95,6 +95,9 @@ class PenNameViewModel @Inject constructor(private val repo: PenNameRepository, 
   /** The name the account goes by when it has no pen name: what the letters are signed with today. */
   val displayName: String get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.displayName.orEmpty()
 
+  /** A writer must have a pen name (API #168); staff sign no letters and are not told they need one. */
+  val isWriter: Boolean get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.role == me.paxana.abcmailbox.data.session.Role.USER
+
   init {
     viewModelScope.launch { checker.state.collect { st -> _ui.update { it.copy(typed = st) } } }
     load()
@@ -158,6 +161,7 @@ fun PenNameScreen(onBack: () -> Unit, viewModel: PenNameViewModel = hiltViewMode
           verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
           val names = n.value
+          if (names.current == null && viewModel.isWriter) AlertBanner(stringResource(R.string.pen_name_needed), modifier = Modifier.testTag("pen-name-needed"))
           Text(stringResource(R.string.pen_name_intro), style = MaterialTheme.typography.bodyLarge)
           Text(
             names.current?.let { stringResource(R.string.pen_name_current, it) } ?: stringResource(R.string.pen_name_none_yet, viewModel.displayName),

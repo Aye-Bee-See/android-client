@@ -44,12 +44,12 @@ data class JoinUiState(
   val joined: Boolean = false,
   /** A 24-character token was typed here: an invitation (or a claim) token, which the invitation screen checks. */
   val invitationToken: String? = null,
-  /** The pen name as typed and checked (API PR #120); optional, so an empty one never blocks. */
+  /** The pen name as typed and checked (API PR #120); required since API #168. */
   val penName: PenNameState = PenNameState(),
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && code.isNotBlank()
-  val canJoin: Boolean get() = !busy && invitation != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && !penName.blocks
+  val canJoin: Boolean get() = !busy && invitation != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH && passwordsMatch && penName.ready
 }
 
 /**

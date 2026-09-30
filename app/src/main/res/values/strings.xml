@@ -1147,7 +1147,9 @@
 
     <!-- Phase 17: pen names (API PR #120) -->
     <string name="label_pen_name">Pen name</string>
-    <string name="help_pen_name">The name your letters are signed with, and the name a prisoner writes back to. Two parts read as a name in a mail room. Optional now; you can set or change it later, and old names stay yours.</string>
+    <string name="help_pen_name">The name your letters are signed with, and the name a prisoner writes back to. Two parts read as a name in a mail room. Required; you can change it later, and old names stay yours.</string>
+    <string name="pen_name_given_by_group">Your group chose this pen name for you. Keep it, or type another.</string>
+    <string name="pen_name_needed">Every writer now needs a pen name, so that no letter is signed with your own name. Choose one below.</string>
     <string name="pen_name_rules">3 to 40 characters, starting with a letter: letters, digits, spaces, hyphens, apostrophes and dots.</string>
     <string name="pen_name_too_short">A pen name has at least 3 characters.</string>
     <string name="pen_name_too_long">A pen name has at most 40 characters.</string>

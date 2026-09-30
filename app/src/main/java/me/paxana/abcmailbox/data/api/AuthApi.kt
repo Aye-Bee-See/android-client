@@ -116,9 +116,12 @@ interface AuthApi {
   suspend fun updateUser(@Body body: UpdateUserRequest): ApiEnvelope<UpdateUserData>
 }
 
+/** Since API #168, `penName` is the name the group gave, or null when the claim must ask for one. */
+@Serializable data class ClaimWriterDto(val id: Int, val name: String? = null, val penName: String? = null)
+
 @Serializable
 data class ClaimInfoDto(
-  val writer: NamedRef,
+  val writer: ClaimWriterDto,
   val chapter: NamedRef? = null,
   val expiresAt: String? = null,
   // End-to-end mode: the writer's keypair, private half wrapped under the claim token.
@@ -187,6 +190,8 @@ data class AcceptInvitationRequest(
   /** Required here: unlike a join, the server makes no placeholder for a group admin. */
   val email: String,
   val name: String? = null,
+  /** Required since API #168, as at a join. */
+  val penName: String? = null,
   /** Only for a `group` invitation; refused on a `member` one. */
   val group: GroupProfileDto? = null,
   /** `"split"`: `password` is the auth key, derived with `kdfSalt`/`kdfParams` (API PR #114). Absent means plain. */

@@ -41,6 +41,7 @@ class SessionViewModel @Inject constructor(
   private val activity: ActivityRepository,
   activityScheduler: ActivityScheduler,
   private val eraser: me.paxana.abcmailbox.data.account.AccountEraser,
+  penNames: me.paxana.abcmailbox.data.repo.PenNameRepository,
 ) : ViewModel() {
   /** The receipt for an account just deleted. Lives above every screen, because every screen is rebuilt when the session goes. */
   val farewell: StateFlow<me.paxana.abcmailbox.data.account.DeletionReport?> = eraser.farewell
@@ -74,6 +75,10 @@ class SessionViewModel @Inject constructor(
   private val _recoveryOutcome = MutableSharedFlow<RecoveryOutcome>(extraBufferCapacity = 1)
   val recoveryOutcome: SharedFlow<RecoveryOutcome> = _recoveryOutcome.asSharedFlow()
   val keysLocked: StateFlow<Boolean> = repository.keysLocked
+  private val penNamePrompt = PenNamePrompt(viewModelScope, repository.state, penNames)
+  /** A writer's account with no pen name (made before API #168): the shell opens the pen name screen once. */
+  val askPenName: StateFlow<Boolean> = penNamePrompt.ask
+  fun penNameAsked() = penNamePrompt.asked()
   val mode: StateFlow<EncryptionMode> = modes.mode
 
   init {

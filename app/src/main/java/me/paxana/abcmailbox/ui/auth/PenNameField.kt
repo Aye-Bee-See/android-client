@@ -33,14 +33,29 @@ data class PenNameState(
   val checking: Boolean = false,
   val check: PenNameCheck? = null,
   val checkFailed: Boolean = false,
+  /**
+   * The name the group already gave this writer (a claim, API #168). Kept as it is, it is theirs: the public check
+   * would call it taken, so it is not asked, and the server keeps it when nothing is sent.
+   */
+  val given: String? = null,
 ) {
+  /** The group's name, as given or in another spelling that folds to it: nothing to check and nothing to send. */
+  val keepsGiven: Boolean get() = given != null && PenName.normalise(value).equals(PenName.normalise(given), ignoreCase = true)
+
+  /** Required when an account is made (API #168): an empty field keeps the form from going on, but is not an error until then. */
+  val missing: Boolean get() = value.isBlank()
+
   /** The form must not go on with this name: the shape is wrong, or the server said it is taken. An unreachable check does not block; the server checks again on submit. */
-  val blocks: Boolean get() = value.isNotBlank() && (problem != null || check?.available == false)
-  val isError: Boolean get() = problem != null || check?.available == false
+  val blocks: Boolean get() = value.isNotBlank() && !keepsGiven && (problem != null || check?.available == false)
+  val isError: Boolean get() = !keepsGiven && (problem != null || check?.available == false)
+
+  /** Enough to make an account with: present, and not refused by the shape or the check. */
+  val ready: Boolean get() = !missing && !blocks
 
   /** What to say under the field, or null for the rules. */
   fun message(strings: Strings): String? = when {
     value.isBlank() -> null
+    keepsGiven -> strings.get(R.string.pen_name_given_by_group)
     problem != null -> problem
     check != null -> when {
       // The app's words where the code says why (API PR #133), in the reader's language; else the API's sentence.
@@ -63,11 +78,17 @@ class PenNameChecker(private val scope: CoroutineScope, private val repo: PenNam
   val state: StateFlow<PenNameState> = _state.asStateFlow()
   private var job: Job? = null
 
+  /** The group already named this writer: the field starts with that name, kept unless changed. */
+  fun prefill(given: String) {
+    job?.cancel()
+    _state.value = PenNameState(value = given, given = given)
+  }
+
   fun onChange(v: String) {
     job?.cancel()
     val problem = if (v.isBlank()) null else PenName.problem(v, strings)
-    _state.value = PenNameState(value = v, problem = problem)
-    if (v.isBlank() || problem != null) return
+    _state.value = PenNameState(value = v, problem = problem, given = _state.value.given)
+    if (v.isBlank() || problem != null || _state.value.keepsGiven) return
     job = scope.launch {
       delay(DEBOUNCE_MS)
       _state.update { it.copy(checking = true) }

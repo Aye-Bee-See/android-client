@@ -48,10 +48,35 @@ class ClaimViewModelTest {
     vm.onUsernameChange("alexwrites"); vm.onPasswordChange("longenough"); vm.onConfirmChange("longenough")
     assertFalse("must tick the box first", vm.ui.value.canClaim)
     vm.onUnderstoodChange(true)
+    assertFalse("the group gave no pen name, so one is required (API #168)", vm.ui.value.canClaim)
+    vm.onPenNameChange("Alex Rowan"); dispatcher.scheduler.advanceUntilIdle()
     assertTrue(vm.ui.value.canClaim)
     vm.claim(); dispatcher.scheduler.advanceUntilIdle()
-    assertEquals(listOf(token, "alexwrites", "longenough", "", null), repo.claims.single())
+    assertEquals(listOf(token, "alexwrites", "longenough", "", "Alex Rowan"), repo.claims.single())
     assertTrue(repo.state.value is SessionState.SignedIn)
+  }
+
+  @Test
+  fun `a pen name the group gave is filled in, kept without a check or a send, and may be changed`() = runTest {
+    val repo = FakeSessionRepository().apply { claimPenName = "Group Given" }
+    // The public check would call the writer's own name taken: it must not be asked about it.
+    val names = FakePenNames().apply { taken += "group given" }
+    val vm = ClaimViewModel(repo, ClaimRoute(), TestStrings(), names)
+    vm.onTokenChange("dj69-g5k7-xbmy-fww4-p4py-tj8c"); vm.check(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Group Given", vm.ui.value.penName.value)
+    assertEquals("Your group chose this pen name for you. Keep it, or type another.", vm.ui.value.penName.message(TestStrings()))
+
+    vm.onUsernameChange("alexwrites"); vm.onPasswordChange("longenough"); vm.onConfirmChange("longenough"); vm.onUnderstoodChange(true)
+    vm.onPenNameChange("group  given "); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("the same name, spelt loosely, is still the group's", vm.ui.value.canClaim)
+    assertTrue(names.checks.isEmpty())
+    vm.claim(); dispatcher.scheduler.advanceUntilIdle()
+    assertNull("nothing sent: the server keeps the group's name", repo.claims.single()[4])
+
+    val other = ClaimViewModel(FakeSessionRepository().apply { claimPenName = "Group Given" }, ClaimRoute(), TestStrings(), names)
+    other.onTokenChange("dj69-g5k7-xbmy-fww4-p4py-tj8c"); other.check(); dispatcher.scheduler.advanceUntilIdle()
+    other.onPenNameChange("Alex Rowan"); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf("Alex Rowan"), names.checks)
   }
 
   @Test
