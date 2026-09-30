@@ -1261,4 +1261,55 @@
     <!-- Mail rules that came with API PR #120 (labels for Spanish and Russian; English comes from the server) -->
     <string name="rule_no_reference_numbers">Без номеров</string>
     <string name="rule_reply_sheet_allowed">Разрешён лист для ответа</string>
+
+    <!-- API #170: a group declines to mail a letter -->
+    <string name="status_declined">Не отправлено почтой</string>
+    <string name="status_declined_meaning">Группа решила не отправлять его. Письмо не ушло.</string>
+    <string name="status_declined_by_on">%1$s решила не отправлять его, %2$s</string>
+    <string name="status_declined_by">%1$s решила не отправлять его</string>
+    <string name="decline_facility_rule">Не отправлено: письмо нарушило бы одно из почтовых правил учреждения.</string>
+    <string name="decline_facility_rule_advice">Измените то, чего касается правило, и отправьте снова. Письма, нарушающие правила, обычно выбрасывают или возвращают, и это может навредить заключённому.</string>
+    <string name="decline_content">Не отправлено: группа сочла письмо неуместным или небезопасным для отправки.</string>
+    <string name="decline_content_advice">Перечитайте его с этой мыслью. Можно написать новый вариант и отправить.</string>
+    <string name="decline_other">Не отправлено: группа решила не отправлять письмо.</string>
+    <string name="decline_other_advice">В заметке группы может быть сказано почему. Письмо можно изменить и отправить снова.</string>
+    <string name="decline_rule_line">Правило: %s</string>
+    <string name="decline_note_from">От %s, о причине</string>
+    <string name="decline_choice_facility_rule">Нарушило бы правило учреждения</string>
+    <string name="decline_choice_content">Неуместно или небезопасно отправлять</string>
+    <string name="decline_choice_other">Другое (объясните в заметке)</string>
+    <string name="action_decline">Не отправлять…</string>
+    <string name="action_decline_confirm">Не отправлять</string>
+    <string name="decline_dialog_title">Не отправлять это письмо</string>
+    <string name="decline_dialog_text">Автору сообщат, что письмо не отправлено и почему, и он сможет изменить его и отправить снова. Это нельзя отменить.</string>
+    <string name="label_decline_rule">Какое правило</string>
+    <string name="decline_no_rules">Для этого учреждения не записано правил, поэтому эту причину выбрать нельзя.</string>
+    <string name="decline_no_common_rules">Эти письма идут в учреждения без общих правил. Чтобы назвать правило, отклоняйте их по одному.</string>
+    <string name="label_decline_note">Несколько слов автору (необязательно)</string>
+    <string name="help_decline_note">%1$d из %2$d. Автор прочтёт эту заметку, и она не шифруется, даже когда письма шифруются. Объясните причину и не цитируйте письмо.</string>
+    <string name="notice_declined">Не отправлено. Автору сообщили.</string>
+    <string name="declined_group_line_on">Не отправлено: отклонено %1$s (%2$s). Автору сообщили, он может отправить письмо снова.</string>
+    <string name="declined_group_line">Не отправлено (%1$s). Автору сообщили, он может отправить письмо снова.</string>
+    <string name="decline_group_note">Заметка вашей группы: %s</string>
+    <string name="queue_declined">Не отправлено: %s</string>
+    <string name="queue_empty_declined">Отклонённых писем нет.</string>
+    <string name="activity_declined">Ваша группа решила не отправлять одно из ваших писем.</string>
+    <plurals name="activity_declined_many">
+        <item quantity="one">Ваша группа решила не отправлять %d ваше письмо.</item>
+        <item quantity="few">Ваша группа решила не отправлять %d ваших письма.</item>
+        <item quantity="many">Ваша группа решила не отправлять %d ваших писем.</item>
+        <item quantity="other">Ваша группа решила не отправлять %d ваших письма.</item>
+    </plurals>
+    <plurals name="notice_many_declined">
+        <item quantity="one">%d письмо не отправлено. Автору сообщили.</item>
+        <item quantity="few">%d письма не отправлены. Авторам сообщили.</item>
+        <item quantity="many">%d писем не отправлено. Авторам сообщили.</item>
+        <item quantity="other">%d письма не отправлены. Авторам сообщили.</item>
+    </plurals>
+    <plurals name="decline_many_title">
+        <item quantity="one">Не отправлять %d письмо</item>
+        <item quantity="few">Не отправлять %d письма</item>
+        <item quantity="many">Не отправлять %d писем</item>
+        <item quantity="other">Не отправлять %d письма</item>
+    </plurals>
 </resources>

@@ -1210,4 +1210,52 @@
     <!-- Mail rules that came with API PR #120 (labels for Spanish and Russian; English comes from the server) -->
     <string name="rule_no_reference_numbers">Sin números de referencia</string>
     <string name="rule_reply_sheet_allowed">Se permite hoja de respuesta</string>
+
+    <!-- API #170: a group declines to mail a letter -->
+    <string name="status_declined">No enviada por correo</string>
+    <string name="status_declined_meaning">Su grupo decidió no enviarla. No salió.</string>
+    <string name="status_declined_by_on">%1$s decidió no enviarla, el %2$s</string>
+    <string name="status_declined_by">%1$s decidió no enviarla</string>
+    <string name="decline_facility_rule">No enviada: habría incumplido una de las normas de correo del centro.</string>
+    <string name="decline_facility_rule_advice">Cambia lo que toca esa norma y envíala de nuevo. El correo que incumple una norma suele tirarse o devolverse, y puede perjudicar a la persona presa.</string>
+    <string name="decline_content">No enviada: el grupo consideró que no era apropiada o segura para enviar.</string>
+    <string name="decline_content_advice">Reléela teniendo eso en cuenta. Puedes escribir una nueva versión y enviarla.</string>
+    <string name="decline_other">No enviada: el grupo decidió no enviarla.</string>
+    <string name="decline_other_advice">La nota del grupo puede decir por qué. Puedes cambiarla y enviarla de nuevo.</string>
+    <string name="decline_rule_line">La norma: %s</string>
+    <string name="decline_note_from">De %s, sobre el motivo</string>
+    <string name="decline_choice_facility_rule">Incumpliría una norma del centro</string>
+    <string name="decline_choice_content">No es apropiada o segura para enviar</string>
+    <string name="decline_choice_other">Otra cosa (explícalo en la nota)</string>
+    <string name="action_decline">No enviar…</string>
+    <string name="action_decline_confirm">No enviarla</string>
+    <string name="decline_dialog_title">No enviar esta carta</string>
+    <string name="decline_dialog_text">Se avisa a quien escribió de que no se envió y por qué, y puede cambiarla y enviarla de nuevo. No se puede deshacer.</string>
+    <string name="label_decline_rule">Qué norma</string>
+    <string name="decline_no_rules">Este centro no tiene normas registradas, así que no se puede elegir este motivo.</string>
+    <string name="decline_no_common_rules">Estas cartas van a centros sin ninguna norma en común. Para nombrar una norma, recházalas de una en una.</string>
+    <string name="label_decline_note">Unas palabras para quien escribió (opcional)</string>
+    <string name="help_decline_note">%1$d de %2$d. Quien escribió lee esta nota, y no se cifra aunque las cartas sí. Di por qué, y no cites la carta.</string>
+    <string name="notice_declined">No enviada. Se ha avisado a quien escribió.</string>
+    <string name="declined_group_line_on">No enviada: rechazada el %1$s (%2$s). Se ha avisado a quien escribió y puede enviarla de nuevo.</string>
+    <string name="declined_group_line">No enviada (%1$s). Se ha avisado a quien escribió y puede enviarla de nuevo.</string>
+    <string name="decline_group_note">Nota de tu grupo: %s</string>
+    <string name="queue_declined">No enviada: %s</string>
+    <string name="queue_empty_declined">No se ha rechazado ninguna carta.</string>
+    <string name="activity_declined">Tu grupo decidió no enviar una de tus cartas.</string>
+    <plurals name="activity_declined_many">
+        <item quantity="one">Tu grupo decidió no enviar %d de tus cartas.</item>
+        <item quantity="many">Tu grupo decidió no enviar %d de tus cartas.</item>
+        <item quantity="other">Tu grupo decidió no enviar %d de tus cartas.</item>
+    </plurals>
+    <plurals name="notice_many_declined">
+        <item quantity="one">%d carta no enviada. Se ha avisado a quien la escribió.</item>
+        <item quantity="many">%d cartas no enviadas. Se ha avisado a quienes las escribieron.</item>
+        <item quantity="other">%d cartas no enviadas. Se ha avisado a quienes las escribieron.</item>
+    </plurals>
+    <plurals name="decline_many_title">
+        <item quantity="one">No enviar %d carta</item>
+        <item quantity="many">No enviar %d cartas</item>
+        <item quantity="other">No enviar %d cartas</item>
+    </plurals>
 </resources>

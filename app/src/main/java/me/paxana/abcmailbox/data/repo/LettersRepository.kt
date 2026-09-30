@@ -117,11 +117,14 @@ class DefaultLettersRepository @Inject constructor(
    */
   private suspend fun Thread.withReturnsFilledIn(): Thread {
     // Since API PR #117 the note is on the letter itself; only an older API's rows need the read.
-    if (letters.none { it.status == LetterStatus.RETURNED && !it.returnNoteKnown }) return copy(letters = letters.map { l -> if (l.status == LetterStatus.RETURNED) l.copy(resentAs = letters.filter { it.resendOfId == l.id }.map { Resent(it.id, it.status, it.createdAt) }) else l })
+    // A declined letter (API #170) carries its note itself; only what replaced it is read off the conversation.
+    fun Letter.replacedBy() = letters.filter { it.resendOfId == id }.map { Resent(it.id, it.status, it.createdAt) }
+    if (letters.none { it.status == LetterStatus.RETURNED && !it.returnNoteKnown }) return copy(letters = letters.map { l -> if (l.status == LetterStatus.RETURNED || l.status == LetterStatus.DECLINED) l.copy(resentAs = l.replacedBy()) else l })
     val full = coroutineScope {
       letters.filter { it.status == LetterStatus.RETURNED && !it.returnNoteKnown }.map { l -> async { l.id to (apiCall(json) { api.message(l.id) } as? ApiResult.Success)?.value?.data?.toDomain() } }.awaitAll().toMap()
     }
     return copy(letters = letters.map { l ->
+      if (l.status == LetterStatus.DECLINED) return@map l.copy(resentAs = l.replacedBy())
       if (l.status != LetterStatus.RETURNED) return@map l
       l.copy(
         history = full[l.id]?.history?.takeIf { it.isNotEmpty() } ?: l.history,

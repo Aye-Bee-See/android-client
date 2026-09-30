@@ -214,4 +214,13 @@ class ActivityRepositoryTest {
     server.shutdown()
     assertTrue(repo.sync().isEmpty()); assertTrue(shown.isEmpty())
   }
+
+  @Test
+  fun `a letter its group declined is news the writer has to act on, one or many, in their language (API 170)`() {
+    val one = Activity(9, Activity.kindOf("letter.status", "declined"), 41, 50)
+    assertEquals(Activity.Kind.DECLINED, one.kind); assertTrue(one.needsThem)
+    assertEquals("Your group decided not to send one of your letters.", one.sentence(TestStrings()))
+    assertEquals("Ваша группа решила не отправлять 21 ваше письмо.", Activity(10, Activity.Kind.DECLINED, null, null, count = 21).sentence(TestStrings("ru")))
+    assertEquals("Tu grupo decidió no enviar 3 de tus cartas.", Activity(11, Activity.Kind.DECLINED, null, null, count = 3).sentence(TestStrings("es")))
+  }
 }

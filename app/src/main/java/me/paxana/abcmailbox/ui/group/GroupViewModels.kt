@@ -33,6 +33,7 @@ import me.paxana.abcmailbox.domain.IssuedToken
 import me.paxana.abcmailbox.domain.LetterStatus
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.repo.ReturnedAs
+import me.paxana.abcmailbox.data.repo.DeclinedAs
 import me.paxana.abcmailbox.domain.ReturnReason
 import me.paxana.abcmailbox.domain.ManagedWriter
 import me.paxana.abcmailbox.domain.QueueItem
@@ -50,9 +51,19 @@ sealed interface QueueFilter {
 
 /** The print queue: letters this group relays, one filter at a time. */
 /** Marking several letters at once (API PR #111). `selected` null means "not selecting". */
-data class QueueSelection(val selected: Set<Int>? = null, val busy: Boolean = false, val notice: String? = null, /** Goes up after a batch went through, so the screen reloads the list. */ val done: Int = 0) {
+data class QueueSelection(
+  val selected: Set<Int>? = null, val busy: Boolean = false, val notice: String? = null, /** Goes up after a batch went through, so the screen reloads the list. */ val done: Int = 0,
+  /** Each ticked letter's facility rules, for a batch declined for a rule: it must be a rule of every one of them (API #170). */
+  val rulesOf: Map<Int, List<me.paxana.abcmailbox.domain.MailRule>> = emptyMap(),
+) {
   val selecting: Boolean get() = selected != null
   val count: Int get() = selected?.size ?: 0
+  /** The rules every ticked letter's facility has, in the first one's order. */
+  val commonRules: List<me.paxana.abcmailbox.domain.MailRule> get() {
+    val lists = selected.orEmpty().map { rulesOf[it].orEmpty() }
+    if (lists.isEmpty()) return emptyList()
+    return lists.first().filter { r -> lists.all { l -> l.any { it.tag == r.tag } } }
+  }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -86,9 +97,23 @@ class QueueViewModel @Inject constructor(private val group: GroupRepository, ses
     _selection.update { st ->
       val now = st.selected ?: return@update st
       when {
-        item.letter.id in now -> st.copy(selected = now - item.letter.id)
+        item.letter.id in now -> st.copy(selected = now - item.letter.id, rulesOf = st.rulesOf - item.letter.id)
         now.size >= me.paxana.abcmailbox.data.repo.BATCH_MAX -> st.copy(notice = strings.get(R.string.error_batch_too_many, me.paxana.abcmailbox.data.repo.BATCH_MAX))
-        else -> st.copy(selected = now + item.letter.id)
+        else -> st.copy(selected = now + item.letter.id, rulesOf = st.rulesOf + (item.letter.id to item.prisoner?.facility?.rules?.rules.orEmpty()))
+      }
+    }
+  }
+
+  /** Not sending the ticked letters, for one reason (API #170): all or none, like marking them. Each writer is told. */
+  fun declineSelected(declined: DeclinedAs) {
+    val ids = _selection.value.selected?.toList()?.takeIf { it.isNotEmpty() } ?: return
+    if (_selection.value.busy) return
+    _selection.update { it.copy(busy = true, notice = null) }
+    viewModelScope.launch {
+      when (val r = group.setStatusOfMany(ids, LetterStatus.DECLINED, declined)) {
+        is ApiResult.Success -> _selection.update { QueueSelection(notice = strings.plural(R.plurals.notice_many_declined, r.value), done = it.done + 1) }
+        is ApiResult.Failure -> if ((r.error as? AppError.Conflict)?.changedMeanwhile == true) _selection.update { QueueSelection(notice = strings.get(R.string.notice_changed_meanwhile), done = it.done + 1) }
+          else _selection.update { it.copy(busy = false, notice = strings.get(R.string.error_batch_nothing_changed, r.error.message(strings) ?: strings.get(R.string.error_update_letter))) }
       }
     }
   }
@@ -133,6 +158,8 @@ data class LetterWorkUiState(
   val openFile: Pair<File, String>? = null,
   /** End-to-end only: other relay groups of the facility this letter could be shared with. */
   val partners: List<Group> = emptyList(),
+  /** A superadmin holds no key to read a letter, so the API lets only the relay group decline one (API #170). */
+  val mayDecline: Boolean = true,
 )
 
 /** One letter as the relay group sees it: who it goes to, what it says, and where it is in the queue. */
@@ -142,10 +169,12 @@ class LetterWorkViewModel(
   private val letters: LettersRepository,
   private val route: LetterWorkRoute,
   private val strings: Strings,
+  isSuperadmin: Boolean = false,
 ) : ViewModel() {
-  @Inject constructor(group: GroupRepository, letters: LettersRepository, strings: Strings, handle: SavedStateHandle) : this(group, letters, handle.toRoute<LetterWorkRoute>(), strings)
+  @Inject constructor(group: GroupRepository, letters: LettersRepository, strings: Strings, sessions: SessionRepository, handle: SavedStateHandle) :
+    this(group, letters, handle.toRoute<LetterWorkRoute>(), strings, (sessions.state.value as? SessionState.SignedIn)?.session?.user?.role == me.paxana.abcmailbox.data.session.Role.ADMIN)
 
-  private val _ui = MutableStateFlow(LetterWorkUiState())
+  private val _ui = MutableStateFlow(LetterWorkUiState(mayDecline = !isSuperadmin))
   val ui: StateFlow<LetterWorkUiState> = _ui.asStateFlow()
 
   init { load() }
@@ -212,6 +241,27 @@ class LetterWorkViewModel(
           load()
         }
         is ApiResult.Failure -> _ui.update { it.copy(busy = false, notice = r.error.message(strings) ?: strings.get(R.string.error_update_letter)) }
+      }
+    }
+  }
+
+  /**
+   * Not sent, on purpose (API #170): from queued or printed, held letters too, and never once mailed. The writer is told,
+   * with the reason's code on a lock screen and the note only inside the app.
+   */
+  fun decline(declined: DeclinedAs) {
+    val current = (_ui.value.item as? Loadable.Loaded)?.value ?: return
+    if (!current.letter.canDecline || !_ui.value.mayDecline) return
+    _ui.update { it.copy(busy = true) }
+    viewModelScope.launch {
+      when (val r = group.setStatus(route.messageId, LetterStatus.DECLINED, declined = declined)) {
+        is ApiResult.Success -> _ui.update { it.copy(busy = false, item = Loadable.Loaded(current.copy(letter = r.value.copy(attachments = current.letter.attachments, footer = r.value.footer ?: current.letter.footer, replyReference = r.value.replyReference ?: current.letter.replyReference))), notice = strings.get(R.string.notice_declined)) }
+        is ApiResult.Failure -> {
+          // Mailed (or declined) from another phone meanwhile: say so and show the letter as it is now.
+          val meanwhile = (r.error as? AppError.Conflict)?.let { it.changedMeanwhile || it.name == "LetterStatusError" } == true
+          _ui.update { it.copy(busy = false, notice = if (meanwhile) strings.get(R.string.notice_changed_meanwhile) else r.error.message(strings) ?: strings.get(R.string.error_update_letter)) }
+          if (meanwhile) load()
+        }
       }
     }
   }
