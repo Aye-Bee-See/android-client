@@ -35,6 +35,8 @@ class InboxViewModel @Inject constructor(repo: LettersRepository) : ViewModel() 
 
 data class ThreadUiState(
   val thread: Loadable<Thread> = Loadable.Loading,
+  /** A writer's: the groups that blocked them, by id, with the name and reason they were told (API #171). */
+  val blockNotices: Map<Int, me.paxana.abcmailbox.data.activity.GroupBlockNotice> = emptyMap(),
   val retentionDays: Int? = null,
   val busyMessageId: Int? = null,
   /** Set for group members: the group they act for. Null for writers. */
@@ -56,11 +58,12 @@ class ThreadViewModel(
   private val route: ThreadRoute,
   private val strings: Strings,
   private val directory: me.paxana.abcmailbox.data.repo.DirectoryRepository,
+  blockNotices: me.paxana.abcmailbox.data.activity.GroupBlockNotices = me.paxana.abcmailbox.data.activity.GroupBlockNotices.None,
 ) : ViewModel() {
 
   @Inject
-  constructor(repo: LettersRepository, sessions: SessionRepository, strings: Strings, directory: me.paxana.abcmailbox.data.repo.DirectoryRepository, savedStateHandle: SavedStateHandle) :
-    this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>(), strings, directory)
+  constructor(repo: LettersRepository, sessions: SessionRepository, strings: Strings, directory: me.paxana.abcmailbox.data.repo.DirectoryRepository, blockNotices: me.paxana.abcmailbox.data.activity.GroupBlockNotices, savedStateHandle: SavedStateHandle) :
+    this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>(), strings, directory, blockNotices)
 
   // Who is looking decides what the screen offers: a group member records replies and writes for its writers.
   private val viewer = (sessions.state.value as? SessionState.SignedIn)?.session?.user
@@ -70,6 +73,8 @@ class ThreadViewModel(
   init {
     load()
     viewModelScope.launch { (repo.retentionDays() as? ApiResult.Success)?.let { r -> _ui.update { it.copy(retentionDays = r.value) } } }
+    // A writer's own blocks (API #171), with the reasons they were told: said beside a letter those groups hold.
+    viewer?.takeIf { !it.isStaff }?.let { me -> viewModelScope.launch { blockNotices.notices(me.id).collect { n -> _ui.update { it.copy(blockNotices = n) } } } }
   }
 
   fun load() {

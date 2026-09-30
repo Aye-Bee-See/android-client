@@ -20,8 +20,11 @@ sealed class AppError : Exception() {
   /** No token, a bad token, or (on login) wrong credentials. */
   data class Unauthorized(val info: String?) : AppError()
 
-  /** The caller is known but not allowed; `info` explains what to do. */
-  data class Forbidden(val info: String) : AppError()
+  /** The caller is known but not allowed; `info` explains what to do. [name] and [code] are the API's, where it sent them. */
+  data class Forbidden(val info: String, val name: String? = null, val code: String? = null) : AppError() {
+    /** The group that would mail this letter has blocked its writer (API #171). */
+    val isGroupBlock: Boolean get() = name == "GroupBlockError" || code == "group_block"
+  }
 
   /** [condition] where the API has a code (`unknown` on a reply reference: not this group's, or never issued). */
   data class NotFound(val info: String?, val condition: String? = null) : AppError() {

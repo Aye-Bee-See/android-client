@@ -117,7 +117,49 @@ interface GroupApi {
   /** Cancels the unused codes of one batch (`batch`) or of every batch (`all`). Used codes, and their accounts, stay. */
   @HTTP(method = "DELETE", path = "auth/invite-codes", hasBody = true)
   suspend fun cancelInviteCodes(@Body body: CancelInviteCodesRequest): ApiEnvelope<CancelledInviteCodesDto>
+
+  // Blocking a writer (API #171) and recommending a site-wide block (#172) ----------------
+
+  /** The writers this group will not mail letters for, newest first. */
+  @GET("chapter/blocks")
+  suspend fun blocks(): ApiEnvelope<List<WriterBlockDto>>
+
+  /** Blocks a writer from this group; the writer is told the reason. Blocking again replaces it. */
+  @POST("chapter/block")
+  suspend fun block(@Body body: BlockRequest): ApiEnvelope<BlockedDto>
+
+  /** Lifts a block; the letters it held go back into the queue. 404 when there is none. */
+  @HTTP(method = "DELETE", path = "chapter/block", hasBody = true)
+  suspend fun unblock(@Body body: UnblockRequest): ApiEnvelope<UnblockedDto>
+
+  /** This group's recommendations, in every state. */
+  @GET("moderation/ban-recommendations")
+  suspend fun banRecommendations(): ApiEnvelope<List<BanRecommendationDto>>
+
+  /** For the superadmins only: the writer is not told. One waiting per group and writer (409 `pending`). */
+  @POST("moderation/ban-recommendation")
+  suspend fun recommendBan(@Body body: BlockRequest): ApiEnvelope<kotlinx.serialization.json.JsonElement>
 }
+
+@Serializable data class BlockRequest(val user: Int, val reason: String)
+@Serializable data class UnblockRequest(val user: Int)
+@Serializable data class BlockedDto(val chapter: Int? = null, val user: Int? = null, val reason: String? = null, val held: Int = 0)
+@Serializable data class UnblockedDto(val chapter: Int? = null, val user: Int? = null, val released: Int = 0)
+@Serializable data class BlockWriterDto(val id: Int, val penName: String? = null, val name: String? = null, val username: String? = null)
+@Serializable data class BlockPersonDto(val id: Int, val username: String? = null, val name: String? = null)
+@Serializable
+data class WriterBlockDto(val chapter: Int? = null, val writer: BlockWriterDto? = null, val reason: String? = null, val blockedBy: BlockPersonDto? = null, val blockedAt: String? = null)
+@Serializable
+data class BanRecommendationDto(
+  val id: Int,
+  val reason: String? = null,
+  val status: String? = null,
+  val decisionNote: String? = null,
+  val decidedAt: String? = null,
+  val createdAt: String? = null,
+  val writer: BlockWriterDto? = null,
+  @kotlinx.serialization.SerialName("recommended_by") val recommendedBy: BlockPersonDto? = null,
+)
 
 @Serializable data class IssueInviteCodesRequest(val count: Int, val label: String? = null, val days: Int? = null, val chapter: Int? = null)
 @Serializable

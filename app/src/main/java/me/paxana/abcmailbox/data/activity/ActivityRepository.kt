@@ -16,6 +16,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.NotificationDto
 import me.paxana.abcmailbox.data.api.NotificationsApi
@@ -62,6 +63,7 @@ class DefaultActivityRepository @Inject constructor(
   private val notifier: ActivityNotifier,
   private val json: Json,
   private val keyring: GroupKeyring,
+  private val blockNotices: GroupBlockNotices = GroupBlockNotices.None,
 ) : ActivityRepository {
 
   private val _unread = MutableStateFlow(0)
@@ -85,7 +87,8 @@ class DefaultActivityRepository @Inject constructor(
     _unread.value = envelope.unread ?: entries.size
     val all = entries.map { e ->
       e to Activity(
-        e.id, Activity.kindOf(e.event, e.detailText("status"), e.detailText("action")), e.chat, e.message,
+        // `ban.decided` says what became of the recommendation under `decision` (API #172).
+        e.id, Activity.kindOf(e.event, e.detailText("status"), e.detailText("action") ?: e.detailText("decision")), e.chat, e.message,
         held = e.detailInt("held") ?: 0,
         count = (e.detailInt("count") ?: 1).coerceAtLeast(1),
         // "Your copy was withdrawn" and "you are the owner now" read differently from the same news about somebody else.
@@ -94,6 +97,16 @@ class DefaultActivityRepository @Inject constructor(
       )
     }
     val fresh = all.filter { (e, _) -> e.readAt == null }.map { it.second }
+    // A group's block, with its name and reason (API #171), kept for the app to say inside, never on the lock screen.
+    all.filter { (e, _) -> e.event == "writer.block" }.sortedBy { it.first.id }.forEach { (e, a) ->
+      val group = runCatching { e.detail?.get("chapter")?.jsonObject }.getOrNull() ?: return@forEach
+      val groupId = runCatching { group["id"]?.jsonPrimitive?.intOrNull }.getOrNull() ?: return@forEach
+      when (a.kind) {
+        Activity.Kind.WRITER_BLOCKED -> blockNotices.blocked(user, groupId, GroupBlockNotice(runCatching { group["name"]?.jsonPrimitive?.contentOrNull }.getOrNull(), e.detailText("reason")))
+        Activity.Kind.WRITER_UNBLOCKED -> blockNotices.lifted(user, groupId)
+        else -> Unit
+      }
+    }
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }
     if (announce && fresh.isNotEmpty()) {
       // A banner over the app you are already using is noise, and it would leave the screen underneath stale.
@@ -111,6 +124,7 @@ class DefaultActivityRepository @Inject constructor(
 
   override suspend fun forget(userId: Int) {
     dataStore.edit { it.remove(lastSeenKey(userId)) }
+    blockNotices.forget(userId)
     _unread.value = 0
     notifier.clear()
   }

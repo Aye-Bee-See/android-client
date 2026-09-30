@@ -26,4 +26,10 @@ class ErrorWordsTest {
     assertEquals("Letter 41 was changed.", AppError.Conflict("Letter 41 was changed.", "LetterStatusError").message(en))
     assertEquals(null, AppError.Network(java.io.IOException()).message(en))
   }
+
+  @Test
+  fun `a group's block of the writer is worded by the app, not with the server's group number`() {
+    val e = AppError.Forbidden("Error creating message.", "GroupBlockError", "group_block")
+    assertEquals("The group that mails to this facility is not mailing letters from your account.", e.message(TestStrings()))
+  }
 }

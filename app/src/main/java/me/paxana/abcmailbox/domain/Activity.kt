@@ -22,13 +22,15 @@ data class Activity(
   /** `group.owner` with `owner: null`: the owner left the group or was demoted, and a superadmin has to name a new one. */
   val ownerless: Boolean = false,
 ) {
-  enum class Kind { REPLY, PRINTED, MAILED, RETURNED, DECLINED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, GROUP_KEY_SET, GROUP_KEY_HANDED, GROUP_KEY_REMOVED, GROUP_KEY_ROTATED, GROUP_OWNER, GROUP_WAITING, OTHER }
+  enum class Kind { REPLY, PRINTED, MAILED, RETURNED, DECLINED, MOVED, FREED, QUEUED_FOR_GROUP, CHANGE_APPROVED, CHANGE_REJECTED, GROUP_KEY_SET, GROUP_KEY_HANDED, GROUP_KEY_REMOVED, GROUP_KEY_ROTATED, GROUP_OWNER, GROUP_WAITING,
+    /** API #171/#172: a group stopped or resumed mailing this writer's letters; this group blocked or unblocked a writer; a recommendation was decided or made. */
+    WRITER_BLOCKED, WRITER_UNBLOCKED, GROUP_BLOCKED, GROUP_UNBLOCKED, BAN_BANNED, BAN_DISMISSED, BAN_RECOMMENDED, OTHER }
 
   /** The group's key changed hands or was replaced: what this phone holds may be stale. */
   val touchesGroupKey: Boolean get() = kind == Kind.GROUP_KEY_SET || kind == Kind.GROUP_KEY_HANDED || kind == Kind.GROUP_KEY_REMOVED || kind == Kind.GROUP_KEY_ROTATED
 
   /** Something the person has to do, not only know. These share the replies' channel: a letter that waits for its writer goes nowhere until they look. */
-  val needsThem: Boolean get() = kind == Kind.RETURNED || kind == Kind.DECLINED || ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0)
+  val needsThem: Boolean get() = kind == Kind.RETURNED || kind == Kind.DECLINED || kind == Kind.WRITER_BLOCKED || ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0)
 
   fun sentence(strings: Strings): String = base(strings) + if ((kind == Kind.MOVED || kind == Kind.FREED) && held > 0) " " + strings.plural(R.plurals.activity_waiting, held) else ""
 
@@ -61,6 +63,14 @@ data class Activity(
       Kind.GROUP_KEY_ROTATED -> R.string.activity_group_key_rotated
       Kind.GROUP_OWNER -> if (ownerless) R.string.activity_group_ownerless else if (aboutMe) R.string.activity_group_owner_you else R.string.activity_group_owner
       Kind.GROUP_WAITING -> R.string.activity_group_waiting
+      // Which group, and why, are said inside the app only (GroupBlockNotices): these can land on a lock screen.
+      Kind.WRITER_BLOCKED -> R.string.activity_writer_blocked
+      Kind.WRITER_UNBLOCKED -> R.string.activity_writer_unblocked
+      Kind.GROUP_BLOCKED -> R.string.activity_group_blocked
+      Kind.GROUP_UNBLOCKED -> R.string.activity_group_unblocked
+      Kind.BAN_BANNED -> R.string.activity_ban_banned
+      Kind.BAN_DISMISSED -> R.string.activity_ban_dismissed
+      Kind.BAN_RECOMMENDED -> R.string.activity_ban_recommended
       // An event this version has never heard of still deserves a ring: the app will show whatever it is.
       Kind.OTHER -> R.string.activity_other
     }
@@ -71,6 +81,10 @@ data class Activity(
       "group.key" -> when (action) { "set" -> Kind.GROUP_KEY_SET; "handed" -> Kind.GROUP_KEY_HANDED; "removed" -> Kind.GROUP_KEY_REMOVED; "rotated" -> Kind.GROUP_KEY_ROTATED; else -> Kind.OTHER }
       "group.owner" -> Kind.GROUP_OWNER
       "group.waiting" -> Kind.GROUP_WAITING
+      "writer.block" -> when (action) { "blocked" -> Kind.WRITER_BLOCKED; "lifted" -> Kind.WRITER_UNBLOCKED; else -> Kind.OTHER }
+      "group.block" -> when (action) { "blocked" -> Kind.GROUP_BLOCKED; "lifted" -> Kind.GROUP_UNBLOCKED; else -> Kind.OTHER }
+      "ban.decided" -> when (action) { "banned", "ban" -> Kind.BAN_BANNED; "dismissed", "dismiss" -> Kind.BAN_DISMISSED; else -> Kind.OTHER }
+      "ban.recommended" -> Kind.BAN_RECOMMENDED
       "letter.reply" -> Kind.REPLY
       "letter.status" -> when (status) { "printed" -> Kind.PRINTED; "mailed" -> Kind.MAILED; "returned" -> Kind.RETURNED; "declined" -> Kind.DECLINED; else -> Kind.OTHER }
       "prisoner.moved" -> Kind.MOVED

@@ -357,4 +357,60 @@ class GroupViewModelsTest {
     assertEquals(200, r.cleanNote!!.length)
     assertNull(me.paxana.abcmailbox.data.repo.DeclinedAs(me.paxana.abcmailbox.domain.DeclineReason.OTHER, note = "   ").cleanNote)
   }
+
+  // API #171, #172: blocking a writer from the group, and recommending a site-wide block --------------------------
+
+  class FakeBlocks(var recommendRefusal: AppError? = null) : me.paxana.abcmailbox.data.repo.BlocksRepository {
+    val blocked = mutableListOf<Pair<Int, String>>(); val recommended = mutableListOf<Pair<Int, String>>(); val unblocked = mutableListOf<Int>()
+    var list = listOf(
+      me.paxana.abcmailbox.data.repo.WriterBlock(me.paxana.abcmailbox.data.repo.BlockedWriter(4, "Sam Hollow", null), "Threats.", "Chapter One", null),
+      me.paxana.abcmailbox.data.repo.WriterBlock(me.paxana.abcmailbox.data.repo.BlockedWriter(5, null, "Rae"), "Spam.", null, null),
+    )
+    override suspend fun blocks() = ApiResult.Success(list)
+    override suspend fun block(writerId: Int, reason: String): ApiResult<Int> { blocked += writerId to reason; return ApiResult.Success(2) }
+    override suspend fun unblock(writerId: Int): ApiResult<Int> { unblocked += writerId; return ApiResult.Success(1) }
+    override suspend fun recommendations() = ApiResult.Success(emptyList<me.paxana.abcmailbox.data.repo.BanRecommendation>())
+    override suspend fun recommendBan(writerId: Int, reason: String): ApiResult<Unit> { recommendRefusal?.let { return ApiResult.Failure(it) }; recommended += writerId to reason; return ApiResult.Success(Unit) }
+  }
+
+  @Test
+  fun `a writer is blocked from the letter's page with a reason, and the letter is looked at again, now held`() = runTest {
+    val group = FakeGroup(); val blocks = FakeBlocks()
+    val vm = LetterWorkViewModel(group, ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings(), blocks = blocks); dispatcher.scheduler.advanceUntilIdle()
+    vm.blockWriter("   "); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("a reason is required", blocks.blocked.isEmpty())
+    vm.blockWriter("Threats in two letters."); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(4 to "Threats in two letters."), blocks.blocked)
+    assertEquals("Blocked. The writer has been told; 2 of their letters here are now held.", vm.ui.value.notice)
+    assertEquals("looked again", 2, group.looks)
+  }
+
+  @Test
+  fun `a site-wide block is recommended, and asking twice is said kindly, not as a failure`() = runTest {
+    val blocks = FakeBlocks()
+    val vm = LetterWorkViewModel(FakeGroup(), ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings(), blocks = blocks); dispatcher.scheduler.advanceUntilIdle()
+    vm.recommendBan("Threats to a volunteer."); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(4 to "Threats to a volunteer."), blocks.recommended)
+    assertEquals("Recommended. A superadmin will decide; the writer is not told.", vm.ui.value.notice)
+
+    blocks.recommendRefusal = AppError.Conflict("Your group already recommended this.", "BanRecommendationError", "pending")
+    vm.recommendBan("Again."); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Your group already recommended this, and it is waiting for a superadmin.", vm.ui.value.notice)
+
+    val theirs = FakeBlocks()
+    val admin = LetterWorkViewModel(FakeGroup(), ComposeViewModelTest.FakeLetters(), LetterWorkRoute(41), TestStrings(), isSuperadmin = true, blocks = theirs); dispatcher.scheduler.advanceUntilIdle()
+    admin.blockWriter("x"); admin.recommendBan("x"); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("a superadmin bans instead, and is offered neither", theirs.blocked.isEmpty() && theirs.recommended.isEmpty())
+  }
+
+  @Test
+  fun `the blocked writers list shows each by pen name, and unblocking takes one off it`() = runTest {
+    val blocks = FakeBlocks(); val vm = BlocksViewModel(blocks, TestStrings()); dispatcher.scheduler.advanceUntilIdle()
+    val listed = (vm.ui.value.blocks as Loadable.Loaded).value
+    assertEquals(listOf("Sam Hollow", "Rae"), listed.map { it.writer.shownName })
+    vm.unblock(listed.first().writer); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(4), blocks.unblocked)
+    assertEquals(listOf(5), (vm.ui.value.blocks as Loadable.Loaded).value.map { it.writer.id })
+    assertEquals("Unblocked. 1 held letter went back into the queue.", vm.ui.value.notice)
+  }
 }

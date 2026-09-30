@@ -1258,4 +1258,71 @@
         <item quantity="many">No enviar %d cartas</item>
         <item quantity="other">No enviar %d cartas</item>
     </plurals>
+
+    <!-- API #171, #172: blocking a writer, recommending a site-wide block -->
+    <string name="error_group_block">El grupo que envía el correo a este centro no envía cartas de tu cuenta.</string>
+    <string name="error_group_block_choose">%1$s no envía cartas de tu cuenta. Otro grupo envía correo a este centro: elígelo abajo y envía.</string>
+    <string name="error_group_block_only">%1$s no envía cartas de tu cuenta, y ningún otro grupo envía correo a este centro, así que esta carta no puede salir por ahora. Sigue aquí; no se envió nada.</string>
+    <string name="held_queue_writer_blocked">Retenida: tu grupo bloqueó a quien escribe</string>
+    <string name="held_group_writer_blocked">Retenida: tu grupo bloqueó a quien la escribió, para que no salga por descuido. No la envíes, o imprímela igualmente si tu grupo así lo decide.</string>
+    <string name="held_writer_blocked">%1$s ya no envía cartas de tu cuenta, así que esta carta está en espera. Los demás grupos no se ven afectados. Puedes borrarla.</string>
+    <string name="held_writer_blocked_writer">El grupo que la enviaría bloqueó a quien la escribió, así que está en espera. Ese grupo solo la imprime a propósito.</string>
+    <string name="block_reason_from">Por qué, en palabras de %s</string>
+    <string name="activity_writer_blocked">Un grupo ya no enviará tus cartas. Abre la app para ver cuál y por qué.</string>
+    <string name="activity_writer_unblocked">Un grupo volverá a enviar tus cartas.</string>
+    <string name="activity_group_blocked">Tu grupo bloqueó a una persona que escribe.</string>
+    <string name="activity_group_unblocked">Tu grupo levantó el bloqueo de una persona que escribe.</string>
+    <string name="activity_ban_banned">Una persona que tu grupo recomendó bloquear ha sido bloqueada en todo el sitio.</string>
+    <string name="activity_ban_dismissed">Una superadministración decidió no bloquear a una persona que tu grupo recomendó.</string>
+    <string name="activity_ban_recommended">Un grupo recomienda bloquear a una persona en todo el sitio.</string>
+    <string name="error_block_writer">No se pudo bloquear a quien escribe.</string>
+    <string name="notice_ban_recommended">Recomendado. Una superadministración decidirá; no se avisa a quien escribe.</string>
+    <string name="notice_ban_already_recommended">Tu grupo ya lo recomendó, y está esperando a una superadministración.</string>
+    <string name="error_recommend_ban">No se pudo enviar la recomendación.</string>
+    <string name="block_writer_title">Bloquear a esta persona en tu grupo</string>
+    <string name="block_writer_text">Tu grupo ya no enviará sus cartas. Las que esperan aquí quedan retenidas, y no puede enviaros cartas nuevas. Los demás grupos no se ven afectados. Se le avisa, con el motivo de abajo, y también a quienes llevan tu grupo. Puedes levantarlo más tarde.</string>
+    <string name="help_block_reason">%1$d de %2$d. Obligatorio. Quien escribe lo lee.</string>
+    <string name="action_block_writer_confirm">Bloquear</string>
+    <string name="recommend_ban_title">Recomendar bloquear a esta persona en todo el sitio</string>
+    <string name="recommend_ban_text">Una superadministración decide si bloquear la cuenta en todo el sitio. Solo la superadministración lee el motivo; no se avisa a quien escribe de una recomendación. Tu grupo ve lo que se decidió.</string>
+    <string name="help_recommend_reason">%1$d de %2$d. Obligatorio. Solo la superadministración lo lee.</string>
+    <string name="action_recommend_ban_confirm">Recomendar</string>
+    <string name="action_block_writer">Bloquear a esta persona en nuestro grupo…</string>
+    <string name="action_recommend_ban">Recomendar un bloqueo en todo el sitio…</string>
+    <string name="label_reason">Motivo</string>
+    <string name="title_blocked_writers">Personas bloqueadas</string>
+    <string name="blocks_intro">Personas cuyas cartas tu grupo no envía. A cada una se le dijo por qué. Levantar un bloqueo devuelve sus cartas retenidas a la cola.</string>
+    <string name="blocks_none">Tu grupo no ha bloqueado a nadie.</string>
+    <string name="writer_numbered">Persona %d</string>
+    <string name="writer_unknown">Una persona</string>
+    <string name="block_reason_line">Motivo: %s</string>
+    <string name="blocked_by_on">Bloqueada por %1$s el %2$s</string>
+    <string name="blocked_by">Bloqueada por %s</string>
+    <string name="blocked_on">Bloqueada el %s</string>
+    <string name="action_unblock">Desbloquear</string>
+    <string name="unblock_title">¿Desbloquear a %s?</string>
+    <string name="unblock_text">Tu grupo volverá a enviar sus cartas, y las retenidas vuelven a la cola. Se le avisa.</string>
+    <string name="error_unblock">No se pudo levantar el bloqueo.</string>
+    <string name="section_ban_recommendations">Recomendaciones de bloqueo en todo el sitio</string>
+    <string name="ban_recommendations_intro">Lo que tu grupo pidió a la superadministración, y lo que decidió.</string>
+    <string name="ban_recommendations_failed">No se pudieron cargar las recomendaciones.</string>
+    <string name="ban_recommendations_none">Tu grupo no ha recomendado a nadie.</string>
+    <string name="recommendation_pending_since">Esperando a una superadministración desde el %s</string>
+    <string name="recommendation_pending">Esperando a una superadministración</string>
+    <string name="recommendation_banned_on">Bloqueada en todo el sitio el %s</string>
+    <string name="recommendation_banned">Bloqueada en todo el sitio</string>
+    <string name="recommendation_dismissed_on">No bloqueada: decidido el %s</string>
+    <string name="recommendation_dismissed">No bloqueada</string>
+    <string name="recommendation_your_reason">Motivo de tu grupo: %s</string>
+    <string name="recommendation_note">Nota de la superadministración: %s</string>
+    <plurals name="notice_writer_blocked">
+        <item quantity="one">Bloqueada. Se le ha avisado; %d de sus cartas aquí queda retenida.</item>
+        <item quantity="many">Bloqueada. Se le ha avisado; %d de sus cartas aquí quedan retenidas.</item>
+        <item quantity="other">Bloqueada. Se le ha avisado; %d de sus cartas aquí quedan retenidas.</item>
+    </plurals>
+    <plurals name="notice_unblocked">
+        <item quantity="one">Desbloqueada. %d carta retenida volvió a la cola.</item>
+        <item quantity="many">Desbloqueada. %d cartas retenidas volvieron a la cola.</item>
+        <item quantity="other">Desbloqueada. %d cartas retenidas volvieron a la cola.</item>
+    </plurals>
 </resources>

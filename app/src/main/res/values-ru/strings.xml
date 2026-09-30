@@ -1312,4 +1312,73 @@
         <item quantity="many">Не отправлять %d писем</item>
         <item quantity="other">Не отправлять %d письма</item>
     </plurals>
+
+    <!-- API #171, #172: blocking a writer, recommending a site-wide block -->
+    <string name="error_group_block">Группа, которая отправляет почту в это учреждение, не отправляет письма с вашего аккаунта.</string>
+    <string name="error_group_block_choose">%1$s не отправляет письма с вашего аккаунта. В это учреждение пишет и другая группа: выберите её ниже и отправьте.</string>
+    <string name="error_group_block_only">%1$s не отправляет письма с вашего аккаунта, а других групп для этого учреждения нет, поэтому письмо пока отправить нельзя. Оно осталось здесь; ничего не отправлено.</string>
+    <string name="held_queue_writer_blocked">Задержано: ваша группа заблокировала автора</string>
+    <string name="held_group_writer_blocked">Задержано: ваша группа заблокировала автора, чтобы письмо не ушло случайно. Не отправляйте его или напечатайте всё же, если группа так решила.</string>
+    <string name="held_writer_blocked">%1$s больше не отправляет письма с вашего аккаунта, поэтому это письмо ждёт. Других групп это не касается. Письмо можно удалить.</string>
+    <string name="held_writer_blocked_writer">Группа, которая отправила бы письмо, заблокировала автора, поэтому оно ждёт. Эта группа напечатает его только намеренно.</string>
+    <string name="block_reason_from">Почему — словами группы %s</string>
+    <string name="activity_writer_blocked">Одна из групп больше не будет отправлять ваши письма. Откройте приложение, чтобы узнать какая и почему.</string>
+    <string name="activity_writer_unblocked">Группа снова будет отправлять ваши письма.</string>
+    <string name="activity_group_blocked">Ваша группа заблокировала автора писем.</string>
+    <string name="activity_group_unblocked">Ваша группа сняла блокировку с автора писем.</string>
+    <string name="activity_ban_banned">Автор, которого ваша группа рекомендовала заблокировать, заблокирован на всём сайте.</string>
+    <string name="activity_ban_dismissed">Суперадминистратор решил не блокировать автора, которого рекомендовала ваша группа.</string>
+    <string name="activity_ban_recommended">Группа рекомендует заблокировать автора на всём сайте.</string>
+    <string name="error_block_writer">Не удалось заблокировать автора.</string>
+    <string name="notice_ban_recommended">Рекомендация отправлена. Решит суперадминистратор; автору не сообщают.</string>
+    <string name="notice_ban_already_recommended">Ваша группа уже это рекомендовала, рекомендация ждёт суперадминистратора.</string>
+    <string name="error_recommend_ban">Не удалось отправить рекомендацию.</string>
+    <string name="block_writer_title">Заблокировать автора в вашей группе</string>
+    <string name="block_writer_text">Ваша группа больше не будет отправлять его письма. Письма, ждущие здесь, задерживаются, и новые он вам отправить не сможет. Других групп это не касается. Автору сообщат с причиной ниже, как и всем, кто ведёт группу. Блокировку можно снять позже.</string>
+    <string name="help_block_reason">%1$d из %2$d. Обязательно. Автор это прочтёт.</string>
+    <string name="action_block_writer_confirm">Заблокировать</string>
+    <string name="recommend_ban_title">Рекомендовать заблокировать автора на всём сайте</string>
+    <string name="recommend_ban_text">Суперадминистратор решает, блокировать ли аккаунт на всём сайте. Причину читают только суперадминистраторы; автору о рекомендации не сообщают. Ваша группа увидит решение.</string>
+    <string name="help_recommend_reason">%1$d из %2$d. Обязательно. Читают только суперадминистраторы.</string>
+    <string name="action_recommend_ban_confirm">Рекомендовать</string>
+    <string name="action_block_writer">Заблокировать автора в нашей группе…</string>
+    <string name="action_recommend_ban">Рекомендовать блокировку на всём сайте…</string>
+    <string name="label_reason">Причина</string>
+    <string name="title_blocked_writers">Заблокированные авторы</string>
+    <string name="blocks_intro">Авторы, чьи письма ваша группа не отправляет. Каждому сообщили причину. Если снять блокировку, задержанные письма вернутся в очередь.</string>
+    <string name="blocks_none">Ваша группа никого не заблокировала.</string>
+    <string name="writer_numbered">Автор %d</string>
+    <string name="writer_unknown">Автор</string>
+    <string name="block_reason_line">Причина: %s</string>
+    <string name="blocked_by_on">Заблокировал(а) %1$s, %2$s</string>
+    <string name="blocked_by">Заблокировал(а) %s</string>
+    <string name="blocked_on">Заблокирован %s</string>
+    <string name="action_unblock">Разблокировать</string>
+    <string name="unblock_title">Разблокировать: %s?</string>
+    <string name="unblock_text">Ваша группа снова будет отправлять его письма, а задержанные вернутся в очередь. Автору сообщат.</string>
+    <string name="error_unblock">Не удалось снять блокировку.</string>
+    <string name="section_ban_recommendations">Рекомендации о блокировке на всём сайте</string>
+    <string name="ban_recommendations_intro">О чём ваша группа просила суперадминистраторов и что они решили.</string>
+    <string name="ban_recommendations_failed">Не удалось загрузить рекомендации.</string>
+    <string name="ban_recommendations_none">Ваша группа никого не рекомендовала.</string>
+    <string name="recommendation_pending_since">Ждёт суперадминистратора с %s</string>
+    <string name="recommendation_pending">Ждёт суперадминистратора</string>
+    <string name="recommendation_banned_on">Заблокирован на всём сайте %s</string>
+    <string name="recommendation_banned">Заблокирован на всём сайте</string>
+    <string name="recommendation_dismissed_on">Не заблокирован: решено %s</string>
+    <string name="recommendation_dismissed">Не заблокирован</string>
+    <string name="recommendation_your_reason">Причина вашей группы: %s</string>
+    <string name="recommendation_note">Заметка суперадминистратора: %s</string>
+    <plurals name="notice_writer_blocked">
+        <item quantity="one">Заблокирован. Автору сообщили; задержано %d его письмо.</item>
+        <item quantity="few">Заблокирован. Автору сообщили; задержано %d его письма.</item>
+        <item quantity="many">Заблокирован. Автору сообщили; задержано %d его писем.</item>
+        <item quantity="other">Заблокирован. Автору сообщили; задержано %d его письма.</item>
+    </plurals>
+    <plurals name="notice_unblocked">
+        <item quantity="one">Разблокирован. %d задержанное письмо вернулось в очередь.</item>
+        <item quantity="few">Разблокирован. %d задержанных письма вернулись в очередь.</item>
+        <item quantity="many">Разблокирован. %d задержанных писем вернулись в очередь.</item>
+        <item quantity="other">Разблокирован. %d задержанных письма вернулись в очередь.</item>
+    </plurals>
 </resources>

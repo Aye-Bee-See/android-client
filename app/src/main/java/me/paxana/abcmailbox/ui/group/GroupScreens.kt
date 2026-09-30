@@ -85,6 +85,8 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
   var confirmRelease by remember { mutableStateOf(false) }
   var recordReturn by remember { mutableStateOf(false) }
   var decline by remember { mutableStateOf(false) }
+  var blockWriter by remember { mutableStateOf(false) }
+  var recommendBan by remember { mutableStateOf(false) }
   var choosePartner by remember { mutableStateOf(false) }
 
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
@@ -108,6 +110,8 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
           onRelease = { confirmRelease = true },
           onCameBack = { recordReturn = true },
           onDecline = { decline = true }.takeIf { ui.mayDecline },
+          onBlockWriter = { blockWriter = true }.takeIf { ui.mayDecline },
+          onRecommendBan = { recommendBan = true }.takeIf { ui.mayDecline },
           onPrint = { PrintLetter.print(context, strings.get(R.string.print_job_name, s.value.prisoner?.name ?: strings.get(R.string.print_job_prisoner)), s.value.letter.body, s.value.letter.footer?.sentence(strings)) },
           onOpen = viewModel::open,
           onThread = { s.value.letter.threadId?.let(onThread) },
@@ -147,6 +151,17 @@ fun LetterWorkScreen(onBack: () -> Unit, onThread: (Int) -> Unit, viewModel: Let
     )
   }
 
+  if (blockWriter) ReasonDialog(
+    title = stringResource(R.string.block_writer_title), text = stringResource(R.string.block_writer_text), help = { n -> stringResource(R.string.help_block_reason, n, me.paxana.abcmailbox.data.repo.BlocksRepository.BLOCK_REASON_MAX) },
+    max = me.paxana.abcmailbox.data.repo.BlocksRepository.BLOCK_REASON_MAX, confirm = stringResource(R.string.action_block_writer_confirm), tag = "block",
+    onDismiss = { blockWriter = false }, onConfirm = { blockWriter = false; viewModel.blockWriter(it) },
+  )
+  if (recommendBan) ReasonDialog(
+    title = stringResource(R.string.recommend_ban_title), text = stringResource(R.string.recommend_ban_text), help = { n -> stringResource(R.string.help_recommend_reason, n, me.paxana.abcmailbox.data.repo.BlocksRepository.RECOMMENDATION_REASON_MAX) },
+    max = me.paxana.abcmailbox.data.repo.BlocksRepository.RECOMMENDATION_REASON_MAX, confirm = stringResource(R.string.action_recommend_ban_confirm), tag = "recommend",
+    onDismiss = { recommendBan = false }, onConfirm = { recommendBan = false; viewModel.recommendBan(it) },
+  )
+
   if (recordReturn) ReturnDialog(onDismiss = { recordReturn = false }, onRecord = { reason, note -> recordReturn = false; viewModel.markReturned(reason, note) })
 
   if (confirmMailed) AlertDialog(
@@ -164,6 +179,9 @@ private fun LetterWorkBody(
   canShare: Boolean = false, onShare: () -> Unit = {}, onCameBack: () -> Unit = {}, onRelease: () -> Unit = {},
   /** Null for someone who may not decline (a superadmin). */
   onDecline: (() -> Unit)? = null,
+  /** API #171/#172: about the writer, not the letter; null for a superadmin, who bans instead. */
+  onBlockWriter: (() -> Unit)? = null,
+  onRecommendBan: (() -> Unit)? = null,
 ) {
   val letter = item.letter
   val p = item.prisoner
@@ -240,6 +258,11 @@ private fun LetterWorkBody(
     }
     // Not sending it is the other way out of the queue, and the safe one for a held letter. Quiet, in the error colour: final.
     if (onDecline != null && letter.canDecline) TextButton(onClick = onDecline, enabled = !busy, modifier = Modifier.testTag("decline")) { Text(stringResource(R.string.action_decline), color = MaterialTheme.colorScheme.error) }
+    // About the writer, not this letter: for someone misusing the system. Last on the page, and quiet.
+    if (letter.writerId != null && !letter.fromPrisoner) {
+      onBlockWriter?.let { TextButton(onClick = it, enabled = !busy, modifier = Modifier.testTag("block-writer")) { Text(stringResource(R.string.action_block_writer), color = MaterialTheme.colorScheme.error) } }
+      onRecommendBan?.let { TextButton(onClick = it, enabled = !busy, modifier = Modifier.testTag("recommend-ban")) { Text(stringResource(R.string.action_recommend_ban), color = MaterialTheme.colorScheme.error) } }
+    }
     // End-to-end only, and only where the facility has another relay group: the server permits no other readers.
     if (canShare && (letter.status == LetterStatus.QUEUED || letter.status == LetterStatus.PRINTED)) OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.share_title)) }
     TextButton(onClick = onThread) { Text(stringResource(R.string.action_open_conversation)) }
@@ -397,6 +420,34 @@ internal fun DeclineDialog(title: String, rules: List<me.paxana.abcmailbox.domai
     confirmButton = {
       TextButton(onClick = { reason?.let { onDecline(me.paxana.abcmailbox.data.repo.DeclinedAs(it, rule.takeIf { _ -> it == me.paxana.abcmailbox.domain.DeclineReason.FACILITY_RULE }, note)) } }, enabled = ready, modifier = Modifier.testTag("decline-confirm")) {
         Text(stringResource(R.string.action_decline_confirm), color = if (ready) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+      }
+    },
+    dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+  )
+}
+
+/**
+ * A required reason, for blocking a writer or recommending a site-wide block (API #171/#172). [text] says who reads
+ * it, which is the point: the writer reads a block's reason, only a superadmin a recommendation's.
+ */
+@Composable
+private fun ReasonDialog(title: String, text: String, help: @Composable (Int) -> String, max: Int, confirm: String, tag: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+  var reason by remember { mutableStateOf("") }
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(title) },
+    text = {
+      Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text, style = MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(
+          reason, { reason = it.take(max) }, label = { Text(stringResource(R.string.label_reason)) },
+          supportingText = { Text(help(reason.length)) }, minLines = 3, modifier = Modifier.fillMaxWidth().testTag("$tag-reason"),
+        )
+      }
+    },
+    confirmButton = {
+      TextButton(onClick = { onConfirm(reason) }, enabled = reason.isNotBlank(), modifier = Modifier.testTag("$tag-confirm")) {
+        Text(confirm, color = if (reason.isNotBlank()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
       }
     },
     dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
