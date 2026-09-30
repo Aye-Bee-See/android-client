@@ -105,7 +105,7 @@ interface SessionRepository {
    * new group, sending only the profile fields in [groupFields]. Then signs in with it, and the recovery code waits to
    * be shown. The group key is not made here: the inbox offers it, because making it is a decision with a consequence.
    */
-  suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: NewGroupProfile?, groupFields: Set<String>): ApiResult<InvitationAccepted>
+  suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: NewGroupProfile?, groupFields: Set<String>, penName: String? = null): ApiResult<InvitationAccepted>
 
   /** Verifies `current` by signing in with it, changes the password, and adopts the fresh token. */
   suspend fun changePassword(current: String, new: String): ApiResult<Unit>
@@ -375,6 +375,7 @@ class DefaultSessionRepository @Inject constructor(
         groupName = d.chapter?.name,
         expiresAt = d.expiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
         endToEnd = d.hasKeyMaterial,
+        penName = d.writer.penName?.takeIf { it.isNotBlank() },
       )
     }
 
@@ -460,13 +461,14 @@ class DefaultSessionRepository @Inject constructor(
     ))
   }
 
-  override suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: NewGroupProfile?, groupFields: Set<String>): ApiResult<InvitationAccepted> {
+  override suspend fun acceptInvitation(token: String, username: String, password: String, email: String, name: String?, group: NewGroupProfile?, groupFields: Set<String>, penName: String?): ApiResult<InvitationAccepted> {
     (state.value as? SessionState.SignedIn)?.let { return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.invitation_signed_in, it.session.user.username))) }
     val user = username.trim()
     val acct = when (val a = newAccount(user, password)) { is ApiResult.Failure -> return a; is ApiResult.Success -> a.value }
     val f = acct.fields
     val request = AcceptInvitationRequest(
       token, user, acct.password, email.trim(), name?.trim()?.ifBlank { null }, group = group?.toDto(groupFields),
+      penName = penName?.let(PenName::normalise)?.ifBlank { null },
       authScheme = acct.authScheme, publicKey = f?.publicKey, wrappedPrivateKey = f?.password?.wrapped, kdfSalt = acct.kdfSalt, kdfParams = acct.kdfParams,
       recoveryWrappedPrivateKey = f?.recovery?.wrapped, recoverySalt = f?.recovery?.salt, recoveryKdfParams = f?.recovery?.params,
     )

@@ -238,6 +238,15 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   LaunchedEffect(pendingCode, destination) {
     if (pendingCode != null && destination?.hasRoute(RecoveryCodeRoute::class) != true) navController.navigate(RecoveryCodeRoute) { launchSingleTop = true }
   }
+  // An account made before pen names were required (API #168) is asked for one: after the recovery code, and not over a
+  // sign-in or sign-up screen, which leaves by popping to the start and would take the pen name screen with it.
+  val askPenName by viewModel.askPenName.collectAsStateWithLifecycle()
+  LaunchedEffect(askPenName, pendingCode, destination) {
+    if (askPenName && pendingCode == null && destination != null && fullScreen.none { destination.hasRoute(it) }) {
+      viewModel.penNameAsked()
+      if (!destination.hasRoute(PenNameRoute::class)) navController.navigate(PenNameRoute) { launchSingleTop = true }
+    }
+  }
 
   Scaffold(
     snackbarHost = { SnackbarHost(snackbar) { Snackbar(it) } },

@@ -1121,7 +1121,9 @@
 
     <!-- Phase 17: pen names (API PR #120) -->
     <string name="label_pen_name">Seudónimo</string>
-    <string name="help_pen_name">El nombre con el que se firman tus cartas y al que responde la persona presa. Dos partes se leen como un nombre en una sala de correo. Opcional por ahora; puedes ponerlo o cambiarlo después, y los nombres antiguos siguen siendo tuyos.</string>
+    <string name="help_pen_name">El nombre con el que se firman tus cartas y al que responde la persona presa. Dos partes se leen como un nombre en una sala de correo. Obligatorio; puedes cambiarlo después, y los nombres antiguos siguen siendo tuyos.</string>
+    <string name="pen_name_given_by_group">Tu grupo eligió este seudónimo para ti. Consérvalo o escribe otro.</string>
+    <string name="pen_name_needed">Ahora cada persona que escribe necesita un seudónimo, para que ninguna carta se firme con tu propio nombre. Elige uno abajo.</string>
     <string name="pen_name_rules">De 3 a 40 caracteres, empezando por una letra: letras, cifras, espacios, guiones, apóstrofos y puntos.</string>
     <string name="pen_name_too_short">Un seudónimo tiene al menos 3 caracteres.</string>
     <string name="pen_name_too_long">Un seudónimo tiene como mucho 40 caracteres.</string>

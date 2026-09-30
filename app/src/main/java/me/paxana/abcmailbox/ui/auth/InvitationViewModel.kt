@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.R
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
+import me.paxana.abcmailbox.data.repo.PenNameRepository
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.domain.GroupInvitation
@@ -48,12 +49,14 @@ data class InvitationUiState(
   val inviteCode: String? = null,
   /** Accepted and signed in from this screen: the session that follows is the new one, and the screen may leave. */
   val accepted: InvitationAccepted? = null,
+  /** The pen name as typed and checked (API PR #120); required since API #168. */
+  val penName: PenNameState = PenNameState(),
 ) {
   val passwordsMatch: Boolean get() = password == confirm
   val canCheck: Boolean get() = !busy && token.isNotBlank()
   /** The API requires an email for a group admin, and a name and a location for a new group. */
   val canAccept: Boolean get() = !busy && invitation != null && username.trim().length in 3..16 && password.length >= PasswordRules.MIN_LENGTH &&
-    passwordsMatch && EMAIL.matches(email.trim()) &&
+    passwordsMatch && EMAIL.matches(email.trim()) && penName.ready &&
     (invitation.kind != GroupInvitation.Kind.GROUP || (group.name.isNotBlank() && group.city.isNotBlank()))
 
   companion object {
@@ -73,21 +76,26 @@ class InvitationViewModel(
   private val sessions: SessionRepository,
   route: InvitationRoute,
   private val strings: Strings,
+  penNames: PenNameRepository,
 ) : ViewModel() {
 
   @Inject
-  constructor(sessions: SessionRepository, strings: Strings, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<InvitationRoute>(), strings)
+  constructor(sessions: SessionRepository, strings: Strings, penNames: PenNameRepository, savedStateHandle: SavedStateHandle) : this(sessions, savedStateHandle.toRoute<InvitationRoute>(), strings, penNames)
 
   private val _ui = MutableStateFlow(InvitationUiState(token = route.token?.let { InvitationToken.pretty(it) }.orEmpty()))
   val ui: StateFlow<InvitationUiState> = _ui.asStateFlow()
+  private val penName = PenNameChecker(viewModelScope, penNames, strings)
 
   /** Signed in already: an invitation makes a new account, which must not replace the session unasked. */
   private val signedInAs: String? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.username
 
   init {
+    viewModelScope.launch { penName.state.collect { st -> _ui.update { it.copy(penName = st) } } }
     // Handed on from the join screen, or opened with a token: check it straight away, unless somebody is signed in.
     if (route.token != null && InvitationToken.isWellFormed(route.token) && signedInAs == null) check()
   }
+
+  fun onPenNameChange(v: String) { penName.onChange(v); _ui.update { it.copy(error = null, fieldErrors = emptyMap()) } }
 
   fun signOut() { viewModelScope.launch { sessions.logout() } }
 
@@ -133,11 +141,11 @@ class InvitationViewModel(
     _ui.update { it.copy(busy = true, error = null) }
     viewModelScope.launch {
       val group = s.group.takeIf { invitation.kind == GroupInvitation.Kind.GROUP }
-      when (val r = sessions.acceptInvitation(InvitationToken.normalise(s.token), s.username, s.password, s.email, s.name, group, invitation.groupFields)) {
+      when (val r = sessions.acceptInvitation(InvitationToken.normalise(s.token), s.username, s.password, s.email, s.name, group, invitation.groupFields, s.penName.value)) {
         // Success flips the session to signed-in; the screen leaves on its own.
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", accepted = r.value) }
         is ApiResult.Failure -> {
-          val fields = accountFields(strings) - "penName" + mapOf(
+          val fields = accountFields(strings) + mapOf(
             "group.name" to strings.get(R.string.field_group_name), "group.location" to strings.get(R.string.field_city),
             "group.subregion" to strings.get(R.string.field_region), "group.country" to strings.get(R.string.field_country),
             "group.about" to strings.get(R.string.field_about), "group.website" to strings.get(R.string.field_website),

@@ -39,4 +39,8 @@ object ClaimToken {
   fun pretty(input: String): String = normalise(input).chunked(4).joinToString("-")
 }
 
-data class ClaimInfo(val writerName: String, val groupName: String?, val expiresAt: Instant?, val endToEnd: Boolean = false)
+data class ClaimInfo(
+  val writerName: String, val groupName: String?, val expiresAt: Instant?, val endToEnd: Boolean = false,
+  /** The pen name the group gave the writer, which they keep unless they change it (API #168); null when the claim must ask. */
+  val penName: String? = null,
+)

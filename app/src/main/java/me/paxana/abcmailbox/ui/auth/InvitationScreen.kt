@@ -134,6 +134,8 @@ fun InvitationScreen(
         visualTransformation = if (ui.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth().testTag("invitation-confirm"))
+      PenNameField(ui.penName, viewModel::onPenNameChange, enabled = !ui.busy, strings = rememberStrings(), serverError = ui.fieldErrors["penName"])
+      Text(stringResource(R.string.help_pen_name), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       OutlinedTextField(ui.email, viewModel::onEmailChange, label = { Text(stringResource(R.string.label_email_required)) }, isError = ui.fieldErrors["email"] != null, supportingText = { Text(ui.fieldErrors["email"] ?: stringResource(R.string.help_invitation_email)) }, singleLine = true, enabled = !ui.busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth().testTag("invitation-email"))
       OutlinedTextField(ui.name, viewModel::onNameChange, label = { Text(stringResource(R.string.label_name_optional)) }, isError = ui.fieldErrors["name"] != null, supportingText = ui.fieldErrors["name"]?.let { e -> { Text(e) } }, singleLine = true, enabled = !ui.busy,
