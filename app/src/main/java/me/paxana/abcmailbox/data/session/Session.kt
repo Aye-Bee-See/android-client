@@ -41,19 +41,24 @@ object Role {
   const val BANNED = "banned"
 }
 
-fun LoginData.toSession() = Session(
-  token = token.token,
-  expiresAtMillis = token.expires,
-  user = SessionUser(
-    id = user.id,
-    username = user.username,
-    name = user.name,
-    email = user.email,
-    role = user.role,
-    chapterId = user.chapterId,
-    penName = user.penName,
-  ),
-)
+/** Only for an answer that has a session: a two-factor challenge has none ([LoginData.challenge]). */
+fun LoginData.toSession(): Session {
+  val token = checkNotNull(token) { "sign-in answered no token" }
+  val user = checkNotNull(user) { "sign-in answered no user" }
+  return Session(
+    token = token.token,
+    expiresAtMillis = token.expires,
+    user = SessionUser(
+      id = user.id,
+      username = user.username,
+      name = user.name,
+      email = user.email,
+      role = user.role,
+      chapterId = user.chapterId,
+      penName = user.penName,
+    ),
+  )
+}
 
 /** The three states a screen can be in with respect to sign-in. */
 sealed interface SessionState {

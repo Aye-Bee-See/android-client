@@ -49,6 +49,7 @@ import me.paxana.abcmailbox.data.api.UpdateUserRequest
 import me.paxana.abcmailbox.data.api.AuthApi
 import me.paxana.abcmailbox.data.api.LoginParamsDto
 import me.paxana.abcmailbox.data.api.LoginData
+import me.paxana.abcmailbox.data.api.TwoFactorLoginRequest
 import me.paxana.abcmailbox.data.api.LoginRequest
 import me.paxana.abcmailbox.data.api.LogoutRequest
 import me.paxana.abcmailbox.data.api.apiCall
@@ -84,6 +85,24 @@ interface SessionRepository {
    */
   suspend fun login(username: String, password: String, olderAccount: Boolean = false): ApiResult<Session>
   suspend fun logout(everywhere: Boolean = false): ApiResult<Unit>
+
+  /**
+   * Two-factor sign-in (API #173). When [login] answers [AppError.TwoFactorNeeded], the password was right and the
+   * sign-in waits here for a code from the authenticator app, or a recovery code ([recovery]). It answers what [login]
+   * would have. A wrong code leaves it waiting for another; an expired one ends it (`Unauthorized`): the password again.
+   */
+  suspend fun completeTwoFactor(code: String, recovery: Boolean): ApiResult<Session> = ApiResult.Failure(AppError.Unauthorized(null))
+  /** Gives up a sign-in waiting for a code, and forgets what it held. */
+  fun cancelTwoFactor() {}
+
+  /**
+   * API #175: two-factor sign-in is required of this account and not set up yet, with why (`superadmins`,
+   * `all_groups`, `group`); null otherwise. Until it is set up the server refuses everything else, so the app goes
+   * straight to setting it up. Learnt at sign-in, or from any request mid-session.
+   */
+  val twoFactorSetupRequired: StateFlow<List<String>?> get() = MutableStateFlow(null)
+  /** It is set up now (or the server said it is not required after all). */
+  fun twoFactorSetUp() {}
 
   /** Who a claim token is for; the token must already be normalised. */
   suspend fun claimInfo(token: String): ApiResult<ClaimInfo>
@@ -183,6 +202,20 @@ class DefaultSessionRepository @Inject constructor(
   /** Keys made at sign-in, in memory only until the writer confirms they saved the code ([recoveryCodeSaved]). */
   private class PendingKeys(val userId: Int, val keys: NewAccountKeys)
   @Volatile private var pendingKeys: PendingKeys? = null
+
+  /**
+   * A sign-in waiting for its second step: the challenge, and what finishing it needs. [cred] keeps the wrap key of a
+   * split account and [password] the password of an older one, for opening the private key once there is a session,
+   * as a one-step sign-in does. Held in memory only, for the five minutes the challenge lasts, and wiped after.
+   */
+  private class PendingTwoFactor(val name: String, val challenge: String, val expiresAt: Instant?, val cred: Credential, val password: String?, val olderAccount: Boolean) {
+    fun wipe() = cred.wipe()
+  }
+  @Volatile private var pendingTwoFactor: PendingTwoFactor? = null
+  private val _twoFactorSetupRequired = MutableStateFlow<List<String>?>(null)
+  override val twoFactorSetupRequired: StateFlow<List<String>?> = _twoFactorSetupRequired.asStateFlow()
+  override fun twoFactorSetUp() { _twoFactorSetupRequired.value = null }
+  override fun cancelTwoFactor() { pendingTwoFactor?.wipe(); pendingTwoFactor = null }
   private val uploading = Mutex()
 
   private fun forgetPendingKeys() { pendingKeys = null; _pendingRecoveryCode.value = null }
@@ -228,6 +261,8 @@ class DefaultSessionRepository @Inject constructor(
   init {
     // A refused token means the server ended the session (revocation, ban, or
     // expiry). Forget it locally so the app returns to the signed-out state.
+    // API #175: a requirement switched on mid-session. The server refuses everything but setting it up from now on.
+    scope.launch { cache.twoFactorSetupRequired.collect { refused -> if (refused == cache.token) _twoFactorSetupRequired.value = _twoFactorSetupRequired.value ?: emptyList() } }
     scope.launch {
       cache.unauthorized.collect { refused ->
         if (refused == cache.token) {
@@ -303,18 +338,50 @@ class DefaultSessionRepository @Inject constructor(
 
   override suspend fun login(username: String, password: String, olderAccount: Boolean): ApiResult<Session> {
     val name = username.trim()
+    cancelTwoFactor()
     val proof = when (val p = prove(name, password, olderAccount)) { is ApiResult.Failure -> return p; is ApiResult.Success -> p.value }
     val used = proof.cred; val response = proof.response
+    // Two-factor sign-in (API #173): the password was right, and there is no session until a code is given. What
+    // opening the keys needs is kept for that moment; the password itself only for an account from before the split.
+    response.challenge?.let { challenge ->
+      val expires = response.twoFactor?.expiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+      pendingTwoFactor = PendingTwoFactor(name, challenge, expires, used, password.takeUnless { used.isSplit }, olderAccount)
+      return ApiResult.Failure(AppError.TwoFactorNeeded(expires))
+    }
     try {
-      val session = response.toSession().copy(olderAccount = olderAccount)
-      // Set the token for the interceptor now; the stored-session flow would only get there a moment later.
-      cache.token = session.token
-      store.save(session)
-      if (used.isSplit) schemes.rememberSplit(name)
-      if (modes.current() == EncryptionMode.E2E) prepareKeys(session, response.keys, password, used)
-      return ApiResult.Success(session)
+      return ApiResult.Success(signedIn(name, response, used, password, olderAccount))
     } finally {
       used.wipe()
+    }
+  }
+
+  /** A sign-in that answered a session, in one step or two: stored, remembered, and its keys opened. */
+  private suspend fun signedIn(name: String, response: LoginData, used: Credential, password: String?, olderAccount: Boolean): Session {
+    val session = response.toSession().copy(olderAccount = olderAccount)
+    // Set the token for the interceptor now; the stored-session flow would only get there a moment later.
+    cache.token = session.token
+    store.save(session)
+    if (used.isSplit) schemes.rememberSplit(name)
+    // API #175: required of this account and not set up yet. The session is real, but the server refuses the rest.
+    _twoFactorSetupRequired.value = response.twoFactor?.takeIf { it.setupRequired }?.because
+    if (modes.current() == EncryptionMode.E2E) prepareKeys(session, response.keys, password.orEmpty(), used)
+    return session
+  }
+
+  override suspend fun completeTwoFactor(code: String, recovery: Boolean): ApiResult<Session> {
+    val pending = pendingTwoFactor ?: return ApiResult.Failure(AppError.Unauthorized(null))
+    if (pending.expiresAt?.isBefore(Instant.now()) == true) { cancelTwoFactor(); return ApiResult.Failure(AppError.Unauthorized(null)) }
+    val typed = code.trim()
+    val request = if (recovery) TwoFactorLoginRequest(pending.challenge, recoveryCode = typed) else TwoFactorLoginRequest(pending.challenge, code = typed.filter(Char::isDigit))
+    return when (val r = apiCall(json) { api.loginTwoFactor(request) }) {
+      // A wrong code leaves the challenge good for another try; a used or expired one (401) does not.
+      is ApiResult.Failure -> { if (r.error is AppError.Unauthorized) cancelTwoFactor(); r }
+      is ApiResult.Success -> {
+        val data = r.value.data?.takeIf { it.token != null && it.user != null }
+          ?: return ApiResult.Failure(AppError.Unexpected(IllegalStateException("two-factor sign-in answered no session")))
+        pendingTwoFactor = null
+        try { ApiResult.Success(signedIn(pending.name, data, pending.cred, pending.password, pending.olderAccount)) } finally { pending.wipe() }
+      }
     }
   }
 
@@ -360,6 +427,8 @@ class DefaultSessionRepository @Inject constructor(
    */
   override suspend fun logout(everywhere: Boolean): ApiResult<Unit> {
     val result = apiCall(json) { api.logout(LogoutRequest(everywhere)) }.map { }
+    cancelTwoFactor()
+    _twoFactorSetupRequired.value = null
     store.clear()
     vault.clear()
     forgetPendingKeys()
@@ -528,7 +597,8 @@ class DefaultSessionRepository @Inject constructor(
     // The API does not ask for the current password, so confirm it by signing in with it, the session's own way. That
     // sign-in stores the session again, with a fresh token and the way it went, so what it answers is built on below.
     val proven = when (val check = login(session.user.username, current, olderAccount = settled.olderAccount ?: false)) {
-      is ApiResult.Failure -> return if (check.error is AppError.Unauthorized) {
+      // Two-factor sign-in is on: the password was right, which is all this asked. The session in hand carries on.
+      is ApiResult.Failure -> if (check.error is AppError.TwoFactorNeeded) { cancelTwoFactor(); session } else return if (check.error is AppError.Unauthorized) {
         // Still unknown (a server-mode account has no key to tell by): the refusal may be a mistyped password, or an
         // account from before that the old release signed in by its own fallback. Say both, and what to do.
         val why = if (settled.olderAccount == null) R.string.error_scheme_unknown_session else R.string.error_current_password_wrong
@@ -612,8 +682,10 @@ class DefaultSessionRepository @Inject constructor(
       // No key yet: sign in again, which checks the password with the server and makes the keys as a first sign-in does.
       is ApiResult.Success -> b.value ?: return when (val again = login(session.user.username, password, olderAccount = session.olderAccount == true)) {
         is ApiResult.Success -> ApiResult.Success(Unit)
+        // Two-factor sign-in is on: this prompt asks for no code, and a full sign-in does. Say so, and forget the half.
+        is ApiResult.Failure -> if (again.error is AppError.TwoFactorNeeded) { cancelTwoFactor(); ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_unlock_two_factor)))) }
         // Refused: the server's bare "Unauthorized" is said the way this prompt says a wrong password.
-        is ApiResult.Failure -> if (again.error is AppError.Unauthorized) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open)))) else again
+        else if (again.error is AppError.Unauthorized) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_password_does_not_open)))) else again
       }
     }
     val (keyPair, older) = when (val o = openKeys(session, bundle, password)) {

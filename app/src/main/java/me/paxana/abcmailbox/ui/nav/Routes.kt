@@ -65,6 +65,8 @@ import kotlinx.serialization.Serializable
 @Serializable data object InviteCodesRoute
 /** The group's blocked writers and its site-wide recommendations (API #171, #172). */
 @Serializable data object BlocksRoute
+/** Two-factor sign-in settings (API #173); where the app goes when it is required and not set up (#175). */
+@Serializable data object TwoFactorRoute
 @Serializable data object RecoverRoute
 @Serializable data object ChangePasswordRoute
 @Serializable data object DeleteAccountRoute

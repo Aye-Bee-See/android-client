@@ -25,6 +25,8 @@ data class LoginUiState(
   val olderAccount: Boolean = false,
   val submitting: Boolean = false,
   val error: String? = null,
+  /** The password was accepted and two-factor sign-in is on (API #173): the code step shows in the form's place. */
+  val needsCode: Boolean = false,
 ) {
   val canSubmit: Boolean get() = username.isNotBlank() && password.isNotEmpty() && !submitting
 }
@@ -55,10 +57,16 @@ class LoginViewModel @Inject constructor(
     viewModelScope.launch {
       when (val result = sessions.login(current.username, current.password, current.olderAccount)) {
         is ApiResult.Success -> _uiState.update { it.copy(submitting = false, password = "") }
-        is ApiResult.Failure -> _uiState.update { it.copy(submitting = false, error = result.error.toLoginMessage(strings)) }
+        // Not a refusal: the password was right, and a code comes next. The password is not kept on screen for it.
+        is ApiResult.Failure -> if (result.error is AppError.TwoFactorNeeded) _uiState.update { it.copy(submitting = false, password = "", needsCode = true) }
+          else _uiState.update { it.copy(submitting = false, error = result.error.toLoginMessage(strings)) }
       }
     }
   }
+
+  fun backToPassword() = _uiState.update { it.copy(needsCode = false, error = null) }
+  /** The sign-in ran out of time or was used: the password again, with the reason. */
+  fun codeExpired(message: String) = _uiState.update { it.copy(needsCode = false, error = message.ifBlank { null }) }
 }
 
 internal fun AppError.toLoginMessage(strings: Strings): String = when (this) {

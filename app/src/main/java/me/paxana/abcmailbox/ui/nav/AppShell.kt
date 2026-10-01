@@ -235,14 +235,27 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   // screen until the writer confirms they saved it. Keyed on the destination too: the screen that made the account
   // leaves for the Inbox in the same frame, popping to the start destination, which took this screen with it (seen
   // on the emulator, 23 Sep 2026, joining with an invite code). Now the code is put back on top wherever it lands.
-  LaunchedEffect(pendingCode, destination) {
-    if (pendingCode != null && destination?.hasRoute(RecoveryCodeRoute::class) != true) navController.navigate(RecoveryCodeRoute) { launchSingleTop = true }
+  // Not while two-factor set-up is required: saving the code uploads the keys, which the server refuses until then.
+  val twoFactorSetupRequired by viewModel.twoFactorSetupRequired.collectAsStateWithLifecycle()
+  LaunchedEffect(pendingCode, destination, twoFactorSetupRequired) {
+    // Nor over the two-factor screen, which may be showing its own recovery codes, also shown once.
+    if (pendingCode != null && twoFactorSetupRequired == null && destination?.hasRoute(RecoveryCodeRoute::class) != true && destination?.hasRoute(TwoFactorRoute::class) != true) navController.navigate(RecoveryCodeRoute) { launchSingleTop = true }
   }
   // An account made before pen names were required (API #168) is asked for one: after the recovery code, and not over a
   // sign-in or sign-up screen, which leaves by popping to the start and would take the pen name screen with it.
+  // API #175: two-factor sign-in is required of this account and not set up. The server refuses everything else until
+  // it is, so the settings screen takes over, never over a sign-in screen (as above). It goes before a new account's
+  // recovery code, whose keys the server would refuse too: the code waits in memory and comes back once this is done
+  // (seen on the emulator, 30 Sep 2026: saving the code first left a group admin with no way on).
+  LaunchedEffect(twoFactorSetupRequired, destination) {
+    val onCode = destination?.hasRoute(RecoveryCodeRoute::class) == true
+    if (twoFactorSetupRequired != null && destination != null && (onCode || fullScreen.none { destination.hasRoute(it) }) && !destination.hasRoute(TwoFactorRoute::class)) {
+      navController.navigate(TwoFactorRoute) { if (onCode) popUpTo<RecoveryCodeRoute> { inclusive = true }; launchSingleTop = true }
+    }
+  }
   val askPenName by viewModel.askPenName.collectAsStateWithLifecycle()
   LaunchedEffect(askPenName, pendingCode, destination) {
-    if (askPenName && pendingCode == null && destination != null && fullScreen.none { destination.hasRoute(it) }) {
+    if (askPenName && twoFactorSetupRequired == null && pendingCode == null && destination != null && fullScreen.none { destination.hasRoute(it) }) {
       viewModel.penNameAsked()
       if (!destination.hasRoute(PenNameRoute::class)) navController.navigate(PenNameRoute) { launchSingleTop = true }
     }
@@ -436,12 +449,16 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onGroupNumbers = { navController.navigate(GroupNumbersRoute) },
           onInviteCodes = { navController.navigate(InviteCodesRoute) },
           onBlocks = { navController.navigate(BlocksRoute) },
+          onTwoFactor = { navController.navigate(TwoFactorRoute) },
           onPenName = { navController.navigate(PenNameRoute) },
         )
       }
       composable<PenNameRoute> { me.paxana.abcmailbox.ui.account.PenNameScreen(onBack = { navController.popBackStack() }) }
       composable<GroupNumbersRoute> { me.paxana.abcmailbox.ui.group.GroupNumbersScreen(onBack = { navController.popBackStack() }) }
       composable<InviteCodesRoute> { me.paxana.abcmailbox.ui.group.InviteCodesScreen(onBack = { navController.popBackStack() }) }
+      composable<TwoFactorRoute> {
+        me.paxana.abcmailbox.ui.account.TwoFactorScreen(onBack = { navController.popBackStack() }, onSignOut = { viewModel.signOut() })
+      }
       composable<BlocksRoute> { me.paxana.abcmailbox.ui.group.BlocksScreen(onBack = { navController.popBackStack() }) }
       composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }, onGroupKey = { navController.navigate(GroupKeyRoute) }) }
       composable<ChangePasswordRoute> {

@@ -28,4 +28,13 @@ class SessionCache @Inject constructor() {
   fun reportUnauthorized(refusedToken: String) {
     _unauthorized.tryEmit(refusedToken)
   }
+
+  private val _twoFactorSetupRequired = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+  /** The token a request was refused under because two-factor sign-in must be set up first (API #175). */
+  val twoFactorSetupRequired: SharedFlow<String> = _twoFactorSetupRequired.asSharedFlow()
+
+  fun reportTwoFactorSetupRequired(token: String) {
+    _twoFactorSetupRequired.tryEmit(token)
+  }
 }

@@ -1343,4 +1343,62 @@
         <item quantity="one">Unblocked. %d held letter went back into the queue.</item>
         <item quantity="other">Unblocked. %d held letters went back into the queue.</item>
     </plurals>
+
+    <!-- API #173, #175: two-factor sign-in -->
+    <string name="title_two_factor">Two-factor sign-in</string>
+    <string name="two_factor_intro">Sign in with your password and a six-digit code from an authenticator app on your phone. Someone who learns your password still cannot sign in without the code.</string>
+    <string name="two_factor_intro_apps">Any authenticator app works, such as Aegis, 2FAS or Ente Auth. You also get ten recovery codes, for if you lose the phone.</string>
+    <string name="action_set_up_two_factor">Set up two-factor sign-in</string>
+    <string name="two_factor_step_add">1. Add this account to your authenticator app</string>
+    <string name="two_factor_step_add_text">If the app is on this phone, open it from here. Otherwise scan the code with it, or type the key.</string>
+    <string name="action_open_authenticator">Open in authenticator app</string>
+    <string name="two_factor_no_app">No app on this phone opens it. Install an authenticator app, or type the key below into one.</string>
+    <string name="two_factor_or_scan">Or scan this with an authenticator app on another device:</string>
+    <string name="two_factor_qr_description">QR code for your authenticator app</string>
+    <string name="two_factor_or_type">Or type this key into the app:</string>
+    <string name="action_copy_key">Copy the key</string>
+    <string name="two_factor_step_confirm">2. Type the code the app shows</string>
+    <string name="label_two_factor_code">Six-digit code</string>
+    <string name="action_switch_on">Switch on</string>
+    <string name="two_factor_codes_title">Save your recovery codes</string>
+    <string name="two_factor_codes_text">If you lose your phone, each of these signs you in once instead of a code. They are shown only now. Write them on paper or put them in a password manager, not only on this phone.</string>
+    <string name="action_copy_all">Copy all</string>
+    <string name="two_factor_codes_saved">I have saved these codes somewhere safe.</string>
+    <string name="action_done">Done</string>
+    <string name="two_factor_codes_unsaved_title">Save the codes first</string>
+    <string name="two_factor_codes_unsaved_text">These recovery codes are not shown again. Save them, then tick the box to go on.</string>
+    <string name="two_factor_on_since">On since %s</string>
+    <string name="two_factor_on">On</string>
+    <string name="action_new_recovery_codes">New recovery codes…</string>
+    <string name="action_switch_off">Switch off</string>
+    <string name="two_factor_required_cannot_off">It is required for your account, so it cannot be switched off.</string>
+    <string name="two_factor_new_codes_title">New recovery codes</string>
+    <string name="two_factor_new_codes_text">Type a code from your authenticator app. Your current recovery codes stop working.</string>
+    <string name="action_make_new_codes">Make new codes</string>
+    <string name="two_factor_off_title">Switch off two-factor sign-in</string>
+    <string name="two_factor_off_text">Type a code from your authenticator app, or one of your recovery codes. After this your password alone signs you in.</string>
+    <string name="notice_two_factor_off">Two-factor sign-in is off.</string>
+    <string name="two_factor_required_banner">%s requires two-factor sign-in. Set it up to go on; nothing else works until you do.</string>
+    <string name="two_factor_because_group">Your group</string>
+    <string name="two_factor_because_all_groups">The site, for every group admin,</string>
+    <string name="two_factor_because_superadmins">The site, for every superadmin,</string>
+    <string name="two_factor_because_site">The site</string>
+    <string name="two_factor_code_title">Enter your code</string>
+    <string name="two_factor_code_explained">Your password was right. Now type the six-digit code your authenticator app shows for this account.</string>
+    <string name="two_factor_code_recovery_explained">Type one of the recovery codes you saved when you set it up. Each works once.</string>
+    <string name="label_recovery_code_2fa">Recovery code</string>
+    <string name="action_signing_in_2fa">Signing in…</string>
+    <string name="action_use_recovery_code">Use a recovery code instead</string>
+    <string name="action_use_app_code">Use a code from the app instead</string>
+    <string name="action_back_to_password">Back to the password</string>
+    <string name="two_factor_wrong_code">That code is not right. Check the app shows this account, and type the code it shows now.</string>
+    <string name="two_factor_wrong_recovery_code">That recovery code is not right, or was used already.</string>
+    <string name="two_factor_expired">That took too long. Enter your password again.</string>
+    <string name="error_unlock_two_factor">Your account asks for a code at sign-in, which unlocking cannot. Sign out and sign in again.</string>
+    <string name="recover_done_code_next">Your password is changed. Two-factor sign-in is on, so a code finishes signing in.</string>
+    <string name="recover_sign_in_with_new">Your password is changed. Sign in with it, and a code.</string>
+    <plurals name="two_factor_codes_left">
+        <item quantity="one">%d recovery code left.</item>
+        <item quantity="other">%d recovery codes left.</item>
+    </plurals>
 </resources>

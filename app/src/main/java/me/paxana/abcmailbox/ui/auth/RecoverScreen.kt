@@ -64,6 +64,8 @@ data class RecoverUiState(
   val show: Boolean = false,
   val busy: Boolean = false,
   val error: String? = null,
+  /** Recovered, and two-factor sign-in is on: the new password was accepted, and a code signs in (API #173). */
+  val needsCode: Boolean = false,
 ) {
   val matches: Boolean get() = password == confirm
   val canSubmit: Boolean get() = !busy && username.isNotBlank() && code.isNotBlank() && password.length >= PasswordRules.MIN_LENGTH && matches
@@ -86,6 +88,9 @@ class RecoverViewModel @Inject constructor(
   fun onConfirm(v: String) = _ui.update { it.copy(confirm = v, error = null) }
   fun onToggleShow() = _ui.update { it.copy(show = !it.show) }
 
+  /** Back from the code step: the new password stands, and signing in with it is the ordinary way now. */
+  fun codeStepDone(message: String?) = _ui.update { it.copy(needsCode = false, error = message ?: strings.get(R.string.recover_sign_in_with_new)) }
+
   fun submit() {
     val s = _ui.value
     if (!s.canSubmit) return
@@ -95,7 +100,8 @@ class RecoverViewModel @Inject constructor(
     viewModelScope.launch {
       when (val r = sessions.recover(s.username, s.code, s.password)) {
         is ApiResult.Success -> _ui.update { it.copy(busy = false, password = "", confirm = "", code = "") }
-        is ApiResult.Failure -> _ui.update {
+        // Recovery changed the password and leaves two-factor sign-in as it was: a code finishes signing in.
+        is ApiResult.Failure -> if (r.error is AppError.TwoFactorNeeded) _ui.update { it.copy(busy = false, password = "", confirm = "", code = "", needsCode = true) } else _ui.update {
           it.copy(busy = false, error = when (val e = r.error) {
             is AppError.NotFound -> strings.get(R.string.error_recover_no_account)
             is AppError.Unauthorized -> strings.get(R.string.error_recover_refused)
@@ -124,6 +130,11 @@ fun RecoverScreen(sessionState: SessionState, onBack: () -> Unit, onClaim: () ->
       Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 8.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+      if (ui.needsCode) {
+        Text(stringResource(R.string.recover_done_code_next), style = MaterialTheme.typography.bodyLarge)
+        TwoFactorCodeStep(onBack = { viewModel.codeStepDone(null) }, onExpired = { viewModel.codeStepDone(it) })
+        return@Column
+      }
       Text(stringResource(R.string.recover_no_reset_link), style = MaterialTheme.typography.bodyLarge)
 
       if (ui.mode == EncryptionMode.E2E) {
