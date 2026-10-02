@@ -77,6 +77,10 @@ class ComposeViewModelTest {
     override suspend fun queue(prisonerName: String, writingAs: String?, letter: NewLetter, attachments: List<StagedFile>): Long { queued += Triple(prisonerName, writingAs, letter); return 1 }
     override suspend fun open(id: Long) = stored
     override suspend fun delete(id: Long) { forgotten += id }
+    val released = mutableListOf<Long>()
+    override fun release(id: Long) { released += id }
+    val heldAgain = mutableListOf<Long>(); var stillQueued = true
+    override suspend fun hold(id: Long): Boolean { heldAgain += id; return stillQueued }
     override suspend fun retry(id: Long) = Unit
     override suspend fun flush() = FlushOutcome()
     override suspend fun hasWaiting() = queued.isNotEmpty()
@@ -88,7 +92,10 @@ class ComposeViewModelTest {
 
   private fun vm(routing: Routing, groups: List<Group>, letters: FakeLetters = FakeLetters(), drafts: FakeDrafts = FakeDrafts(), edit: Int? = null,
                  route: ComposeRoute = ComposeRoute(prisonerId = 3, editMessageId = edit), session: SessionRepository = FakeSession()) =
-    ComposeViewModel(letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, FakeLocalFiles(), session, route, outbox, TestStrings())
+    ComposeViewModel(letters, FakeDirectory(prisoner(), facility(routing, groups)), drafts, files, session, route, outbox, TestStrings())
+  private val files = FakeLocalFiles()
+  /** What the navigation back stack does when the screen is left: `onCleared` is protected. */
+  private fun ComposeViewModel.leave() = ComposeViewModel::class.java.getDeclaredMethod("onCleared").apply { isAccessible = true }.invoke(this)
 
   @Test
   fun `one relay group is automatic and sent explicitly`() = runTest {
@@ -320,7 +327,124 @@ class ComposeViewModelTest {
     assertEquals(listOf(7L), outbox.forgotten)
   }
 
-  class FakeLetters(private val fail: AppError? = null, /** The relay group the stub letter says it has. */ private val relayGroupOfStub: Int? = null) : LettersRepository {
+  @Test
+  fun `a reopened letter sent as it was goes under the key it was queued with, because the earlier try may have arrived`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", idempotencyKey = "key-of-the-queued-copy") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf<String?>("key-of-the-queued-copy"), letters.triedKeys)
+  }
+
+  @Test
+  fun `a reopened letter whose words were changed is a different letter, with a key of its own`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", idempotencyKey = "key-of-the-queued-copy") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onBodyChange("Queued last night, and one more thing"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertFalse(letters.triedKeys.single() == "key-of-the-queued-copy")
+  }
+
+  @Test
+  fun `a queued send-again opened for editing still names the letter it replaces`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Second try", idempotencyKey = "k", resendOf = 41, replacesHeld = 52) to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onBodyChange("Second try, reworded"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(41, letters.sent.single().resendOf); assertEquals(52, letters.sent.single().replacesHeld)
+  }
+
+  @Test
+  fun `leaving a reopened letter without sending puts it back in line and throws the plain copies of its files away`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", idempotencyKey = "k") to listOf(StagedFile(File("scan.pdf"), "scan.pdf", "application/pdf", 3))
+    val model = vm(Routing.DIRECT, emptyList(), route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.leave()
+    assertEquals(listOf(7L), outbox.released); assertEquals(listOf("scan.pdf"), files.discarded)
+    assertTrue("it was not sent, so it is not removed", outbox.forgotten.isEmpty())
+  }
+
+  @Test
+  fun `a queued letter that went while Edit was being tapped is not offered for editing, and its row is left alone`() = runTest {
+    outbox.stored = null
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("That letter is no longer waiting on this phone. Look for it in the conversation before writing it again.", model.ui.value.error)
+    assertEquals("", model.ui.value.body)
+    model.onBodyChange("Something new"); assertFalse("there is nothing to edit here", model.ui.value.canSend)
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(letters.sent.isEmpty()); assertTrue("what is under that id now is not this screen's to delete", outbox.forgotten.isEmpty())
+  }
+
+  @Test
+  fun `a queued letter is held back only while its editor is on show, and an editor come back to after the letter went sends nothing`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", idempotencyKey = "k") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onShown(); assertTrue("first shown: open() already holds it", outbox.heldAgain.isEmpty())
+
+    // Another bottom tab: the screen and this ViewModel are kept, never cleared. The letter goes back in line.
+    model.onHidden(); assertEquals(listOf(7L), outbox.released)
+    // Back, and it is still queued: held again, and the editor works as before.
+    model.onShown(); assertFalse("not until the outbox has answered", model.ui.value.canSend)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(7L), outbox.heldAgain); assertTrue(model.ui.value.canSend)
+
+    // Away again, and this time the outbox sent it meanwhile.
+    model.onHidden(); outbox.stillQueued = false
+    model.onShown(); dispatcher.scheduler.advanceUntilIdle()
+    assertFalse(model.ui.value.canSend)
+    assertEquals("That letter is no longer waiting on this phone. Look for it in the conversation before writing it again.", model.ui.value.error)
+    model.onBodyChange("Queued last night, and more"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("a changed copy of a letter that went would be a second letter", letters.sent.isEmpty()); assertTrue(outbox.forgotten.isEmpty())
+  }
+
+  @Test
+  fun `changing only the note or the relay group keeps the key, and a letter an earlier try already made is edited to match`() = runTest {
+    // Queued with one note; the earlier try had arrived unheard. The server tells letters apart by sender, prisoner and
+    // text, so under the same key it answers with that letter (the fake's stub: no note).
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", relayNote = "blue paper", idempotencyKey = "key-of-the-queued-copy") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onNoteChange("green paper"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("a new key would have made a second letter", listOf<String?>("key-of-the-queued-copy"), letters.triedKeys)
+    assertEquals("the one letter is brought in line", listOf("green paper"), letters.edits.map { it.relayNote }); assertEquals(99, letters.edits.single().messageId)
+  }
+
+  @Test
+  fun `a letter sent as it was queued is not edited afterwards`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", relayNote = "blue paper", idempotencyKey = "k") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(1, letters.sent.size); assertTrue(letters.edits.isEmpty())
+  }
+
+  @Test
+  fun `a file that did not upload does not keep the screen open, where Send would make a second letter`() = runTest {
+    val two = listOf(StagedFile(File("a.pdf"), "a.pdf", "application/pdf", 3), StagedFile(File("b.pdf"), "b.pdf", "application/pdf", 3))
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "With two scans", idempotencyKey = "k") to two
+    val letters = FakeLetters(failUploads = setOf("b.pdf"))
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    val ui = model.ui.value
+    assertTrue(ui.sent); assertEquals(41, ui.sentChatId); assertNull(ui.error)
+    assertEquals("The letter was sent, but these files did not upload: b.pdf.", ui.sentNotice)
+    assertFalse("the letter exists: there is nothing left here to send", ui.canSend)
+    assertTrue(ui.attachments.isEmpty()); assertEquals(listOf("a.pdf", "b.pdf"), files.discarded)
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("one letter, however often Send is pressed", 1, letters.sent.size)
+  }
+
+  class FakeLetters(private val fail: AppError? = null, /** The relay group the stub letter says it has. */ private val relayGroupOfStub: Int? = null, /** Files, by name, whose upload fails. */ private val failUploads: Set<String> = emptySet()) : LettersRepository {
     val sent = mutableListOf<NewLetter>(); val triedKeys = mutableListOf<String?>()
     val edits = mutableListOf<LetterEdit>()
     private fun stub(id: Int) = Letter(id, 41, 3, 1, false, LetterStatus.QUEUED, "probe", null, relayGroupOfStub, null, false, null, null, emptyList(), emptyList())
@@ -331,7 +455,8 @@ class ComposeViewModelTest {
     override suspend fun send(letter: NewLetter): ApiResult<Letter> { triedKeys += letter.idempotencyKey; fail?.let { return ApiResult.Failure(it) }; sent += letter; return ApiResult.Success(stub(99)) }
     override suspend fun edit(edit: LetterEdit): ApiResult<Unit> { edits += edit; return ApiResult.Success(Unit) }
     override suspend fun delete(messageId: Int) = ApiResult.Success(Unit)
-    override suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String?) = ApiResult.Success(Attachment(1, messageId, staged.name, staged.mimeType, staged.size))
+    override suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String?): ApiResult<Attachment> =
+      if (staged.name in failUploads) ApiResult.Failure(AppError.Network(java.net.SocketTimeoutException())) else ApiResult.Success(Attachment(1, messageId, staged.name, staged.mimeType, staged.size))
     override suspend fun deleteAttachment(attachmentId: Int) = ApiResult.Success(Unit)
     override suspend fun download(attachment: Attachment) = ApiResult.Success(File("x"))
     override suspend fun retentionDays() = ApiResult.Success(90)
@@ -375,10 +500,11 @@ class ComposeViewModelTest {
   }
 
   class FakeLocalFiles : me.paxana.abcmailbox.data.files.LocalFilesContract {
+    val discarded = mutableListOf<String>()
     override fun newCameraTarget(): Pair<File, android.net.Uri> = error("not used")
     override fun stageCameraShot(file: File): StagedFile = StagedFile(file, file.name, "image/jpeg", 3)
     override suspend fun stage(uri: android.net.Uri): StagedFile = error("not used")
-    override fun discard(staged: StagedFile) = Unit
+    override fun discard(staged: StagedFile) { discarded += staged.name }
     override fun downloadTarget(attachmentId: Int, name: String) = File("x")
   }
 

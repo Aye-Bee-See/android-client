@@ -55,7 +55,8 @@ fun ComposeScreen(
   sessionState: SessionState,
   onSignIn: () -> Unit,
   onBack: () -> Unit,
-  onSent: (chatId: Int) -> Unit,
+  /** The letter is with the server. [chatId] is null when its conversation could not be looked up; [notice] names files that did not go with it. */
+  onSent: (chatId: Int?, notice: String?) -> Unit,
   /** No connection: the letter went to the outbox. The shell closes this screen and says so. */
   /** The letter went to the outbox; the time is set when the server is pacing the account rather than unreachable. */
   onQueued: (java.time.Instant?) -> Unit = {},
@@ -66,7 +67,14 @@ fun ComposeScreen(
   val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(viewModel::attach) }
   val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken -> viewModel.onPhotoResult(taken) }
 
-  LaunchedEffect(ui.sentChatId) { ui.sentChatId?.let { if (ui.error == null) onSent(it) } }
+  LaunchedEffect(ui.sent) { if (ui.sent) onSent(ui.sentChatId, ui.sentNotice) }
+  // A queued letter open here is held back from the outbox only while this screen is showing: a bottom tab keeps the
+  // screen (and its ViewModel) for later without ever clearing it. A rotation is not leaving.
+  val activity = androidx.activity.compose.LocalActivity.current
+  androidx.compose.runtime.DisposableEffect(viewModel) {
+    viewModel.onShown()
+    onDispose { if (activity?.isChangingConfigurations != true) viewModel.onHidden() }
+  }
   LaunchedEffect(ui.queuedOffline) { if (ui.queuedOffline) onQueued(ui.queuedLimitedUntil) }
   val draftRestored = stringResource(R.string.draft_restored)
   LaunchedEffect(ui.draftRestored) { if (ui.draftRestored) { snackbar.showSnackbar(draftRestored); viewModel.draftNoticeShown() } }

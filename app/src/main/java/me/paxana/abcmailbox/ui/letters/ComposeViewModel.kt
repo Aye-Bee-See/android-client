@@ -70,7 +70,15 @@ data class ComposeUiState(
   val draftRestored: Boolean = false,
   /** This letter takes the place of one that came back, or of one that was held: said at the top, so the person knows why the text is already there. */
   val sendingAgain: Boolean = false,
+  /** The letter is with the server and its files have been tried: the screen leaves, for [sentChatId] where it is known. */
+  val sent: Boolean = false,
   val sentChatId: Int? = null,
+  /** The letter went, and some of its files did not: said where the person lands, since this screen is done. */
+  val sentNotice: String? = null,
+  /** Opened on a queued letter that has since gone (sent, or deleted): what is here must not be sent, it would be a second letter. */
+  val queuedCopyGone: Boolean = false,
+  /** Back on this screen after being away from it: asking whether the queued letter is still there to edit. */
+  val recheckingQueued: Boolean = false,
   /** The server could not be reached, so the letter went to the outbox instead. The screen closes and says so. */
   val queuedOffline: Boolean = false,
   /** Queued because the server is pacing this account (a `429`), not for want of a connection: when it goes. */
@@ -86,7 +94,7 @@ data class ComposeUiState(
   /** Where pictures are refused only a PDF may be attached (API guidance for `no_photos`). */
   val allowedAttachmentTypes: Array<String> get() = if (mailRules.forbidsPhotos) arrayOf("application/pdf") else ATTACHMENT_MIME_TYPES
   // A recorded reply is not mailed anywhere, so the facility's routing cannot block it.
-  val canSend: Boolean get() = !loading && !sending && (recordingReply || (!relayIsBlocked && !needsRelayChoice)) && (body.isNotBlank() || attachments.isNotEmpty())
+  val canSend: Boolean get() = !loading && !sending && !sent && !queuedCopyGone && !recheckingQueued && (recordingReply || (!relayIsBlocked && !needsRelayChoice)) && (body.isNotBlank() || attachments.isNotEmpty())
 }
 
 /**
@@ -131,6 +139,27 @@ class ComposeViewModel(
   private val sendingAgainFrom: Int? = route.resendOf ?: route.replacesHeld
   private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && route.outboxId == null && sendingAgainFrom == null && !isStaff
 
+  /**
+   * One key per letter *as written*: pressing Send twice, or Send again after a timeout, repeats it, and the
+   * server answers with the letter it already has. Changing the words makes it a different letter, so the
+   * key is dropped and the next Send makes a new one (the server refuses a reused key on different text).
+   * A letter reopened from the outbox starts with the key it was queued under.
+   *
+   * The note to the relay group and the choice of group are not part of what the server tells letters apart by (its
+   * `beginIdempotent` for a letter: who from, who to, the text), so changing only those keeps the key: under a new
+   * one, an earlier try that had arrived would be joined by a second letter. [relay] and [note] are what the key was
+   * first tried with; if they have changed since and the server answers with the earlier letter, see [bringInLine].
+   */
+  private class SendKey(val key: String, val relay: Int?, val note: String?)
+  private var sendKey: SendKey? = null
+  /** The queued letter this screen was opened on (see [ComposeRoute.outboxId]), which is held back from sending meanwhile. */
+  private var reopened: me.paxana.abcmailbox.data.repo.OutboxPayload? = null
+  /** Whether the screen is on show. Not showing (another tab, a screen on top), a queued letter is not held back for it. */
+  private var showing = true
+  /** The queued letter was let go while the screen was not showing, and must be asked for again before anything is sent. */
+  private var away = false
+  // All three above `init` on purpose: Kotlin runs initialisers top to bottom, and load(), started in init, writes them.
+
   private val _ui = MutableStateFlow(
     ComposeUiState(
       editing = route.editMessageId != null,
@@ -155,7 +184,7 @@ class ComposeViewModel(
         .debounce(600)
         .collect { (body, note, relay) ->
           val uid = userId ?: return@collect
-          if (!usesDrafts || _ui.value.loading || _ui.value.sentChatId != null) return@collect
+          if (!usesDrafts || _ui.value.loading || _ui.value.sent) return@collect
           if (body.isBlank() && note.isBlank()) drafts.delete(uid, route.prisonerId)
           else drafts.save(uid, route.prisonerId, Draft(body, note.ifBlank { null }, relay, System.currentTimeMillis()))
         }
@@ -170,6 +199,7 @@ class ComposeViewModel(
     var note = ""
     var selected: Int? = (relay as? RelayChoice.Automatic)?.group?.id
     var restored = false
+    var queuedCopyGone = false // sent, or deleted, between the tap on Edit and this screen opening: there is nothing to edit
     route.editMessageId?.let { id ->
       (letters.letter(id) as? ApiResult.Success)?.value?.let { l ->
         body = l.body; note = l.relayNote.orEmpty()
@@ -185,7 +215,12 @@ class ComposeViewModel(
       outbox.open(id)?.let { (queued, staged) ->
         body = queued.body; note = queued.relayNote.orEmpty(); selected = queued.relayChapter ?: selected
         _ui.update { it.copy(attachments = staged) }
-      }
+        // Unchanged, it is still the same letter: an earlier attempt may have arrived unheard, and only the same
+        // key lets the server say so. Edited, it is a different letter and gets a new key (as the iOS app does).
+        sendKey = SendKey(queued.idempotencyKey, queued.relayChapter, queued.relayNote)
+        reopened = queued
+        if (!showing) letGo() // left while this was loading
+      } ?: run { queuedCopyGone = true }
     } ?: userId?.takeIf { usesDrafts }?.let { uid ->
       drafts.load(uid, route.prisonerId)?.let { d ->
         body = d.body; note = d.note.orEmpty(); selected = d.relayChapter ?: selected; restored = true
@@ -195,20 +230,46 @@ class ComposeViewModel(
       it.copy(
         prisoner = prisoner, facility = facility, relay = relay, selectedRelay = selected,
         body = body, note = note, showNote = note.isNotBlank(), loading = false, draftRestored = restored, sendingAgain = sendingAgainFrom != null,
-        error = if (prisoner == null) strings.get(R.string.error_load_prisoner) else null,
+        error = if (prisoner == null) strings.get(R.string.error_load_prisoner) else if (queuedCopyGone) strings.get(R.string.error_outbox_letter_gone) else null,
+        queuedCopyGone = queuedCopyGone,
       )
     }
   }
 
   /**
-   * One key per letter *as written*: pressing Send twice, or Send again after a timeout, repeats it, and the
-   * server answers with the letter it already has. Changing the words makes it a different letter, so the
-   * key is dropped and the next Send makes a new one (the server refuses a reused key on different text).
+   * The screen is no longer showing, and this ViewModel may outlive that by a long way: a bottom tab saves the screens
+   * of the tab that was left, ViewModels and all. A queued letter is not held back for an editor nobody is looking at.
    */
-  private var sendKey: String? = null
+  fun onHidden() { showing = false; letGo() }
+
+  private fun letGo() {
+    val id = route.outboxId?.takeIf { reopened != null && !_ui.value.queuedCopyGone } ?: return
+    away = true
+    outbox.release(id)
+  }
+
+  /** Showing again: the letter is held back again if it is still there. If it went meanwhile, nothing here may be sent. */
+  fun onShown() {
+    showing = true
+    val id = route.outboxId?.takeIf { away } ?: return
+    away = false
+    _ui.update { it.copy(recheckingQueued = true) }
+    viewModelScope.launch {
+      val still = outbox.hold(id)
+      if (!still) reopened = null // not this screen's to delete any more
+      _ui.update { it.copy(recheckingQueued = false, queuedCopyGone = !still, error = if (still) it.error else strings.get(R.string.error_outbox_letter_gone)) }
+    }
+  }
+
+  override fun onCleared() {
+    // Left without sending: the queued letter goes back in line. Sent or queued again: it is gone, and this does nothing.
+    route.outboxId?.let(outbox::release)
+    // Files staged for a letter that never left this screen are plain copies nobody will read again.
+    _ui.value.attachments.forEach(files::discard)
+  }
 
   fun onBodyChange(v: String) { sendKey = null; _ui.update { it.copy(body = v, error = null) } }
-  fun onNoteChange(v: String) { sendKey = null; _ui.update { it.copy(note = v, error = null) } }
+  fun onNoteChange(v: String) = _ui.update { it.copy(note = v, error = null) } // the key stays: see [SendKey]
   fun onToggleNote() = _ui.update { it.copy(showNote = !it.showNote) }
   fun onSelectRelay(id: Int?) = _ui.update { it.copy(selectedRelay = id, error = null) }
   fun draftNoticeShown() = _ui.update { it.copy(draftRestored = false) }
@@ -267,13 +328,16 @@ class ComposeViewModel(
         }
         return@launch
       }
+      val note = s.note.ifBlank { null }
+      val key = sendKey ?: SendKey(java.util.UUID.randomUUID().toString(), relayChapter, note).also { sendKey = it }
       val letter = NewLetter(
-        prisonerId = route.prisonerId, body = s.body, relayNote = s.note.ifBlank { null }, relayChapter = relayChapter,
+        prisonerId = route.prisonerId, body = s.body, relayNote = note, relayChapter = relayChapter,
         asWriterId = route.replyForUserId ?: route.writerId, fromPrisoner = route.replyForUserId != null,
         // End-to-end: the server lets a group hold an envelope where it relays for the facility (or manages the writer).
         groupRelaysFacility = staffGroupId != null && s.facility?.relayGroups?.any { it.id == staffGroupId } == true,
-        idempotencyKey = sendKey ?: java.util.UUID.randomUUID().toString().also { sendKey = it },
-        resendOf = route.resendOf, replacesHeld = route.replacesHeld,
+        idempotencyKey = key.key,
+        // A queued "send again" opened for editing is still that: the links travel with the queued copy, not the route.
+        resendOf = route.resendOf ?: reopened?.resendOf, replacesHeld = route.replacesHeld ?: reopened?.replacesHeld,
         reference = route.reference,
       )
       when (val r = letters.send(letter)) {
@@ -295,6 +359,7 @@ class ComposeViewModel(
           else _ui.update { it.copy(sending = false, progress = null, error = r.error.message(strings) ?: strings.get(R.string.error_send_letter)) }
         is ApiResult.Success -> {
           finishedWith(queued = false)
+          bringInLine(r.value, key, letter)
           uploadThen(r.value.id, s.attachments, r.value.threadId)
         }
       }
@@ -318,10 +383,21 @@ class ComposeViewModel(
     else st.copy(sending = false, progress = null, error = strings.get(R.string.error_group_block_only, name))
   }
 
+  /**
+   * The relay group or the note was changed after the key's first try, and the server answered with the letter that
+   * first try made (it arrived unheard): the letter exists once, as it should, but says what it said then. The change
+   * is made to it as an edit. Best effort: a letter already printed cannot be edited, and stays as it was sent.
+   */
+  private suspend fun bringInLine(sent: me.paxana.abcmailbox.domain.Letter, key: SendKey, asked: NewLetter) {
+    if (key.relay == asked.relayChapter && key.note == asked.relayNote) return // nothing changed since the first try
+    if (sent.relayGroupId == asked.relayChapter && sent.relayNote?.ifBlank { null } == asked.relayNote) return // this try made the letter
+    letters.edit(LetterEdit(sent.id, asked.body, asked.relayNote, asked.relayChapter))
+  }
+
   /** The letter has left this screen, to the server or to the outbox: the draft and any outbox copy it came from are done with. */
   private suspend fun finishedWith(queued: Boolean, limitedUntil: java.time.Instant? = null) {
     if (usesDrafts) userId?.let { drafts.delete(it, route.prisonerId) }
-    route.outboxId?.let { old -> outbox.forget(old) }
+    route.outboxId?.takeIf { reopened != null }?.let { old -> outbox.forget(old) }
     if (queued) _ui.update { it.copy(sending = false, progress = null, attachments = emptyList(), queuedOffline = true, queuedLimitedUntil = limitedUntil) }
   }
 
@@ -331,21 +407,23 @@ class ComposeViewModel(
 
   private suspend fun chatIdOf(messageId: Int): Int? = (letters.letter(messageId) as? ApiResult.Success)?.value?.threadId
 
-  /** The letter exists; attach files one by one. A failed upload is reported but the letter stays sent. */
+  /**
+   * The letter exists; attach files one by one. A failed upload is reported but the letter stays sent, and so this
+   * screen is over either way, as on iOS: left open with Send live, the next press was a second letter (or, with the
+   * text unchanged, a try at files already deleted). The files that failed can be added by editing the letter.
+   */
   private suspend fun uploadThen(messageId: Int, staged: List<StagedFile>, chatId: Int?) {
     val failed = mutableListOf<String>()
     staged.forEachIndexed { i, f ->
       _ui.update { it.copy(progress = strings.get(R.string.progress_uploading, f.name, i + 1, staged.size)) }
-      when (letters.upload(messageId, f)) {
-        is ApiResult.Success -> files.discard(f)
-        is ApiResult.Failure -> failed += f.name
-      }
+      if (letters.upload(messageId, f) is ApiResult.Failure) failed += f.name
+      files.discard(f)
     }
+    val thread = chatId ?: chatIdOf(messageId)
     _ui.update {
       it.copy(
-        sending = false, progress = null,
-        error = if (failed.isEmpty()) null else strings.get(R.string.error_files_not_uploaded, failed.joinToString()),
-        sentChatId = chatId ?: (letters.letter(messageId) as? ApiResult.Success)?.value?.threadId,
+        sending = false, progress = null, attachments = emptyList(), sent = true, sentChatId = thread,
+        sentNotice = if (failed.isEmpty()) null else strings.get(R.string.error_files_not_uploaded, failed.joinToString()),
       )
     }
   }
