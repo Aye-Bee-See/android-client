@@ -104,4 +104,31 @@ class LoginViewModelTest {
     vm.codeExpired(code.ui.value.error.orEmpty())
     assertFalse(vm.uiState.value.needsCode); assertEquals("That took too long. Enter your password again.", vm.uiState.value.error)
   }
+
+  @Test
+  fun `the code step starts clean for the next challenge, so one expired sign-in does not send every later one back to the password`() = runTest {
+    val repo = FakeSessionRepository(nextError = AppError.TwoFactorNeeded(null)).apply { twoFactorError = AppError.Unauthorized(null) }
+    val code = TwoFactorCodeViewModel(repo, TestStrings()) // one for the whole sign-in screen, as Hilt scopes it
+    code.onCode("123456"); code.submit(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(code.ui.value.expired)
+    code.expiredSeen() // what the step does as it hands the reason to the password form
+    assertEquals(TwoFactorCodeUiState(), code.ui.value)
+
+    // The password again, a new challenge, and this time a code in time.
+    repo.twoFactorError = null
+    code.onCode("654321"); code.submit(); dispatcher.scheduler.advanceUntilIdle()
+    assertFalse(code.ui.value.expired); assertTrue(repo.state.value is me.paxana.abcmailbox.data.session.SessionState.SignedIn)
+  }
+
+  @Test
+  fun `going back to the password, or leaving the screen any other way, forgets the sign-in that was waiting and what was typed for it`() = runTest {
+    val repo = FakeSessionRepository(nextError = AppError.TwoFactorNeeded(null))
+    val code = TwoFactorCodeViewModel(repo, TestStrings())
+    code.toggleRecovery(); code.onCode("abcde-123")
+    code.cancel()
+    assertEquals(1, repo.twoFactorCancelled); assertEquals(TwoFactorCodeUiState(), code.ui.value)
+    // System Back, or the arrow in the top bar: the ViewModel is cleared with the screen (`onCleared` is protected).
+    TwoFactorCodeViewModel::class.java.getDeclaredMethod("onCleared").apply { isAccessible = true }.invoke(code)
+    assertEquals(2, repo.twoFactorCancelled)
+  }
 }

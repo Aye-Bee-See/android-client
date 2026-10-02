@@ -189,7 +189,13 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val backStackEntry by navController.currentBackStackEntryAsState()
   val destination = backStackEntry?.destination
   val fullScreen = listOf(LoginRoute::class, ClaimRoute::class, JoinRoute::class, InvitationRoute::class, RecoverRoute::class, RecoveryCodeRoute::class)
-  val showBars = fullScreen.none { destination?.hasRoute(it) == true }
+  val twoFactorSetupRequired by viewModel.twoFactorSetupRequired.collectAsStateWithLifecycle()
+  // No tabs while two-factor set-up is required either: every one of them leads straight back to the set-up screen, as a
+  // new screen that starts over, and starting over makes the server replace the secret the person has just scanned.
+  // Nor while its recovery codes are on show: the requirement is met the moment the code is confirmed, the codes are
+  // shown once, and a tab would walk past the screen's own "save them first".
+  var recoveryCodesOnShow by remember { mutableStateOf(false) }
+  val showBars = fullScreen.none { destination?.hasRoute(it) == true } && !((twoFactorSetupRequired != null || recoveryCodesOnShow) && destination?.hasRoute(TwoFactorRoute::class) == true)
   // Snackbars are shown from callbacks, where there is no composition to read resources in, so the
   // sentences are resolved here, where there is.
   val sessionEnded = stringResource(R.string.notice_session_ended)
@@ -236,7 +242,6 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   // leaves for the Inbox in the same frame, popping to the start destination, which took this screen with it (seen
   // on the emulator, 23 Sep 2026, joining with an invite code). Now the code is put back on top wherever it lands.
   // Not while two-factor set-up is required: saving the code uploads the keys, which the server refuses until then.
-  val twoFactorSetupRequired by viewModel.twoFactorSetupRequired.collectAsStateWithLifecycle()
   LaunchedEffect(pendingCode, destination, twoFactorSetupRequired) {
     // Nor over the two-factor screen, which may be showing its own recovery codes, also shown once.
     if (pendingCode != null && twoFactorSetupRequired == null && destination?.hasRoute(RecoveryCodeRoute::class) != true && destination?.hasRoute(TwoFactorRoute::class) != true) navController.navigate(RecoveryCodeRoute) { launchSingleTop = true }
@@ -250,7 +255,9 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   LaunchedEffect(twoFactorSetupRequired, destination) {
     val onCode = destination?.hasRoute(RecoveryCodeRoute::class) == true
     if (twoFactorSetupRequired != null && destination != null && (onCode || fullScreen.none { destination.hasRoute(it) }) && !destination.hasRoute(TwoFactorRoute::class)) {
-      navController.navigate(TwoFactorRoute) { if (onCode) popUpTo<RecoveryCodeRoute> { inclusive = true }; launchSingleTop = true }
+      // Back to the set-up screen already open, if something was put on top of it (news opened from the line at the
+      // bottom, say): a second one would start the set-up again.
+      if (onCode || !navController.popBackStack<TwoFactorRoute>(inclusive = false)) navController.navigate(TwoFactorRoute) { if (onCode) popUpTo<RecoveryCodeRoute> { inclusive = true }; launchSingleTop = true }
     }
   }
   val askPenName by viewModel.askPenName.collectAsStateWithLifecycle()
@@ -459,7 +466,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
       composable<GroupNumbersRoute> { me.paxana.abcmailbox.ui.group.GroupNumbersScreen(onBack = { navController.popBackStack() }) }
       composable<InviteCodesRoute> { me.paxana.abcmailbox.ui.group.InviteCodesScreen(onBack = { navController.popBackStack() }) }
       composable<TwoFactorRoute> {
-        me.paxana.abcmailbox.ui.account.TwoFactorScreen(onBack = { navController.popBackStack() }, onSignOut = { viewModel.signOut() })
+        me.paxana.abcmailbox.ui.account.TwoFactorScreen(onBack = { navController.popBackStack() }, onSignOut = { viewModel.signOut() }, setUpFirst = twoFactorSetupRequired != null, onCodesOnShow = { recoveryCodesOnShow = it })
       }
       composable<BlocksRoute> { me.paxana.abcmailbox.ui.group.BlocksScreen(onBack = { navController.popBackStack() }) }
       composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }, onGroupKey = { navController.navigate(GroupKeyRoute) }) }
