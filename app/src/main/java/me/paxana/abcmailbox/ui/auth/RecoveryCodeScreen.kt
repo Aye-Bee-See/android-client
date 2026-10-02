@@ -30,9 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import me.paxana.abcmailbox.ui.common.copySecret
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,7 +52,7 @@ import me.paxana.abcmailbox.ui.common.AlertBanner
 @Composable
 fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, busy: Boolean = false, error: String? = null) {
   var saved by rememberSaveable { mutableStateOf(false) }
-  val clipboard = LocalClipboardManager.current
+  val context = LocalContext.current
   BackHandler(enabled = true) { }
 
   Column(
@@ -65,7 +65,7 @@ fun RecoveryCodeScreen(code: String, onSaved: () -> Unit, busy: Boolean = false,
       style = MaterialTheme.typography.bodyLarge,
     )
     SecretCodeText(code, modifier = Modifier.testTag("recovery-code"))
-    OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(code))) }) { Text(stringResource(R.string.action_copy)) }
+    OutlinedButton(onClick = { context.copySecret("recovery code", SecretCodes.pretty(code)) }) { Text(stringResource(R.string.action_copy)) }
     AlertBanner(stringResource(R.string.recovery_keep_safe))
     // Agreed wording for the site, both apps and the guide: said where the code is first shown, not left for help.
     Text(stringResource(R.string.recovery_lose_both), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)

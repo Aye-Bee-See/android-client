@@ -62,9 +62,14 @@ class AccountEraserTest {
     override suspend fun markAllRead() = Unit
     override suspend fun forget(userId: Int) { told += "activity:$userId" }
   }
+  private val invites = object : me.paxana.abcmailbox.data.repo.PendingInvitesStore {
+    override suspend fun save(userId: Int, issued: me.paxana.abcmailbox.domain.IssuedInvites) = error("not used")
+    override suspend fun load(userId: Int) = null
+    override suspend fun clear(userId: Int) { told += "invites:$userId" }
+  }
   private var members = listOf<GroupMember>()
   private val group = object : GroupRepository by GroupViewModelsTest.FakeGroup() { override suspend fun members(): ApiResult<List<GroupMember>> = ApiResult.Success(members) }
-  private fun eraser(mode: EncryptionMode = EncryptionMode.SERVER) = DefaultAccountEraser(sessions, letters, outbox, drafts, files, push, activity, FixedMode(mode), group)
+  private fun eraser(mode: EncryptionMode = EncryptionMode.SERVER) = DefaultAccountEraser(sessions, letters, outbox, drafts, files, push, activity, FixedMode(mode), group, invites)
   private val eraser = eraser()
 
   @Test
@@ -105,7 +110,7 @@ class AccountEraserTest {
   @Test
   fun `a deleted account leaves nothing of its own on the phone, and a receipt`() = runTest {
     val report = (eraser.delete("password1") as ApiResult.Success).value
-    assertEquals(listOf("outbox:2", "drafts:2", "caches", "push", "activity:2"), told)
+    assertEquals(listOf("outbox:2", "drafts:2", "caches", "push", "activity:2", "invites:2"), told)
     assertEquals(DeletionReport(letters = 3, replies = 1, attachments = 1, threads = 2, unsentOnPhone = 2), report)
     assertTrue(sessions.state.value is SessionState.SignedOut)
     assertEquals("kept until the person has read it", report, eraser.farewell.value)

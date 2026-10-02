@@ -16,6 +16,7 @@ import me.paxana.abcmailbox.data.push.PushRetirement
 import me.paxana.abcmailbox.data.repo.DraftsRepository
 import me.paxana.abcmailbox.data.repo.LettersRepository
 import me.paxana.abcmailbox.data.repo.OutboxRepository
+import me.paxana.abcmailbox.data.repo.PendingInvitesStore
 import me.paxana.abcmailbox.data.session.SessionRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,6 +72,7 @@ class DefaultAccountEraser @Inject constructor(
   private val activity: ActivityRepository,
   private val modes: EncryptionModeRepository,
   private val group: GroupRepository,
+  private val invites: PendingInvitesStore,
 ) : AccountEraser {
 
   private val _farewell = MutableStateFlow<DeletionReport?>(null)
@@ -106,6 +108,7 @@ class DefaultAccountEraser @Inject constructor(
       runCatching { files.emptyCaches() }
       runCatching { push.forgetLocally() }
       runCatching { activity.forget(userId) }
+      runCatching { invites.clear(userId) }
     }
     return when (result) {
       is ApiResult.Failure -> result

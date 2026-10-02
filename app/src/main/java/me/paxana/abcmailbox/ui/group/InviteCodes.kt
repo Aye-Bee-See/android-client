@@ -274,7 +274,8 @@ private fun InviteSlipsView(issued: IssuedInvites, onDone: () -> Unit) {
       }
       pdfError?.let { ErrorText(it) }
       issued.codes.forEach { code -> Slip(code, issued) }
-      Button(onClick = { leaving = true }, modifier = Modifier.fillMaxWidth().testTag("invites-done")) { Text(stringResource(R.string.action_finished_with_codes)) }
+      // Not while the PDF is being written: finishing deletes it, and a write still under way would put it back.
+      Button(onClick = { leaving = true }, enabled = !working, modifier = Modifier.fillMaxWidth().testTag("invites-done")) { Text(stringResource(R.string.action_finished_with_codes)) }
     }
   }
   if (leaving) {
@@ -282,7 +283,7 @@ private fun InviteSlipsView(issued: IssuedInvites, onDone: () -> Unit) {
       onDismissRequest = { leaving = false },
       title = { Text(stringResource(R.string.invites_leave_title)) },
       text = { Text(stringResource(R.string.invites_leave_text)) },
-      confirmButton = { TextButton(onClick = { leaving = false; onDone() }, modifier = Modifier.testTag("invites-leave")) { Text(stringResource(R.string.action_leave_anyway)) } },
+      confirmButton = { TextButton(onClick = { leaving = false; InviteSlipsPdf.discard(context); onDone() }, enabled = !working, modifier = Modifier.testTag("invites-leave")) { Text(stringResource(R.string.action_leave_anyway)) } },
       dismissButton = { TextButton(onClick = { leaving = false }) { Text(stringResource(R.string.action_stay)) } },
     )
   }

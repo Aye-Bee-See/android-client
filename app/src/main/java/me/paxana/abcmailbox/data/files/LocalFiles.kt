@@ -70,7 +70,7 @@ class LocalFiles @Inject constructor(@ApplicationContext private val context: Co
   }
 
   override fun emptyOutboxFolder() { File(context.filesDir, "outbox").listFiles()?.forEach { it.delete() } }
-  override fun emptyCaches() { listOf("staging", "attachments", "camera").forEach { File(context.cacheDir, it).deleteRecursively() } }
+  override fun emptyCaches() { listOf("staging", "attachments", "camera", "invites").forEach { File(context.cacheDir, it).deleteRecursively() } }
   override fun newOutboxFile(): File = File(File(context.filesDir, "outbox").apply { mkdirs() }, "${java.util.UUID.randomUUID()}.bin")
   override fun newStagingFile(name: String): File = File(staging, "${System.nanoTime()}_${name.replace(File.separatorChar, '_')}")
 

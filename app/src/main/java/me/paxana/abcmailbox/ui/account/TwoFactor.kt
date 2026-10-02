@@ -37,13 +37,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import me.paxana.abcmailbox.ui.common.copySecret
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -260,7 +259,6 @@ private fun becauseWords(because: List<String>): String = stringResource(when {
 @Composable
 private fun androidx.compose.foundation.layout.ColumnScope.SetUp(setup: TwoFactorSetup, ui: TwoFactorUiState, viewModel: TwoFactorViewModel) {
   val context = LocalContext.current
-  val clipboard = LocalClipboardManager.current
   var noApp by remember { mutableStateOf(false) }
   Text(stringResource(R.string.two_factor_step_add), style = MaterialTheme.typography.titleMedium)
   Text(stringResource(R.string.two_factor_step_add_text), style = MaterialTheme.typography.bodyMedium)
@@ -273,7 +271,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.SetUp(setup: TwoFacto
   QrCode(setup.otpauthUri, modifier = Modifier.size(200.dp).align(Alignment.CenterHorizontally), contentDescription = stringResource(R.string.two_factor_qr_description))
   Text(stringResource(R.string.two_factor_or_type), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
   SelectionContainer { Text(setup.secret.chunked(4).joinToString(" "), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("two-factor-secret")) }
-  TextButton(onClick = { clipboard.setText(AnnotatedString(setup.secret)) }) { Text(stringResource(R.string.action_copy_key)) }
+  TextButton(onClick = { context.copySecret("authenticator key", setup.secret) }) { Text(stringResource(R.string.action_copy_key)) }
 
   Text(stringResource(R.string.two_factor_step_confirm), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
   OutlinedTextField(
@@ -287,13 +285,13 @@ private fun androidx.compose.foundation.layout.ColumnScope.SetUp(setup: TwoFacto
 
 @Composable
 private fun RecoveryCodes(codes: List<String>, saved: Boolean, onSaved: (Boolean) -> Unit, onDone: () -> Unit) {
-  val clipboard = LocalClipboardManager.current
+  val context = LocalContext.current
   Text(stringResource(R.string.two_factor_codes_title), style = MaterialTheme.typography.titleMedium)
   Text(stringResource(R.string.two_factor_codes_text), style = MaterialTheme.typography.bodyMedium)
   SelectionContainer {
     Column(Modifier.testTag("two-factor-codes")) { codes.forEach { Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleMedium) } }
   }
-  OutlinedButton(onClick = { clipboard.setText(AnnotatedString(codes.joinToString("\n"))) }) { Text(stringResource(R.string.action_copy_all)) }
+  OutlinedButton(onClick = { context.copySecret("recovery codes", codes.joinToString("\n")) }) { Text(stringResource(R.string.action_copy_all)) }
   Row(
     Modifier.fillMaxWidth().toggleable(value = saved, role = Role.Checkbox, onValueChange = onSaved).testTag("two-factor-codes-saved"),
     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),

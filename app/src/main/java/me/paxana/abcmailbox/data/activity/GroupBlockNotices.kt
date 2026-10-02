@@ -40,20 +40,28 @@ interface GroupBlockNotices {
 }
 
 @Singleton
-class DataStoreGroupBlockNotices @Inject constructor(private val dataStore: DataStore<Preferences>, private val json: Json) : GroupBlockNotices {
+class DataStoreGroupBlockNotices @Inject constructor(
+  private val dataStore: DataStore<Preferences>,
+  private val json: Json,
+  private val cipher: me.paxana.abcmailbox.data.session.SecretCipher,
+) : GroupBlockNotices {
   private val serializer = MapSerializer(Int.serializer(), GroupBlockNotice.serializer())
   private fun key(userId: Int) = stringPreferencesKey("group_block_notices_$userId")
+  // Sealed under the Keystore key like the session and the drafts: a group's name and its words about this writer are
+  // nobody else's to read off the phone. A value written in the clear by the release before this one is still read.
+  private fun seal(value: String) = java.util.Base64.getEncoder().encodeToString(cipher.encrypt(value.toByteArray(Charsets.UTF_8)))
+  private fun open(stored: String): String? = runCatching { String(cipher.decrypt(java.util.Base64.getDecoder().decode(stored)), Charsets.UTF_8) }.getOrNull()
   private fun read(prefs: Preferences, userId: Int): Map<Int, GroupBlockNotice> =
-    prefs[key(userId)]?.let { runCatching { json.decodeFromString(serializer, it) }.getOrNull() }.orEmpty()
+    prefs[key(userId)]?.let { stored -> (open(stored) ?: stored).let { runCatching { json.decodeFromString(serializer, it) }.getOrNull() } }.orEmpty()
 
   override fun notices(userId: Int): Flow<Map<Int, GroupBlockNotice>> = dataStore.data.map { read(it, userId) }
 
   override suspend fun blocked(userId: Int, groupId: Int, notice: GroupBlockNotice) {
-    dataStore.edit { it[key(userId)] = json.encodeToString(serializer, read(it, userId) + (groupId to notice)) }
+    dataStore.edit { it[key(userId)] = seal(json.encodeToString(serializer, read(it, userId) + (groupId to notice))) }
   }
 
   override suspend fun lifted(userId: Int, groupId: Int) {
-    dataStore.edit { prefs -> (read(prefs, userId) - groupId).let { if (it.isEmpty()) prefs.remove(key(userId)) else prefs[key(userId)] = json.encodeToString(serializer, it) } }
+    dataStore.edit { prefs -> (read(prefs, userId) - groupId).let { if (it.isEmpty()) prefs.remove(key(userId)) else prefs[key(userId)] = seal(json.encodeToString(serializer, it)) } }
   }
 
   override suspend fun forget(userId: Int) { dataStore.edit { it.remove(key(userId)) } }

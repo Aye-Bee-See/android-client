@@ -41,10 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import me.paxana.abcmailbox.ui.common.copySecret
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -298,7 +297,7 @@ fun AddWriterScreen(onBack: () -> Unit, onDone: (ManagedWriter, thenWrite: Boole
 @Composable
 fun HandoffScreen(onBack: () -> Unit, viewModel: HandoffViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
-  val clipboard = LocalClipboardManager.current
+  val context = LocalContext.current
   DetailScaffold(title = stringResource(R.string.title_hand_off), onBack = onBack) { padding ->
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
       Text(stringResource(R.string.writer_named, ui.writerName), style = MaterialTheme.typography.titleLarge)
@@ -321,7 +320,7 @@ fun HandoffScreen(onBack: () -> Unit, viewModel: HandoffViewModel = hiltViewMode
         // over. Never a number of days: how long a token lasts is the server operator's setting.
         token.expiresAt?.let { Text(stringResource(R.string.token_good_until, it.longDate()), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("token-good-until")) }
         Text(stringResource(if (token.expiresAt != null) R.string.token_say_the_date else R.string.token_shown_once), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedButton(onClick = { clipboard.setText(AnnotatedString(SecretCodes.pretty(token.token))) }) { Text(stringResource(R.string.action_copy)) }
+        OutlinedButton(onClick = { context.copySecret("claim token", SecretCodes.pretty(token.token)) }) { Text(stringResource(R.string.action_copy)) }
         AlertBanner(stringResource(R.string.token_give_in_person, ui.writerName))
         OutlinedButton(onClick = viewModel::generate, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_regenerate)) }
         TextButton(onClick = viewModel::revoke, enabled = !ui.busy) { Text(stringResource(R.string.action_revoke), color = MaterialTheme.colorScheme.error) }
