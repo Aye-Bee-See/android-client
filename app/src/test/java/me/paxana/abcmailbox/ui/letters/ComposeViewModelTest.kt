@@ -79,6 +79,8 @@ class ComposeViewModelTest {
     override suspend fun delete(id: Long) { forgotten += id }
     val released = mutableListOf<Long>()
     override fun release(id: Long) { released += id }
+    val heldAgain = mutableListOf<Long>(); var stillQueued = true
+    override suspend fun hold(id: Long): Boolean { heldAgain += id; return stillQueued }
     override suspend fun retry(id: Long) = Unit
     override suspend fun flush() = FlushOutcome()
     override suspend fun hasWaiting() = queued.isNotEmpty()
@@ -373,8 +375,56 @@ class ComposeViewModelTest {
     dispatcher.scheduler.advanceUntilIdle()
     assertEquals("That letter is no longer waiting on this phone. Look for it in the conversation before writing it again.", model.ui.value.error)
     assertEquals("", model.ui.value.body)
-    model.onBodyChange("Something new"); model.send(); dispatcher.scheduler.advanceUntilIdle()
-    assertTrue("what is under that id now is not this screen's to delete", outbox.forgotten.isEmpty())
+    model.onBodyChange("Something new"); assertFalse("there is nothing to edit here", model.ui.value.canSend)
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue(letters.sent.isEmpty()); assertTrue("what is under that id now is not this screen's to delete", outbox.forgotten.isEmpty())
+  }
+
+  @Test
+  fun `a queued letter is held back only while its editor is on show, and an editor come back to after the letter went sends nothing`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", idempotencyKey = "k") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onShown(); assertTrue("first shown: open() already holds it", outbox.heldAgain.isEmpty())
+
+    // Another bottom tab: the screen and this ViewModel are kept, never cleared. The letter goes back in line.
+    model.onHidden(); assertEquals(listOf(7L), outbox.released)
+    // Back, and it is still queued: held again, and the editor works as before.
+    model.onShown(); assertFalse("not until the outbox has answered", model.ui.value.canSend)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(listOf(7L), outbox.heldAgain); assertTrue(model.ui.value.canSend)
+
+    // Away again, and this time the outbox sent it meanwhile.
+    model.onHidden(); outbox.stillQueued = false
+    model.onShown(); dispatcher.scheduler.advanceUntilIdle()
+    assertFalse(model.ui.value.canSend)
+    assertEquals("That letter is no longer waiting on this phone. Look for it in the conversation before writing it again.", model.ui.value.error)
+    model.onBodyChange("Queued last night, and more"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("a changed copy of a letter that went would be a second letter", letters.sent.isEmpty()); assertTrue(outbox.forgotten.isEmpty())
+  }
+
+  @Test
+  fun `changing only the note or the relay group keeps the key, and a letter an earlier try already made is edited to match`() = runTest {
+    // Queued with one note; the earlier try had arrived unheard. The server tells letters apart by sender, prisoner and
+    // text, so under the same key it answers with that letter (the fake's stub: no note).
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", relayNote = "blue paper", idempotencyKey = "key-of-the-queued-copy") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.onNoteChange("green paper"); model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("a new key would have made a second letter", listOf<String?>("key-of-the-queued-copy"), letters.triedKeys)
+    assertEquals("the one letter is brought in line", listOf("green paper"), letters.edits.map { it.relayNote }); assertEquals(99, letters.edits.single().messageId)
+  }
+
+  @Test
+  fun `a letter sent as it was queued is not edited afterwards`() = runTest {
+    outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", relayNote = "blue paper", idempotencyKey = "k") to emptyList()
+    val letters = FakeLetters()
+    val model = vm(Routing.DIRECT, emptyList(), letters = letters, route = ComposeRoute(prisonerId = 3, outboxId = 7))
+    dispatcher.scheduler.advanceUntilIdle()
+    model.send(); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(1, letters.sent.size); assertTrue(letters.edits.isEmpty())
   }
 
   @Test

@@ -271,13 +271,45 @@ class OutboxRepositoryTest {
   fun `a letter open for editing is not sent from the queue behind the writer's back, and goes back in line when they leave`() = runTest {
     val editing = outbox.queue("Jane Smith", null, letter, emptyList()); outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2, body = "the other one"), emptyList())
     outbox.open(editing)!!
-    assertEquals("the one on the compose screen waits; the one behind it goes", FlushOutcome(sent = 1, stillWaiting = 1), outbox.flush())
+    assertEquals("the one on the compose screen waits; the one behind it goes, and nothing is left that a retry would help", FlushOutcome(sent = 1), outbox.flush())
     assertEquals(listOf("the other one"), letters.sent.map { it.body })
     val before = scheduled
     outbox.release(editing)
     assertEquals("a send is booked for it again", before + 1, scheduled)
     assertEquals(FlushOutcome(sent = 1), outbox.flush())
     assertEquals(listOf("the other one", letter.body), letters.sent.map { it.body })
+  }
+
+  @Test
+  fun `a letter sent in an edited form while a flush was busy with an earlier one is not sent from the queue as well`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList())
+    val edited = outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2, body = "the one being edited"), emptyList())
+    outbox.open(edited)!!
+    // The flush has its list and is sending the first letter. Meanwhile the compose screen sends the edited letter
+    // under a new key, removes the queued copy, and closes: the hold is gone before the flush reaches that row.
+    letters.duringSend = { outbox.forget(edited); outbox.release(edited) }
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+    assertEquals("only the first letter went from the queue", listOf(letter.body), letters.sent.map { it.body })
+  }
+
+  @Test
+  fun `a letter deleted while a flush was busy with an earlier one is not sent`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList())
+    val second = outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2, body = "thought better of it"), emptyList())
+    letters.duringSend = { outbox.delete(second) }
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+    assertEquals(listOf(letter.body), letters.sent.map { it.body })
+  }
+
+  @Test
+  fun `an editor come back to holds the letter again if it is still queued, and is told when it is not`() = runTest {
+    val id = outbox.queue("Jane Smith", null, letter, emptyList())
+    outbox.open(id)!!; outbox.release(id)
+    assertTrue(outbox.hold(id))
+    assertEquals("held again", FlushOutcome(), outbox.flush())
+    outbox.release(id)
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+    assertFalse("it went while the editor was away", outbox.hold(id))
   }
 
   @Test
@@ -309,8 +341,10 @@ class OutboxRepositoryTest {
     val sendResults = ArrayDeque<ApiResult<Letter>>(); val uploadResults = ArrayDeque<ApiResult<Attachment>>()
     val sent = mutableListOf<NewLetter>(); val uploaded = mutableListOf<Pair<String, String>>(); val uploadedTo = mutableListOf<Int>()
     val sendKeys = mutableListOf<String?>(); val uploadKeys = mutableListOf<String?>()
+    /** Runs once, in the middle of the next send: what else happens on the phone while a flush is busy. */
+    var duringSend: (suspend () -> Unit)? = null
     private fun stub(id: Int) = Letter(id, 41, 1, 2, false, LetterStatus.QUEUED, "x", null, null, null, false, null, null, emptyList(), emptyList())
-    override suspend fun send(letter: NewLetter): ApiResult<Letter> { sendKeys += letter.idempotencyKey; sendResults.removeFirstOrNull()?.let { return it }; sent += letter; return ApiResult.Success(stub(99)) }
+    override suspend fun send(letter: NewLetter): ApiResult<Letter> { duringSend?.also { duringSend = null }?.invoke(); sendKeys += letter.idempotencyKey; sendResults.removeFirstOrNull()?.let { return it }; sent += letter; return ApiResult.Success(stub(99)) }
     override suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String?): ApiResult<Attachment> {
       uploadKeys += idempotencyKey
       uploadResults.removeFirstOrNull()?.let { return it }

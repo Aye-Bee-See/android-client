@@ -97,8 +97,13 @@ interface OutboxRepository {
    * both go. Null when there is nothing to edit any more: the row is gone, or the server already has the letter.
    */
   suspend fun open(id: Long): Pair<OutboxPayload, List<StagedFile>>?
-  /** The compose screen that opened the letter has closed: if the letter is still queued, it may be sent again. */
+  /** The compose screen that opened the letter is no longer showing: if the letter is still queued, it may be sent again. */
   fun release(id: Long) {}
+  /**
+   * The compose screen is showing again after [release]: the letter is held back once more. False when it went in
+   * the meantime (or was deleted), and then the screen must not send what it has: that would be a second letter.
+   */
+  suspend fun hold(id: Long): Boolean = true
   suspend fun delete(id: Long)
   /** After [open] and a successful re-send: drops the row and its encrypted files, which the new send has superseded. */
   suspend fun forget(id: Long) = delete(id)
@@ -204,6 +209,10 @@ class DefaultOutboxRepository @Inject constructor(
 
   override fun release(id: Long) { if (beingEdited.remove(id)) scheduler.schedule() }
 
+  override suspend fun hold(id: Long): Boolean = flushing.withLock {
+    (dao.get(id)?.takeIf { it.userId == myId && it.messageId == null } != null).also { if (it) beingEdited += id }
+  }
+
   private fun unsealFile(a: OutboxAttachment): StagedFile? = runCatching {
     val plain = files.newStagingFile(a.name).apply { writeBytes(cipher.decrypt(File(a.path).readBytes())) }
     StagedFile(plain, a.name, a.mimeType, a.size)
@@ -212,6 +221,8 @@ class DefaultOutboxRepository @Inject constructor(
   override suspend fun delete(id: Long) {
     val row = dao.get(id)?.takeIf { it.userId == myId } ?: return
     unseal(row)?.attachments?.forEach { File(it.path).delete() }
+    // The row first, the hold after: a flush under way looks at the hold and then at the row (see there), so whichever
+    // moment it looks, one of the two tells it this letter is not to be sent.
     dao.delete(id)
     beingEdited -= id
   }
@@ -240,8 +251,11 @@ class DefaultOutboxRepository @Inject constructor(
       _limitedUntil.value = null
     }
     var sent = 0; var refused = 0
-    for (row in dao.waiting(userId)) {
-      if (row.id in beingEdited) continue // open on the compose screen, which sends it (or lets it go) itself
+    for (listed in dao.waiting(userId)) {
+      if (listed.id in beingEdited) continue // open on the compose screen, which sends it (or lets it go) itself
+      // Read again: the list is from when the flush began, and sending the letters before this one may have taken
+      // minutes. Deleted since, or sent from the compose screen in an edited form, it must not go from here as well.
+      val row = dao.get(listed.id)?.takeIf { it.state == OutboxEntity.STATE_WAITING } ?: continue
       when (sendOne(row)) {
         Step.SENT -> sent++
         Step.REFUSED -> refused++
@@ -250,7 +264,9 @@ class DefaultOutboxRepository @Inject constructor(
         Step.LATER -> break
       }
     }
-    FlushOutcome(sent, refused, dao.waiting(userId).size, _limitedUntil.value)
+    // Not counting letters open for editing: nothing is wrong with them that trying again would mend, and a worker
+    // told to retry backs off for longer each time, with the run booked at their release waiting behind it.
+    FlushOutcome(sent, refused, dao.waiting(userId).count { it.id !in beingEdited }, _limitedUntil.value)
   }
 
   private enum class Step { SENT, REFUSED, LATER, DROPPED }
