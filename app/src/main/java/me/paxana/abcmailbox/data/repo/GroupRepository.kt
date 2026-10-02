@@ -230,7 +230,8 @@ class DefaultGroupRepository @Inject constructor(
 
   override suspend fun addWriter(name: String, email: String?, note: String?): ApiResult<ManagedWriter> {
     val plain = AddWriterRequest(name.trim(), email?.trim()?.ifBlank { null }, note?.trim()?.ifBlank { null })
-    if (!codec.isEndToEnd()) return apiCall(json) { api.addWriter(plain) }.map { checkNotNull(it.data).toDomain() }
+    val endToEnd = when (val m = codec.endToEnd()) { is ApiResult.Failure -> return m; is ApiResult.Success -> m.value }
+    if (!endToEnd) return apiCall(json) { api.addWriter(plain) }.map { checkNotNull(it.data).toDomain() }
     // End-to-end: the writer's keypair is made here and the private half sealed to the group (custody),
     // so the group can write and read for them until they claim the account. A 409 means the group key
     // was rotated since this device opened it: open the new one and seal again, once.
@@ -246,7 +247,8 @@ class DefaultGroupRepository @Inject constructor(
   }
 
   override suspend fun issueToken(writerId: Int): ApiResult<IssuedToken> {
-    if (!codec.isEndToEnd()) {
+    val endToEnd = when (val m = codec.endToEnd()) { is ApiResult.Failure -> return m; is ApiResult.Success -> m.value }
+    if (!endToEnd) {
       return when (val r = apiCall(json) { api.issueToken(IssueTokenRequest(writerId)) }) {
         is ApiResult.Failure -> r
         is ApiResult.Success -> r.value.data?.token?.let { ApiResult.Success(IssuedToken(it, r.value.data?.expiresAt.toInstantOrNull())) }

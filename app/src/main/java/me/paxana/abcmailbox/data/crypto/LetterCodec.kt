@@ -58,7 +58,15 @@ class LetterCodec @Inject constructor(
   /** After a 409 KeyVersionError: some group rotated its key, possibly ours, so open it again before re-sealing. */
   suspend fun refreshKeys() { if (viewer?.isStaff == true) keyring.load(force = true) }
 
-  suspend fun isEndToEnd(): Boolean = modes.current() == EncryptionMode.E2E
+  /**
+   * Whether letters are sealed on the phone. Fails closed: a mode not known (the server could not be asked) is not
+   * "server mode", it is no answer, and what asked waits as it would for any lost connection.
+   */
+  suspend fun endToEnd(): ApiResult<Boolean> = when (modes.current()) {
+    EncryptionMode.E2E -> ApiResult.Success(true)
+    EncryptionMode.SERVER -> ApiResult.Success(false)
+    EncryptionMode.UNKNOWN -> ApiResult.Failure(AppError.Network(EncryptionModeUnknownException()))
+  }
 
   /**
    * Asks `/health` again after a `wrong_encryption_mode` refusal. True when the server now speaks another mode than
@@ -73,7 +81,8 @@ class LetterCodec @Inject constructor(
   /** The request for a new letter; in end-to-end mode also the content key, for encrypting its attachments. */
   suspend fun outgoing(letter: NewLetter): ApiResult<Pair<SendMessageRequest, ByteArray?>> {
     val sender = if (letter.fromPrisoner) "prisoner" else "user"
-    if (!isEndToEnd()) {
+    val endToEnd = when (val m = endToEnd()) { is ApiResult.Failure -> return m; is ApiResult.Success -> m.value }
+    if (!endToEnd) {
       return ApiResult.Success(
         SendMessageRequest(
           messageText = letter.body, prisoner = letter.prisonerId, sender = sender, user = letter.asWriterId,

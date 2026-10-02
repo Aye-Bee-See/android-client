@@ -25,6 +25,7 @@
     <string name="offline_banner">No connection. Showing the directory saved on this phone on %1$s. Letters cannot be sent until you are back online; drafts are kept.</string>
 
     <string name="error_network">Can\'t reach the server. Check your connection and try again.</string>
+    <string name="error_account_made_not_signed_in">Your account @%1$s is ready, but signing in to it did not work: %2$s Sign in with your username and password.</string>
     <string name="error_not_found">That record doesn\'t exist or is not public.</string>
     <string name="error_generic">Something went wrong. Please try again.</string>
 

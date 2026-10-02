@@ -97,6 +97,7 @@
     <string name="filter_all">Todo</string>
     <string name="offline_banner">Sin conexión. Se muestra el directorio guardado en este teléfono el %1$s. No se pueden enviar cartas hasta que vuelvas a tener conexión; los borradores se conservan.</string>
     <string name="error_network">No se puede contactar con el servidor. Comprueba tu conexión e inténtalo de nuevo.</string>
+    <string name="error_account_made_not_signed_in">Tu cuenta @%1$s está lista, pero no se pudo iniciar sesión: %2$s Inicia sesión con tu nombre de usuario y tu contraseña.</string>
     <string name="error_not_found">Ese registro no existe o no es público.</string>
     <string name="error_generic">Algo ha fallado. Inténtalo de nuevo.</string>
     <string name="notice_session_ended">Tu sesión ha terminado. Vuelve a iniciar sesión.</string>

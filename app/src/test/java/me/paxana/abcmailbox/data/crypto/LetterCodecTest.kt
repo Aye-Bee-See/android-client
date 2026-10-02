@@ -56,6 +56,13 @@ class LetterCodecTest {
   }
 
   @Test
+  fun `a mode not known is not server mode, so nothing goes out in the clear and the letter waits as for a lost connection`() = runTest {
+    val r = codec(EncryptionMode.UNKNOWN).outgoing(NewLetter(3, "Dear friend", "two pages", 2))
+    assertTrue(r.toString(), r is ApiResult.Failure && (r as ApiResult.Failure).error is AppError.Network)
+    assertEquals("nothing was sent", 0, server.requestCount)
+  }
+
+  @Test
   fun `a group's letter names the managed writer, and a recorded reply is from the prisoner with no relay fields`() = runTest {
     val c = codec(EncryptionMode.SERVER)
     val asWriter = (c.outgoing(NewLetter(3, "Hi", "note", 2, asWriterId = 44)) as ApiResult.Success).value.first
