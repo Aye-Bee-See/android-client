@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
@@ -65,16 +67,23 @@ class ThreadViewModel(
   constructor(repo: LettersRepository, sessions: SessionRepository, strings: Strings, directory: me.paxana.abcmailbox.data.repo.DirectoryRepository, blockNotices: me.paxana.abcmailbox.data.activity.GroupBlockNotices, savedStateHandle: SavedStateHandle) :
     this(repo, sessions, savedStateHandle.toRoute<ThreadRoute>(), strings, directory, blockNotices)
 
-  // Who is looking decides what the screen offers: a group member records replies and writes for its writers.
-  private val viewer = (sessions.state.value as? SessionState.SignedIn)?.session?.user
-  private val _ui = MutableStateFlow(ThreadUiState(isStaff = viewer?.isStaff == true, staffGroupId = viewer?.takeIf { it.isStaff }?.chapterId))
+  private val _ui = MutableStateFlow(ThreadUiState())
   val ui: StateFlow<ThreadUiState> = _ui.asStateFlow()
 
   init {
     load()
     viewModelScope.launch { (repo.retentionDays() as? ApiResult.Success)?.let { r -> _ui.update { it.copy(retentionDays = r.value) } } }
-    // A writer's own blocks (API #171), with the reasons they were told: said beside a letter those groups hold.
-    viewer?.takeIf { !it.isStaff }?.let { me -> viewModelScope.launch { blockNotices.notices(me.id).collect { n -> _ui.update { it.copy(blockNotices = n) } } } }
+    // Who is looking decides what the screen offers: a group member records replies and writes for its writers. Followed,
+    // not read once: restored after the process died, this screen can be built before the stored session has been read.
+    var notices: kotlinx.coroutines.Job? = null
+    viewModelScope.launch {
+      sessions.state.map { (it as? SessionState.SignedIn)?.session?.user }.distinctUntilChanged().collect { viewer ->
+        _ui.update { it.copy(isStaff = viewer?.isStaff == true, staffGroupId = viewer?.takeIf { it.isStaff }?.chapterId) }
+        // A writer's own blocks (API #171), with the reasons they were told: said beside a letter those groups hold.
+        notices?.cancel()
+        notices = viewer?.takeIf { !it.isStaff }?.let { me -> launch { blockNotices.notices(me.id).collect { n -> _ui.update { it.copy(blockNotices = n) } } } }
+      }
+    }
   }
 
   fun load() {

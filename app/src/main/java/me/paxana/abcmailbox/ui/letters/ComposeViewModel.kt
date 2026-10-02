@@ -109,7 +109,7 @@ class ComposeViewModel(
   private val directory: DirectoryRepository,
   private val drafts: DraftsRepository,
   private val files: LocalFilesContract,
-  sessions: SessionRepository,
+  private val sessions: SessionRepository,
   private val route: ComposeRoute,
   private val outbox: OutboxRepository,
   private val strings: Strings,
@@ -130,14 +130,16 @@ class ComposeViewModel(
     strings: Strings,
     savedStateHandle: SavedStateHandle,
   ) : this(letters, directory, drafts, files, sessions, savedStateHandle.toRoute<ComposeRoute>(), outbox, strings)
-  private val userId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
-
-  private val isStaff: Boolean = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.isStaff == true
-  private val staffGroupId: Int? = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.takeIf { it.isStaff }?.chapterId
+  // Read each time, never once: this screen is opened signed out (it offers to sign in and comes back to the same
+  // ViewModel), and restored after the process died before the stored session has been read. As the iOS model does.
+  private val me get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user
+  private val userId: Int? get() = me?.id
+  private val isStaff: Boolean get() = me?.isStaff == true
+  private val staffGroupId: Int? get() = me?.takeIf { it.isStaff }?.chapterId
   // Drafts belong to a writer's own letters; a group's letters for others are not drafted on this phone.
   /** The letter whose text this one starts from: one that came back, or a held one that has to be sealed again. */
   private val sendingAgainFrom: Int? = route.resendOf ?: route.replacesHeld
-  private val usesDrafts: Boolean = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && route.outboxId == null && sendingAgainFrom == null && !isStaff
+  private val usesDrafts: Boolean get() = route.editMessageId == null && route.writerId == null && route.replyForUserId == null && route.outboxId == null && sendingAgainFrom == null && !isStaff
 
   /**
    * One key per letter *as written*: pressing Send twice, or Send again after a timeout, repeats it, and the
@@ -160,22 +162,26 @@ class ComposeViewModel(
   private var away = false
   // All three above `init` on purpose: Kotlin runs initialisers top to bottom, and load(), started in init, writes them.
 
-  private val _ui = MutableStateFlow(
-    ComposeUiState(
-      editing = route.editMessageId != null,
-      recordingReply = route.replyForUserId != null,
-      writingAs = when {
-        route.replyForUserId != null -> null
-        route.writerName != null -> route.writerName
-        isStaff && route.editMessageId == null -> strings.get(R.string.writer_anonymous)
-        else -> null
-      },
-    )
-  )
+  private fun writingAs(): String? = when {
+    route.replyForUserId != null -> null
+    route.writerName != null -> route.writerName
+    isStaff && route.editMessageId == null -> strings.get(R.string.writer_anonymous)
+    else -> null
+  }
+
+  private val _ui = MutableStateFlow(ComposeUiState(editing = route.editMessageId != null, recordingReply = route.replyForUserId != null, writingAs = writingAs()))
   val ui: StateFlow<ComposeUiState> = _ui.asStateFlow()
 
   init {
     viewModelScope.launch { load() }
+    // Someone signed in after this screen was built (from its own prompt, or the stored session arrived late): what
+    // depends on who that is (a draft of theirs, "writing as") is read again. Nothing typed is lost: there is no
+    // editor to type in while signed out, and only an untouched editor is reloaded.
+    viewModelScope.launch {
+      sessions.state.map { (it as? SessionState.SignedIn)?.session?.user?.id }.distinctUntilChanged().drop(1).collect { id ->
+        if (id != null && _ui.value.body.isBlank() && _ui.value.note.isBlank()) { _ui.update { it.copy(writingAs = writingAs(), loading = true) }; load() }
+      }
+    }
     // Autosave: whenever the text changes, wait for a pause, then persist.
     viewModelScope.launch {
       _ui.map { Triple(it.body, it.note, it.selectedRelay) }

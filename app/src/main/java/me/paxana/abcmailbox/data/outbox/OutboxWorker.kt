@@ -56,7 +56,9 @@ class OutboxWorker @AssistedInject constructor(
       // ends here instead of retrying sooner on the backoff below.
       outcome.limitedUntil != null -> Result.success()
       // `retry` hands the job back with a growing delay (30 s, 1 min, 2 min, … capped by the system at five hours).
-      outcome.stillWaiting > 0 -> Result.retry()
+      // Only for what time may mend: a letter waiting for a sign-in, the password, or an editor to close gets its own
+      // run when that happens, and a worker backing off meanwhile would hold that run up (unique work is appended).
+      outcome.tryAgain -> Result.retry()
       else -> Result.success()
     }
   }
