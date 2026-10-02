@@ -192,7 +192,10 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
   val twoFactorSetupRequired by viewModel.twoFactorSetupRequired.collectAsStateWithLifecycle()
   // No tabs while two-factor set-up is required either: every one of them leads straight back to the set-up screen, as a
   // new screen that starts over, and starting over makes the server replace the secret the person has just scanned.
-  val showBars = fullScreen.none { destination?.hasRoute(it) == true } && !(twoFactorSetupRequired != null && destination?.hasRoute(TwoFactorRoute::class) == true)
+  // Nor while its recovery codes are on show: the requirement is met the moment the code is confirmed, the codes are
+  // shown once, and a tab would walk past the screen's own "save them first".
+  var recoveryCodesOnShow by remember { mutableStateOf(false) }
+  val showBars = fullScreen.none { destination?.hasRoute(it) == true } && !((twoFactorSetupRequired != null || recoveryCodesOnShow) && destination?.hasRoute(TwoFactorRoute::class) == true)
   // Snackbars are shown from callbacks, where there is no composition to read resources in, so the
   // sentences are resolved here, where there is.
   val sessionEnded = stringResource(R.string.notice_session_ended)
@@ -461,7 +464,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
       composable<GroupNumbersRoute> { me.paxana.abcmailbox.ui.group.GroupNumbersScreen(onBack = { navController.popBackStack() }) }
       composable<InviteCodesRoute> { me.paxana.abcmailbox.ui.group.InviteCodesScreen(onBack = { navController.popBackStack() }) }
       composable<TwoFactorRoute> {
-        me.paxana.abcmailbox.ui.account.TwoFactorScreen(onBack = { navController.popBackStack() }, onSignOut = { viewModel.signOut() }, setUpFirst = twoFactorSetupRequired != null)
+        me.paxana.abcmailbox.ui.account.TwoFactorScreen(onBack = { navController.popBackStack() }, onSignOut = { viewModel.signOut() }, setUpFirst = twoFactorSetupRequired != null, onCodesOnShow = { recoveryCodesOnShow = it })
       }
       composable<BlocksRoute> { me.paxana.abcmailbox.ui.group.BlocksScreen(onBack = { navController.popBackStack() }) }
       composable<DeleteAccountRoute> { DeleteAccountScreen(onBack = { navController.popBackStack() }, onGroupKey = { navController.navigate(GroupKeyRoute) }) }

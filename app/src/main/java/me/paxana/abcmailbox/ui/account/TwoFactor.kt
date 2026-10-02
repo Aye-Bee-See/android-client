@@ -181,10 +181,14 @@ private fun AppError.codeMessage(strings: Strings, recovery: Boolean = false): S
 /**
  * [setUpFirst]: the shell knows this account must set two-factor up before anything else works (API #175). The screen
  * learns the same from its own status, but only once that has loaded; this covers the time it has not, or cannot.
+ * [onCodesOnShow]: recovery codes are on the screen (true) or no longer (false). Back is held here until they are
+ * saved, but the shell's bottom bar is not this screen's to hold, so the shell is told and takes its tabs away.
  */
 @Composable
-fun TwoFactorScreen(onBack: () -> Unit, onSignOut: () -> Unit, setUpFirst: Boolean = false, viewModel: TwoFactorViewModel = hiltViewModel()) {
+fun TwoFactorScreen(onBack: () -> Unit, onSignOut: () -> Unit, setUpFirst: Boolean = false, onCodesOnShow: (Boolean) -> Unit = {}, viewModel: TwoFactorViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
+  val codesOnShow = ui.recoveryCodes != null
+  androidx.compose.runtime.DisposableEffect(codesOnShow) { onCodesOnShow(codesOnShow); onDispose { onCodesOnShow(false) } }
   val snackbar = remember { SnackbarHostState() }
   var leaveWithoutSaving by remember { mutableStateOf(false) }
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }

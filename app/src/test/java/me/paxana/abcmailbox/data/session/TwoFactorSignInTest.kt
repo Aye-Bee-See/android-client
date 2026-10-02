@@ -140,4 +140,24 @@ class TwoFactorSignInTest {
     assertTrue((repo.completeTwoFactor("123456", recovery = false) as ApiResult.Failure).error is AppError.Unauthorized)
     assertEquals("nothing was held to ask the server with", asked, server.apiRequestCount)
   }
+
+  @Test
+  fun `the clock of a sign-in that was given up neither outlives it nor ends the one that took its place`() = runTest {
+    build()
+    val before = appScope.coroutineContext[kotlinx.coroutines.Job]!!.children.count()
+    server.queue(MockResponse().setBody(challenge)); repo.login("carol", "carolpass"); body()
+    assertEquals("one clock for the one sign-in waiting", before + 1, appScope.coroutineContext[kotlinx.coroutines.Job]!!.children.count())
+    repo.cancelTwoFactor()
+    assertEquals("given up: nothing is left holding what it held", before, appScope.coroutineContext[kotlinx.coroutines.Job]!!.children.count())
+
+    // The password again four minutes on, and then again: each new sign-in stops the last one's clock.
+    server.queue(MockResponse().setBody(challenge)); repo.login("carol", "carolpass"); body()
+    appScope.testScheduler.advanceTimeBy(4 * 60_000L)
+    server.queue(MockResponse().setBody(challenge)); repo.login("carol", "carolpass"); body()
+    assertEquals(before + 1, appScope.coroutineContext[kotlinx.coroutines.Job]!!.children.count())
+    appScope.testScheduler.advanceTimeBy(2 * 60_000L) // past the end of the earlier one
+    server.queue(MockResponse().setBody(session()))
+    assertTrue("the newer sign-in is still waiting, and finishes", repo.completeTwoFactor("123456", recovery = false) is ApiResult.Success)
+    assertEquals("signed in: its clock has stopped too", before, appScope.coroutineContext[kotlinx.coroutines.Job]!!.children.count())
+  }
 }
