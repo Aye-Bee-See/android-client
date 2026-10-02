@@ -178,32 +178,51 @@ private fun AppError.codeMessage(strings: Strings, recovery: Boolean = false): S
   else -> message(strings) ?: strings.get(R.string.error_generic)
 }
 
+/**
+ * [setUpFirst]: the shell knows this account must set two-factor up before anything else works (API #175). The screen
+ * learns the same from its own status, but only once that has loaded; this covers the time it has not, or cannot.
+ * [onCodesOnShow]: recovery codes are on the screen (true) or no longer (false). Back is held here until they are
+ * saved, but the shell's bottom bar is not this screen's to hold, so the shell is told and takes its tabs away.
+ */
 @Composable
-fun TwoFactorScreen(onBack: () -> Unit, onSignOut: () -> Unit, viewModel: TwoFactorViewModel = hiltViewModel()) {
+fun TwoFactorScreen(onBack: () -> Unit, onSignOut: () -> Unit, setUpFirst: Boolean = false, onCodesOnShow: (Boolean) -> Unit = {}, viewModel: TwoFactorViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
+  val codesOnShow = ui.recoveryCodes != null
+  androidx.compose.runtime.DisposableEffect(codesOnShow) { onCodesOnShow(codesOnShow); onDispose { onCodesOnShow(false) } }
   val snackbar = remember { SnackbarHostState() }
   var leaveWithoutSaving by remember { mutableStateOf(false) }
   LaunchedEffect(ui.notice) { ui.notice?.let { snackbar.showSnackbar(it); viewModel.noticeShown() } }
   // Recovery codes are shown once: leaving before they are saved is asked about. Required and not set up: not left at all.
-  val holdBack = (ui.recoveryCodes != null && !ui.codesSaved) || ui.mustSetUp
-  val back = { if (ui.recoveryCodes != null && !ui.codesSaved) leaveWithoutSaving = true else if (!ui.mustSetUp) onBack() }
+  val mustSetUp = ui.mustSetUp || (setUpFirst && ui.status !is Loadable.Loaded)
+  val holdBack = (ui.recoveryCodes != null && !ui.codesSaved) || mustSetUp
+  val back = { if (ui.recoveryCodes != null && !ui.codesSaved) leaveWithoutSaving = true else if (!mustSetUp) onBack() }
   BackHandler(enabled = holdBack) { back() }
 
   DetailScaffold(title = stringResource(R.string.title_two_factor), onBack = back) { padding ->
     Box(Modifier.fillMaxSize().padding(padding)) {
-      when (val s = ui.status) {
+      val codes = ui.recoveryCodes
+      // Recovery codes first, whatever the status says: the server says them once, and the status asked for right
+      // after may fail (no signal). Behind an error they were out of reach while Back still insisted they be saved.
+      if (codes != null) Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        RecoveryCodes(codes, ui.codesSaved, viewModel::onCodesSaved, viewModel::doneWithCodes)
+      } else when (val s = ui.status) {
         is Loadable.Loading -> LoadingBox()
-        is Loadable.Failed -> ErrorBox(s.error, onRetry = viewModel::load)
+        is Loadable.Failed -> Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+          ErrorBox(s.error, onRetry = viewModel::load)
+          // Required and unreachable: every other screen sends the person back here, so the way out has to be here too.
+          if (mustSetUp) TextButton(onClick = onSignOut) { Text(stringResource(R.string.action_sign_out)) }
+        }
         is Loadable.Loaded -> Column(
           Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 8.dp),
           verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
           val status = s.value
           if (status.required && !status.enabled) AlertBanner(stringResource(R.string.two_factor_required_banner, becauseWords(status.requiredBecause)), modifier = Modifier.testTag("two-factor-required"))
-          val codes = ui.recoveryCodes
           val setup = ui.setup
           when {
-            codes != null -> RecoveryCodes(codes, ui.codesSaved, viewModel::onCodesSaved, viewModel::doneWithCodes)
             setup != null -> SetUp(setup, ui, viewModel)
             status.enabled -> Enabled(status, ui.busy, onNewCodes = { viewModel.ask(TwoFactorAction.NEW_CODES) }, onSwitchOff = { viewModel.ask(TwoFactorAction.SWITCH_OFF) })
             else -> {

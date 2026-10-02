@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -181,6 +182,8 @@ interface SessionRepository {
  * one screen.
  */
 private const val SPLIT = "split"
+/** A two-factor challenge lasts five minutes on the server (API #173); a little over, so the phone never gives up first. */
+private const val TWO_FACTOR_HOLD_MILLIS = 5 * 60_000L + 10_000L
 
 @Singleton
 class DefaultSessionRepository @Inject constructor(
@@ -209,13 +212,18 @@ class DefaultSessionRepository @Inject constructor(
    * as a one-step sign-in does. Held in memory only, for the five minutes the challenge lasts, and wiped after.
    */
   private class PendingTwoFactor(val name: String, val challenge: String, val expiresAt: Instant?, val cred: Credential, val password: String?, val olderAccount: Boolean) {
-    fun wipe() = cred.wipe()
+    /** Forgets this sign-in when its challenge has run out. Stopped with it: a clock left running would keep hold of all this until it rang. */
+    @Volatile var expiry: kotlinx.coroutines.Job? = null
+    fun wipe() { cred.wipe(); expiry?.cancel() }
   }
-  @Volatile private var pendingTwoFactor: PendingTwoFactor? = null
+  // Swapped whole, never read and then written: a sign-in's own clock, a newer sign-in and a cancel may all arrive at once.
+  private val pendingTwoFactor = java.util.concurrent.atomic.AtomicReference<PendingTwoFactor?>(null)
+  /** Forgets [pending], and only it: a newer sign-in that has taken its place is left waiting. */
+  private fun forget(pending: PendingTwoFactor) { pendingTwoFactor.compareAndSet(pending, null); pending.wipe() }
   private val _twoFactorSetupRequired = MutableStateFlow<List<String>?>(null)
   override val twoFactorSetupRequired: StateFlow<List<String>?> = _twoFactorSetupRequired.asStateFlow()
   override fun twoFactorSetUp() { _twoFactorSetupRequired.value = null }
-  override fun cancelTwoFactor() { pendingTwoFactor?.wipe(); pendingTwoFactor = null }
+  override fun cancelTwoFactor() { pendingTwoFactor.getAndSet(null)?.wipe() }
   private val uploading = Mutex()
 
   private fun forgetPendingKeys() { pendingKeys = null; _pendingRecoveryCode.value = null }
@@ -266,6 +274,10 @@ class DefaultSessionRepository @Inject constructor(
     scope.launch {
       cache.unauthorized.collect { refused ->
         if (refused == cache.token) {
+          // What only a sign-in resets must go with the session too: left set, a requirement to set two-factor up
+          // sent a signed-out person to its settings, which they could neither use nor leave.
+          cancelTwoFactor()
+          _twoFactorSetupRequired.value = null
           store.clear()
           vault.clear()
           forgetPendingKeys()
@@ -345,7 +357,12 @@ class DefaultSessionRepository @Inject constructor(
     // opening the keys needs is kept for that moment; the password itself only for an account from before the split.
     response.challenge?.let { challenge ->
       val expires = response.twoFactor?.expiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
-      pendingTwoFactor = PendingTwoFactor(name, challenge, expires, used, password.takeUnless { used.isSplit }, olderAccount)
+      val pending = PendingTwoFactor(name, challenge, expires, used, password.takeUnless { used.isSplit }, olderAccount)
+      pendingTwoFactor.getAndSet(pending)?.wipe()
+      // What it holds opens the account's letters, so it goes when the challenge can no longer be answered, whatever
+      // the screen is doing by then (the app may be in the background). Counted here rather than read from
+      // `expiresAt`: the phone's clock may not agree with the server's.
+      pending.expiry = scope.launch { delay(TWO_FACTOR_HOLD_MILLIS); forget(pending) }
       return ApiResult.Failure(AppError.TwoFactorNeeded(expires))
     }
     try {
@@ -369,17 +386,18 @@ class DefaultSessionRepository @Inject constructor(
   }
 
   override suspend fun completeTwoFactor(code: String, recovery: Boolean): ApiResult<Session> {
-    val pending = pendingTwoFactor ?: return ApiResult.Failure(AppError.Unauthorized(null))
-    if (pending.expiresAt?.isBefore(Instant.now()) == true) { cancelTwoFactor(); return ApiResult.Failure(AppError.Unauthorized(null)) }
+    val pending = pendingTwoFactor.get() ?: return ApiResult.Failure(AppError.Unauthorized(null))
+    if (pending.expiresAt?.isBefore(Instant.now()) == true) { forget(pending); return ApiResult.Failure(AppError.Unauthorized(null)) }
     val typed = code.trim()
     val request = if (recovery) TwoFactorLoginRequest(pending.challenge, recoveryCode = typed) else TwoFactorLoginRequest(pending.challenge, code = typed.filter(Char::isDigit))
     return when (val r = apiCall(json) { api.loginTwoFactor(request) }) {
       // A wrong code leaves the challenge good for another try; a used or expired one (401) does not.
-      is ApiResult.Failure -> { if (r.error is AppError.Unauthorized) cancelTwoFactor(); r }
+      is ApiResult.Failure -> { if (r.error is AppError.Unauthorized) forget(pending); r }
       is ApiResult.Success -> {
         val data = r.value.data?.takeIf { it.token != null && it.user != null }
           ?: return ApiResult.Failure(AppError.Unexpected(IllegalStateException("two-factor sign-in answered no session")))
-        pendingTwoFactor = null
+        pendingTwoFactor.compareAndSet(pending, null)
+        pending.expiry?.cancel() // it is being used now: the clock must not wipe it half way through
         try { ApiResult.Success(signedIn(pending.name, data, pending.cred, pending.password, pending.olderAccount)) } finally { pending.wipe() }
       }
     }
@@ -667,6 +685,7 @@ class DefaultSessionRepository @Inject constructor(
         // NonCancellable: the account is gone whatever happens next. A ViewModel scope cancelled half way
         // (the screens are rebuilt when the session goes) must not leave this person's letters on the phone.
         runCatching { wipe(session.user.id) }
+        _twoFactorSetupRequired.value = null
         store.clear()
         vault.clear()
         forgetPendingKeys()
