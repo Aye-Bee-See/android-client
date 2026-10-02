@@ -12,6 +12,13 @@ import javax.inject.Singleton
 
 enum class EncryptionMode { UNKNOWN, SERVER, E2E }
 
+/**
+ * `/health` could not be asked, so which contract the server speaks is not known. Carried as the network failure it
+ * is ([me.paxana.abcmailbox.data.api.AppError.Network]): nothing that depends on the mode may guess "server mode",
+ * because a letter sent in the clear on that guess would reach an end-to-end server as plain text.
+ */
+class EncryptionModeUnknownException : java.io.IOException("The server's encryption mode could not be learnt.")
+
 interface EncryptionModeRepository {
   val mode: StateFlow<EncryptionMode>
   /** Asks `/health`. Keeps the last known mode if the server cannot be reached. */

@@ -101,6 +101,27 @@ class JoinTest {
   }
 
   @Test
+  fun `the account is made but the sign-in fails, the recovery code is still shown, and the failure says the account is ready`() = runTest {
+    build()
+    server.queue(MockResponse().setBody(joined))
+    server.queue(MockResponse().setResponseCode(503).setBody("""{"success":false,"info":"Service unavailable.","status":503}"""))
+    val r = repo.join("7Q4M2XKD9HBT", "sam", "longenough1", "", "Sam")
+    assertEquals("NEWCODE", repo.pendingRecoveryCode.value)
+    val error = (r as ApiResult.Failure).error as AppError.Forbidden
+    assertEquals(ACCOUNT_MADE_NOT_SIGNED_IN, error.name)
+    assertEquals("Your account @sam is ready, but signing in to it did not work: Service unavailable. Sign in with your username and password.", error.info)
+    assertNull("nobody is signed in", store.flow.value)
+  }
+
+  @Test
+  fun `with the server's mode not known, no account is made, since it might begin locked on an end-to-end server`() = runTest {
+    build(EncryptionMode.UNKNOWN)
+    val r = repo.join("7Q4M2XKD9HBT", "sam", "longenough1", "", "Sam")
+    assertTrue(r.toString(), r is ApiResult.Failure && (r as ApiResult.Failure).error is AppError.Network)
+    assertEquals("the handshake only; no join went out", 0, server.apiRequestCount)
+  }
+
+  @Test
   fun `server mode and split, the join carries a salt and recipe and no keys, and an older API gets the password itself`() = runTest {
     build(EncryptionMode.SERVER)
     server.queue(MockResponse().setBody(joined)); server.queue(MockResponse().setBody(login(noKeys)))

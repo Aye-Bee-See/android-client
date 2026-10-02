@@ -56,6 +56,13 @@ class LetterCodecTest {
   }
 
   @Test
+  fun `a mode not known is not server mode, so nothing goes out in the clear and the letter waits as for a lost connection`() = runTest {
+    val r = codec(EncryptionMode.UNKNOWN).outgoing(NewLetter(3, "Dear friend", "two pages", 2))
+    assertTrue(r.toString(), r is ApiResult.Failure && (r as ApiResult.Failure).error is AppError.Network)
+    assertEquals("nothing was sent", 0, server.requestCount)
+  }
+
+  @Test
   fun `a group's letter names the managed writer, and a recorded reply is from the prisoner with no relay fields`() = runTest {
     val c = codec(EncryptionMode.SERVER)
     val asWriter = (c.outgoing(NewLetter(3, "Hi", "note", 2, asWriterId = 44)) as ApiResult.Success).value.first
@@ -111,6 +118,15 @@ class LetterCodecTest {
 
     vault.clear()
     assertTrue(c.incoming(encrypted(listOf(EnvelopeDto("user", 1, sealedToMe)))).locked)
+  }
+
+  @Test
+  fun `an edit of a letter that came back in the clear is not sent in the clear while the mode is not known`() = runTest {
+    val plain = MessageDto(id = 9, chat = 4, sender = "user", prisoner = 3, user = 1, status = "queued", messageText = "Dear friend")
+    val r = codec(EncryptionMode.UNKNOWN).edit(LetterEdit(9, "edited body", null, 2), plain)
+    assertTrue(r.toString(), r is ApiResult.Failure && (r as ApiResult.Failure).error is AppError.Network)
+    val known = (codec(EncryptionMode.SERVER).edit(LetterEdit(9, "edited body", null, 2), plain) as ApiResult.Success).value
+    assertEquals("edited body", known.messageText)
   }
 
   @Test

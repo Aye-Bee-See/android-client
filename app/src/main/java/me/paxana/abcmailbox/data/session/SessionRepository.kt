@@ -43,6 +43,7 @@ import me.paxana.abcmailbox.data.api.RecoverFinishRequest
 import me.paxana.abcmailbox.data.crypto.CryptoEngine
 import me.paxana.abcmailbox.data.crypto.EncryptionMode
 import me.paxana.abcmailbox.data.crypto.EncryptionModeRepository
+import me.paxana.abcmailbox.data.crypto.EncryptionModeUnknownException
 import me.paxana.abcmailbox.data.crypto.KeyVault
 import me.paxana.abcmailbox.data.crypto.NewAccountKeys
 import me.paxana.abcmailbox.data.crypto.LetterCodec
@@ -55,6 +56,7 @@ import me.paxana.abcmailbox.data.api.LoginRequest
 import me.paxana.abcmailbox.data.api.LogoutRequest
 import me.paxana.abcmailbox.data.api.apiCall
 import me.paxana.abcmailbox.data.api.map
+import me.paxana.abcmailbox.data.api.message
 import me.paxana.abcmailbox.di.ApplicationScope
 import me.paxana.abcmailbox.domain.ClaimInfo
 import me.paxana.abcmailbox.domain.Invitation
@@ -182,6 +184,8 @@ interface SessionRepository {
  * one screen.
  */
 private const val SPLIT = "split"
+/** [AppError.Forbidden.name] of "the account exists, but signing in to it failed", for a screen that wants to tell it apart. */
+const val ACCOUNT_MADE_NOT_SIGNED_IN = "AccountMadeNotSignedIn"
 /** A two-factor challenge lasts five minutes on the server (API #173); a little over, so the phone never gives up first. */
 private const val TWO_FACTOR_HOLD_MILLIS = 5 * 60_000L + 10_000L
 
@@ -498,7 +502,24 @@ class DefaultSessionRepository @Inject constructor(
     }
     return when (val claimed = apiCall(json) { api.claim(request) }) {
       is ApiResult.Failure -> claimed
-      is ApiResult.Success -> login(username, password).also { if (it is ApiResult.Success && recoveryCode != null) _pendingRecoveryCode.value = recoveryCode }
+      is ApiResult.Success -> signInToNewAccount(username, password, recoveryCode)
+    }
+  }
+
+  /**
+   * The account exists from here on, whatever happens next: its recovery code (if one was made) is put up to be shown
+   * before the sign-in is even tried, because no account may be guarded by a code nobody saw. The sign-in then
+   * answers as a sign-in does; if it fails (the connection dropped, a 429), the failure says that the account is
+   * ready and how to get in, since the form that asked would otherwise offer to make it again.
+   */
+  private suspend fun signInToNewAccount(username: String, password: String, recoveryCode: String?): ApiResult<Session> {
+    recoveryCode?.let { _pendingRecoveryCode.value = it }
+    return when (val signedIn = login(username, password)) {
+      is ApiResult.Success -> signedIn
+      is ApiResult.Failure -> ApiResult.Failure(AppError.Forbidden(
+        strings.get(R.string.error_account_made_not_signed_in, username.trim(), signedIn.error.message(strings) ?: strings.get(if (signedIn.error is AppError.Network) R.string.error_network else R.string.error_generic)),
+        name = ACCOUNT_MADE_NOT_SIGNED_IN,
+      ))
     }
   }
 
@@ -526,7 +547,7 @@ class DefaultSessionRepository @Inject constructor(
     )
     return when (val joined = apiCall(json) { api.join(request) }) {
       is ApiResult.Failure -> joined
-      is ApiResult.Success -> login(user, password).also { if (it is ApiResult.Success && acct.recoveryCode != null) _pendingRecoveryCode.value = acct.recoveryCode }
+      is ApiResult.Success -> signInToNewAccount(user, password, acct.recoveryCode)
     }
   }
 
@@ -563,12 +584,9 @@ class DefaultSessionRepository @Inject constructor(
       is ApiResult.Failure -> return a
       is ApiResult.Success -> a.value.data
     }
-    return when (val signedIn = login(user, password)) {
+    return when (val signedIn = signInToNewAccount(user, password, acct.recoveryCode)) {
       is ApiResult.Failure -> signedIn
-      is ApiResult.Success -> {
-        if (acct.recoveryCode != null) _pendingRecoveryCode.value = acct.recoveryCode
-        ApiResult.Success(InvitationAccepted(groupName = accepted?.chapter?.name ?: group?.name.orEmpty(), activeNow = accepted?.activation != "admin_review"))
-      }
+      is ApiResult.Success -> ApiResult.Success(InvitationAccepted(groupName = accepted?.chapter?.name ?: group?.name.orEmpty(), activeNow = accepted?.activation != "admin_review"))
     }
   }
 
@@ -594,7 +612,10 @@ class DefaultSessionRepository @Inject constructor(
    */
   private suspend fun newAccount(username: String, password: String): ApiResult<NewAccount> {
     val split = when (val r = splitSupported(username)) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
-    if (modes.current() == EncryptionMode.E2E) {
+    // Not knowing the mode is not server mode: an account made without keys on an end-to-end server would begin locked.
+    val mode = modes.current()
+    if (mode == EncryptionMode.UNKNOWN) return ApiResult.Failure(AppError.Network(EncryptionModeUnknownException()))
+    if (mode == EncryptionMode.E2E) {
       val fresh = if (split) engine.createAccountKeysSplit(password) else engine.createAccountKeys(password)
       return ApiResult.Success(NewAccount(fresh.authKey ?: password, SPLIT.takeIf { split }, fresh.fields, fresh.fields.password.salt, fresh.fields.password.params, fresh.recoveryCode))
     }

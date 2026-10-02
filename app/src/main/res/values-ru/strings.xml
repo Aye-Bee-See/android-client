@@ -102,6 +102,7 @@
     <string name="filter_all">Все</string>
     <string name="offline_banner">Нет соединения. Показан каталог, сохранённый на этом телефоне %1$s. Отправлять письма нельзя, пока не появится связь; черновики сохраняются.</string>
     <string name="error_network">Не удаётся связаться с сервером. Проверьте соединение и попробуйте ещё раз.</string>
+    <string name="error_account_made_not_signed_in">Ваш аккаунт @%1$s готов, но войти в него не удалось: %2$s Войдите, указав имя пользователя и пароль.</string>
     <string name="error_not_found">Такой записи нет, или она не опубликована.</string>
     <string name="error_generic">Что-то пошло не так. Попробуйте ещё раз.</string>
     <string name="notice_session_ended">Сеанс завершён. Войдите снова.</string>

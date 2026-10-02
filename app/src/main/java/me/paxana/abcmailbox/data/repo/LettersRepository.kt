@@ -206,7 +206,8 @@ class DefaultLettersRepository @Inject constructor(
   override suspend fun upload(messageId: Int, staged: StagedFile, idempotencyKey: String?): ApiResult<Attachment> {
     codec.ready()
     val messageField = messageId.toString().toRequestBody("text/plain".toMediaType())
-    if (!codec.isEndToEnd()) {
+    val endToEnd = when (val m = codec.endToEnd()) { is ApiResult.Failure -> return m; is ApiResult.Success -> m.value }
+    if (!endToEnd) {
       return apiCall(json) {
         api.upload(messageField, MultipartBody.Part.createFormData("file", staged.name, staged.file.asRequestBody(staged.mimeType.toMediaType())), idempotencyKey = idempotencyKey)
       }.map { checkNotNull(it.data).toDomain() }
