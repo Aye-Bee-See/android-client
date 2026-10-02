@@ -149,6 +149,9 @@ class LetterCodec @Inject constructor(
   /** An edit re-encrypts under the letter's existing content key, so its envelopes stay valid. */
   suspend fun edit(edit: LetterEdit, existing: MessageDto): ApiResult<UpdateMessageRequest> {
     if (existing.ciphertext == null) {
+      // The letter came back in the clear, so the server holds it so; but the new words are new, and they go in the
+      // clear only once it is known that this is what the server speaks (see [endToEnd]).
+      when (val m = endToEnd()) { is ApiResult.Failure -> return m; is ApiResult.Success -> Unit }
       return ApiResult.Success(UpdateMessageRequest(id = edit.messageId, messageText = edit.body, relayNote = edit.relayNote, relayChapter = edit.relayChapter))
     }
     val key = contentKey(existing) ?: return ApiResult.Failure(locked)

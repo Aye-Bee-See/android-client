@@ -121,6 +121,15 @@ class LetterCodecTest {
   }
 
   @Test
+  fun `an edit of a letter that came back in the clear is not sent in the clear while the mode is not known`() = runTest {
+    val plain = MessageDto(id = 9, chat = 4, sender = "user", prisoner = 3, user = 1, status = "queued", messageText = "Dear friend")
+    val r = codec(EncryptionMode.UNKNOWN).edit(LetterEdit(9, "edited body", null, 2), plain)
+    assertTrue(r.toString(), r is ApiResult.Failure && (r as ApiResult.Failure).error is AppError.Network)
+    val known = (codec(EncryptionMode.SERVER).edit(LetterEdit(9, "edited body", null, 2), plain) as ApiResult.Success).value
+    assertEquals("edited body", known.messageText)
+  }
+
+  @Test
   fun `an edit re-encrypts under the existing key and does not touch the readers`() = runTest {
     val existing = encrypted(listOf(EnvelopeDto("user", 1, sealedToMe)))
     val req = (codec(EncryptionMode.E2E).edit(LetterEdit(9, "edited body", null, 2), existing) as ApiResult.Success).value
