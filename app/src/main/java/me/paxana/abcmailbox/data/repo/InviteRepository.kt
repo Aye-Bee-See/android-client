@@ -56,6 +56,7 @@ class DefaultInviteRepository @Inject constructor(
 ) : InviteRepository {
 
   private val groupId: Int? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.chapterId
+  private val userId: Int? get() = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.id
   private fun notInGroup() = ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_not_in_group)))
 
   override suspend fun quota(): ApiResult<InviteQuota> {
@@ -80,14 +81,14 @@ class DefaultInviteRepository @Inject constructor(
         val d = checkNotNull(r.value.data) { "invite-codes response had no data" }
         val issued = IssuedInvites(d.batch, d.label, d.expiresAt?.toInstant(), d.codes, groupName, d.outstanding, d.limit)
         // Kept before it is answered: from here the codes survive whatever happens to the process.
-        pending.save(issued)
+        userId?.let { pending.save(it, issued) }
         ApiResult.Success(issued)
       }
     }
   }
 
-  override suspend fun pending(): IssuedInvites? = pending.load()
-  override suspend fun finished() = pending.clear()
+  override suspend fun pending(): IssuedInvites? = userId?.let { pending.load(it) }
+  override suspend fun finished() { userId?.let { pending.clear(it) } }
 
   override suspend fun cancel(batch: String?): ApiResult<Int> {
     if (groupId == null) return notInGroup()

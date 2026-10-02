@@ -28,9 +28,10 @@ class InviteRepositoryTest {
   private lateinit var repo: DefaultInviteRepository
   private val kept = object : PendingInvitesStore {
     var issued: me.paxana.abcmailbox.domain.IssuedInvites? = null
-    override suspend fun save(issued: me.paxana.abcmailbox.domain.IssuedInvites) { this.issued = issued }
-    override suspend fun load() = issued
-    override suspend fun clear() { issued = null }
+    val forUser = mutableListOf<Int>()
+    override suspend fun save(userId: Int, issued: me.paxana.abcmailbox.domain.IssuedInvites) { forUser += userId; this.issued = issued }
+    override suspend fun load(userId: Int) = issued.takeIf { userId in forUser }
+    override suspend fun clear(userId: Int) { issued = null }
   }
 
   @Before fun setUp() {

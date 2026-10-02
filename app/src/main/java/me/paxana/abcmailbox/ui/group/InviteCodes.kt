@@ -282,7 +282,7 @@ private fun InviteSlipsView(issued: IssuedInvites, onDone: () -> Unit) {
       onDismissRequest = { leaving = false },
       title = { Text(stringResource(R.string.invites_leave_title)) },
       text = { Text(stringResource(R.string.invites_leave_text)) },
-      confirmButton = { TextButton(onClick = { leaving = false; onDone() }, modifier = Modifier.testTag("invites-leave")) { Text(stringResource(R.string.action_leave_anyway)) } },
+      confirmButton = { TextButton(onClick = { leaving = false; InviteSlipsPdf.discard(context); onDone() }, modifier = Modifier.testTag("invites-leave")) { Text(stringResource(R.string.action_leave_anyway)) } },
       dismissButton = { TextButton(onClick = { leaving = false }) { Text(stringResource(R.string.action_stay)) } },
     )
   }

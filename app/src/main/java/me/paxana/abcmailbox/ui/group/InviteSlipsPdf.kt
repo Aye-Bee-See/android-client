@@ -49,6 +49,9 @@ object InviteSlipsPdf {
   private const val ROWS = 4
   const val PER_PAGE = COLUMNS * ROWS
 
+  /** The slips are done with: the PDF, which holds the codes in the clear, leaves the phone too. */
+  fun discard(context: Context) { File(context.cacheDir, "invites").deleteRecursively() }
+
   /** Writes the PDF into the app's cache (under `invites/`, which the FileProvider serves) and answers the file. */
   fun write(context: Context, issued: IssuedInvites, strings: Strings): File {
     val dir = File(context.cacheDir, "invites").apply { mkdirs() }

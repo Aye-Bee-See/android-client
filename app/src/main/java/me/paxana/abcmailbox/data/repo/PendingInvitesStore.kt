@@ -21,9 +21,10 @@ import javax.inject.Singleton
  * under the Keystore key, until the person says they have the slips; then it is gone from the phone too.
  */
 interface PendingInvitesStore {
-  suspend fun save(issued: IssuedInvites)
-  suspend fun load(): IssuedInvites?
-  suspend fun clear()
+  /** Per account: a batch issued by one group admin is not shown to the next person to sign in on the phone. */
+  suspend fun save(userId: Int, issued: IssuedInvites)
+  suspend fun load(userId: Int): IssuedInvites?
+  suspend fun clear(userId: Int)
 }
 
 @Singleton
@@ -32,24 +33,24 @@ class DataStorePendingInvitesStore @Inject constructor(
   private val cipher: SecretCipher,
   private val json: Json,
 ) : PendingInvitesStore {
-  private val key = stringPreferencesKey("pending_invites")
+  private fun key(userId: Int) = stringPreferencesKey("pending_invites_$userId")
 
   @Serializable
   private data class Stored(val batch: String, val label: String?, val expiresAt: String?, val codes: List<String>, val groupName: String, val outstanding: Int, val limit: Int)
 
-  override suspend fun save(issued: IssuedInvites) {
+  override suspend fun save(userId: Int, issued: IssuedInvites) {
     val stored = Stored(issued.batch, issued.label, issued.expiresAt?.toString(), issued.codes, issued.groupName, issued.outstanding, issued.limit)
     val blob = cipher.encrypt(json.encodeToString(Stored.serializer(), stored).toByteArray(Charsets.UTF_8))
-    dataStore.edit { it[key] = Base64.getEncoder().encodeToString(blob) }
+    dataStore.edit { it[key(userId)] = Base64.getEncoder().encodeToString(blob) }
   }
 
   /** Null when nothing is pending; an undecryptable blob (a new Keystore key) reads as nothing pending too. */
-  override suspend fun load(): IssuedInvites? = dataStore.data.first()[key]?.let { stored ->
+  override suspend fun load(userId: Int): IssuedInvites? = dataStore.data.first()[key(userId)]?.let { stored ->
     runCatching {
       val s = json.decodeFromString(Stored.serializer(), String(cipher.decrypt(Base64.getDecoder().decode(stored)), Charsets.UTF_8))
       IssuedInvites(s.batch, s.label, s.expiresAt?.let { Instant.parse(it) }, s.codes, s.groupName, s.outstanding, s.limit)
     }.getOrNull()
   }
 
-  override suspend fun clear() { dataStore.edit { it.remove(key) } }
+  override suspend fun clear(userId: Int) { dataStore.edit { it.remove(key(userId)) } }
 }

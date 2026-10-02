@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,9 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
+    // Nothing in this app belongs in the Recents thumbnail, which is shown to whoever holds the phone: letters, codes,
+    // who is written to. Screenshots stay the person's own to take (the recovery codes say to save them somewhere).
+    if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
     setContent {
       AbcTheme {
         CompositionLocalProvider(LocalApiBase provides apiBase::current) { AppShell() }
