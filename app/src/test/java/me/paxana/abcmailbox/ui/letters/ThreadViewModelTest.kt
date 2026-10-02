@@ -47,6 +47,16 @@ class ThreadViewModelTest {
   ).also { dispatcher.scheduler.advanceUntilIdle() }
 
   @Test
+  fun `built before the stored session was read, the screen learns who is looking once it has been`() = runTest {
+    val session = FakeSessionRepository().apply { notReadYet() }
+    val vm = ThreadViewModel(letters, session, ThreadRoute(1), TestStrings(), ComposeViewModelTest.FakeDirectory(prisoner(), facility(emptyList())))
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(false, vm.ui.value.isStaff)
+    session.signInAs(SessionUser(9, "member1", null, null, "chapter", 4)); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals(true, vm.ui.value.isStaff); assertEquals(4, vm.ui.value.staffGroupId)
+  }
+
+  @Test
   fun `the groups offered are the ones that mail to where the person is now, and the choice is sent`() = runTest {
     val vm = vm(prisoner(), facility(listOf(group(2), group(3), group(4, status = "suspended"))))
     vm.askWhoMails(messageId = 52, prisonerId = 3); dispatcher.scheduler.advanceUntilIdle()

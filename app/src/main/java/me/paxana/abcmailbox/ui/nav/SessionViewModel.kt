@@ -94,6 +94,8 @@ class SessionViewModel @Inject constructor(
     viewModelScope.launch { repository.state.collect { if (it is SessionState.SignedIn) { activityScheduler.keepChecking(); activity.sync(announce = false) } } }
     // Letters queued under this account wait through sign-outs and restarts; whenever someone is signed in, make sure a send is scheduled.
     viewModelScope.launch { repository.state.collect { if (it is SessionState.SignedIn && outbox.hasWaiting()) outboxScheduler.schedule() } }
+    // Letters sealed on the phone wait for the keys as well: the moment they are opened (the password typed), a send is booked.
+    viewModelScope.launch { repository.keysLocked.collect { locked -> if (!locked && repository.state.value is SessionState.SignedIn && outbox.hasWaiting()) outboxScheduler.schedule() } }
   }
 
   fun recoveryCodeSaved() {

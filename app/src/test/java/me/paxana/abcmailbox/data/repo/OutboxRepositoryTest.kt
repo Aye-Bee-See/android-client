@@ -1,6 +1,7 @@
 package me.paxana.abcmailbox.data.repo
 
 import me.paxana.abcmailbox.text.TestStrings
+import me.paxana.abcmailbox.data.crypto.lockedError
 import android.net.Uri
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
@@ -63,7 +64,12 @@ class OutboxRepositoryTest {
   private lateinit var outbox: DefaultOutboxRepository
 
   /** Reverses bytes: not encryption, but enough to show that what reaches the disk is not the plain text. */
-  private object Reversing : SecretCipher { override fun encrypt(plain: ByteArray) = plain.reversedArray(); override fun decrypt(blob: ByteArray) = blob.reversedArray() }
+  private object Reversing : SecretCipher {
+    /** The Keystore failing in passing, as it does on some phones: for everything, or only for blobs under a size (a file, not the letter). */
+    var failing = false; var failingBelow = 0
+    override fun encrypt(plain: ByteArray) = plain.reversedArray()
+    override fun decrypt(blob: ByteArray) = if (failing || blob.size < failingBelow) throw IllegalStateException("Keystore busy") else blob.reversedArray()
+  }
 
   @Before
   fun setUp() {
@@ -75,7 +81,7 @@ class OutboxRepositoryTest {
     outbox.now = { clock }
   }
 
-  @After fun tearDown() = server.shutdown()
+  @After fun tearDown() { Reversing.failing = false; Reversing.failingBelow = 0; server.shutdown() }
 
   private val letter = NewLetter(prisonerId = 1, body = "Dear Jane, written in the basement.", relayNote = null, relayChapter = 1)
   private fun staged(name: String) = StagedFile(tmp.newFile(name).apply { writeText("scan of $name") }, name, "application/pdf", 12)
@@ -110,7 +116,7 @@ class OutboxRepositoryTest {
   fun `still no connection means wait, and keep the order`() = runTest {
     outbox.queue("Jane Smith", null, letter, emptyList()); outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2), emptyList())
     letters.sendResults += ApiResult.Failure(AppError.Network(UnknownHostException()))
-    assertEquals(FlushOutcome(stillWaiting = 2), outbox.flush())
+    assertEquals(FlushOutcome(stillWaiting = 2, tryAgain = true), outbox.flush())
     assertTrue("the second letter was not tried through the same dead connection", letters.sent.isEmpty())
     assertEquals(FlushOutcome(sent = 2), outbox.flush())
   }
@@ -172,7 +178,7 @@ class OutboxRepositoryTest {
   fun `a retry racing its own earlier attempt waits, and is not mistaken for a refusal`() = runTest {
     outbox.queue("Jane Smith", null, letter, emptyList())
     letters.sendResults += ApiResult.Failure(AppError.Conflict("A request with this key is still being processed.", "IdempotencyError"))
-    assertEquals(FlushOutcome(stillWaiting = 1), outbox.flush())
+    assertEquals(FlushOutcome(stillWaiting = 1, tryAgain = true), outbox.flush())
     assertNull(outbox.items().first().single().problem)
     assertEquals(FlushOutcome(sent = 1), outbox.flush())
   }
@@ -265,6 +271,74 @@ class OutboxRepositoryTest {
     assertEquals("scan of scan.pdf", files.single().file.readText())
     outbox.forget(id)
     assertTrue(rows().isEmpty())
+  }
+
+  @Test
+  fun `a letter whose blob will not open this time is left for the next run, not thrown away`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList())
+    Reversing.failing = true
+    assertEquals("nothing to say, nothing to retry for: it is left as it is", FlushOutcome(), outbox.flush())
+    assertEquals(1, rows().size); assertTrue(letters.sent.isEmpty())
+    Reversing.failing = false
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+  }
+
+  @Test
+  fun `a file that will not open this time waits for the next run, after its letter went, and is not a refusal`() = runTest {
+    outbox.queue("Jane Smith", null, letter, listOf(staged("a.pdf")))
+    Reversing.failingBelow = 64 // the file's few bytes, not the letter's JSON
+    assertEquals(FlushOutcome(), outbox.flush())
+    assertEquals("the letter went", 1, letters.sent.size); assertTrue("the file did not", letters.uploaded.isEmpty())
+    val row = rows().single()
+    assertEquals(99, row.messageId); assertEquals("not set aside", OutboxEntity.STATE_WAITING, row.state)
+    Reversing.failingBelow = 0
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+    assertEquals("the letter was not sent again", 1, letters.sent.size); assertEquals(listOf("a.pdf" to "scan of a.pdf"), letters.uploaded)
+  }
+
+  @Test
+  fun `a file gone from the phone is a refusal, said with its name, and the letter stays sent`() = runTest {
+    outbox.queue("Jane Smith", null, letter, listOf(staged("a.pdf")))
+    outbox.items().first().single().payload.attachments.forEach { File(it.path).delete() }
+    assertEquals(FlushOutcome(refused = 1), outbox.flush())
+    val item = outbox.items().first().single()
+    assertTrue(item.letterWasSent); assertEquals("The letter was sent, but a.pdf could not be attached: The file a.pdf could not be read back from this phone.", item.problem)
+  }
+
+  @Test
+  fun `a refusal the app has no name for, 413 say, is a refusal to show, not something to retry for ever`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList()); outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2, body = "the one behind it"), emptyList())
+    letters.sendResults += ApiResult.Failure(AppError.Server(413, "Payload too large."))
+    assertEquals(FlushOutcome(sent = 1, refused = 1), outbox.flush())
+    assertEquals("the letter behind it went", listOf("the one behind it"), letters.sent.map { it.body })
+    assertEquals("Payload too large.", outbox.items().first().first().problem)
+  }
+
+  @Test
+  fun `a server fault is tried again, but not for ever, the fifth sets the letter aside with the fault's words and the letters behind it go`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList()); outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2, body = "the one behind it"), emptyList())
+    repeat(4) {
+      letters.sendResults += ApiResult.Failure(AppError.Server(503, "Service unavailable."))
+      assertEquals("try $it: worth coming back for", FlushOutcome(stillWaiting = 2, tryAgain = true), outbox.flush())
+    }
+    assertTrue("nothing behind it has gone yet: order matters", letters.sent.isEmpty())
+    letters.sendResults += ApiResult.Failure(AppError.Server(503, "Service unavailable."))
+    assertEquals(FlushOutcome(sent = 1, refused = 1), outbox.flush())
+    val item = outbox.items().first().first()
+    assertEquals("Service unavailable.", item.problem)
+    // "Try as it is" starts the count again.
+    outbox.retry(item.id)
+    letters.sendResults += ApiResult.Failure(AppError.Server(503, "Service unavailable."))
+    assertEquals(FlushOutcome(stillWaiting = 1, tryAgain = true), outbox.flush())
+  }
+
+  @Test
+  fun `signed out, or with the keys locked, nothing is retried, since the sign-in or the password books the run`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList())
+    letters.sendResults += ApiResult.Failure(AppError.Unauthorized(null))
+    assertEquals(FlushOutcome(stillWaiting = 1), outbox.flush())
+    letters.sendResults += ApiResult.Failure(lockedError(TestStrings()))
+    assertEquals(FlushOutcome(stillWaiting = 1), outbox.flush())
   }
 
   @Test

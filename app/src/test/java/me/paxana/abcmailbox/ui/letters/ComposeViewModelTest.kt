@@ -444,6 +444,30 @@ class ComposeViewModelTest {
     assertEquals("one letter, however often Send is pressed", 1, letters.sent.size)
   }
 
+  @Test
+  fun `signing in from the compose screen brings the writer's draft and their autosave with it`() = runTest {
+    val session = me.paxana.abcmailbox.ui.auth.FakeSessionRepository() // signed out: the screen offers to sign in
+    val drafts = FakeDrafts(mutableMapOf((1 to 3) to Draft("left here last week", null, null, 0)))
+    val model = vm(Routing.DIRECT, emptyList(), drafts = drafts, session = session)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("nobody's draft while signed out", "", model.ui.value.body)
+
+    session.signInAs(SessionUser(1, "user1", null, null, "user", null)); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("left here last week", model.ui.value.body); assertTrue(model.ui.value.draftRestored)
+    model.onBodyChange("left here last week, and finished today"); dispatcher.scheduler.advanceTimeBy(700); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("autosave knows whose letter it is now", "left here last week, and finished today", drafts.store[1 to 3]?.body)
+  }
+
+  @Test
+  fun `restored before the stored session was read, the screen catches up with the account once it is`() = runTest {
+    val session = me.paxana.abcmailbox.ui.auth.FakeSessionRepository().apply { notReadYet() }
+    val model = vm(Routing.DIRECT, emptyList(), session = session)
+    dispatcher.scheduler.advanceUntilIdle()
+    assertNull(model.ui.value.writingAs)
+    session.signInAs(SessionUser(9, "member1", null, null, "chapter", 1)); dispatcher.scheduler.advanceUntilIdle()
+    assertEquals("Anonymous writer", model.ui.value.writingAs)
+  }
+
   class FakeLetters(private val fail: AppError? = null, /** The relay group the stub letter says it has. */ private val relayGroupOfStub: Int? = null, /** Files, by name, whose upload fails. */ private val failUploads: Set<String> = emptySet()) : LettersRepository {
     val sent = mutableListOf<NewLetter>(); val triedKeys = mutableListOf<String?>()
     val edits = mutableListOf<LetterEdit>()
