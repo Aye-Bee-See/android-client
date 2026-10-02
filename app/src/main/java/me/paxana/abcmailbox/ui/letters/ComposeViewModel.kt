@@ -177,8 +177,13 @@ class ComposeViewModel(
     // Someone signed in after this screen was built (from its own prompt, or the stored session arrived late): what
     // depends on who that is (a draft of theirs, "writing as") is read again. Nothing typed is lost: there is no
     // editor to type in while signed out, and only an untouched editor is reloaded.
+    // Compared with the account known at construction, not with "the first value seen": a StateFlow replays only its
+    // latest, so a session read in between would otherwise be taken for the one the first load() already had.
+    var known = userId
     viewModelScope.launch {
-      sessions.state.map { (it as? SessionState.SignedIn)?.session?.user?.id }.distinctUntilChanged().drop(1).collect { id ->
+      sessions.state.map { (it as? SessionState.SignedIn)?.session?.user?.id }.distinctUntilChanged().collect { id ->
+        if (id == known) return@collect
+        known = id
         if (id != null && _ui.value.body.isBlank() && _ui.value.note.isBlank()) { _ui.update { it.copy(writingAs = writingAs(), loading = true) }; load() }
       }
     }
@@ -197,7 +202,11 @@ class ComposeViewModel(
     }
   }
 
+  /** Counts loads, so that a load started later (someone signed in) is not overwritten by one started earlier finishing after it. */
+  private var loads = 0
+
   private suspend fun load() {
+    val thisLoad = ++loads
     val prisoner = (directory.prisoner(route.prisonerId) as? ApiResult.Success)?.value
     val facility = prisoner?.facilityId?.let { (directory.facility(it) as? ApiResult.Success)?.value } ?: prisoner?.facility
     val relay = resolveRelay(facility)
@@ -232,6 +241,7 @@ class ComposeViewModel(
         body = d.body; note = d.note.orEmpty(); selected = d.relayChapter ?: selected; restored = true
       }
     }
+    if (thisLoad != loads) return // a newer load has the say
     _ui.update {
       it.copy(
         prisoner = prisoner, facility = facility, relay = relay, selectedRelay = selected,

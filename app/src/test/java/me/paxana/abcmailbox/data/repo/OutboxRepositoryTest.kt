@@ -65,10 +65,10 @@ class OutboxRepositoryTest {
 
   /** Reverses bytes: not encryption, but enough to show that what reaches the disk is not the plain text. */
   private object Reversing : SecretCipher {
-    /** The Keystore failing in passing, as it does on some phones. */
-    var failing = false
+    /** The Keystore failing in passing, as it does on some phones: for everything, or only for blobs under a size (a file, not the letter). */
+    var failing = false; var failingBelow = 0
     override fun encrypt(plain: ByteArray) = plain.reversedArray()
-    override fun decrypt(blob: ByteArray) = if (failing) throw IllegalStateException("Keystore busy") else blob.reversedArray()
+    override fun decrypt(blob: ByteArray) = if (failing || blob.size < failingBelow) throw IllegalStateException("Keystore busy") else blob.reversedArray()
   }
 
   @Before
@@ -81,7 +81,7 @@ class OutboxRepositoryTest {
     outbox.now = { clock }
   }
 
-  @After fun tearDown() { Reversing.failing = false; server.shutdown() }
+  @After fun tearDown() { Reversing.failing = false; Reversing.failingBelow = 0; server.shutdown() }
 
   private val letter = NewLetter(prisonerId = 1, body = "Dear Jane, written in the basement.", relayNote = null, relayChapter = 1)
   private fun staged(name: String) = StagedFile(tmp.newFile(name).apply { writeText("scan of $name") }, name, "application/pdf", 12)
@@ -281,6 +281,28 @@ class OutboxRepositoryTest {
     assertEquals(1, rows().size); assertTrue(letters.sent.isEmpty())
     Reversing.failing = false
     assertEquals(FlushOutcome(sent = 1), outbox.flush())
+  }
+
+  @Test
+  fun `a file that will not open this time waits for the next run, after its letter went, and is not a refusal`() = runTest {
+    outbox.queue("Jane Smith", null, letter, listOf(staged("a.pdf")))
+    Reversing.failingBelow = 64 // the file's few bytes, not the letter's JSON
+    assertEquals(FlushOutcome(), outbox.flush())
+    assertEquals("the letter went", 1, letters.sent.size); assertTrue("the file did not", letters.uploaded.isEmpty())
+    val row = rows().single()
+    assertEquals(99, row.messageId); assertEquals("not set aside", OutboxEntity.STATE_WAITING, row.state)
+    Reversing.failingBelow = 0
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+    assertEquals("the letter was not sent again", 1, letters.sent.size); assertEquals(listOf("a.pdf" to "scan of a.pdf"), letters.uploaded)
+  }
+
+  @Test
+  fun `a file gone from the phone is a refusal, said with its name, and the letter stays sent`() = runTest {
+    outbox.queue("Jane Smith", null, letter, listOf(staged("a.pdf")))
+    outbox.items().first().single().payload.attachments.forEach { File(it.path).delete() }
+    assertEquals(FlushOutcome(refused = 1), outbox.flush())
+    val item = outbox.items().first().single()
+    assertTrue(item.letterWasSent); assertEquals("The letter was sent, but a.pdf could not be attached: The file a.pdf could not be read back from this phone.", item.problem)
   }
 
   @Test

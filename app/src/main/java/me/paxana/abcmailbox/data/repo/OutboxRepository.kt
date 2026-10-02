@@ -317,9 +317,13 @@ class DefaultOutboxRepository @Inject constructor(
     // 2. Its files, each at most once: a file that went up is struck off before the next is tried.
     val messageId = checkNotNull(row.messageId)
     for (attachment in payload.attachments) {
-      val staged = withContext(Dispatchers.IO) { unsealFile(attachment) }
-      val result = if (staged == null) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.outbox_file_unreadable, attachment.name)))) else letters.upload(messageId, staged, attachment.key)
-      staged?.let(files::discard)
+      // Gone from the phone: nothing will ever read it, and the letter is set aside saying so. Still there but not
+      // opening this time (the Keystore, as for the letter itself): left for the next run, which carries on from
+      // here, the letter being recorded as sent.
+      if (!File(attachment.path).exists()) return refuse(row, payload, strings.get(R.string.outbox_sent_but_file_refused, attachment.name, strings.get(R.string.outbox_file_unreadable, attachment.name)))
+      val staged = withContext(Dispatchers.IO) { unsealFile(attachment) } ?: return Step.Unreadable
+      val result = letters.upload(messageId, staged, attachment.key)
+      files.discard(staged)
       when (result) {
         is ApiResult.Success -> {
           File(attachment.path).delete()
