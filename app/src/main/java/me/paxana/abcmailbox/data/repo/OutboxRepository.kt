@@ -91,8 +91,14 @@ interface OutboxRepository {
   /** The signed-in account's queued letters, oldest first. Empty when signed out. */
   fun items(): Flow<List<OutboxItem>>
   suspend fun queue(prisonerName: String, writingAs: String?, letter: NewLetter, attachments: List<StagedFile>): Long
-  /** For editing: the letter, with its files decrypted back into staging. */
+  /**
+   * For editing: the letter, with its files decrypted back into staging. From here until [release] (or until it is
+   * deleted) the letter is held back from sending: the copy on the compose screen and the copy in the queue must not
+   * both go. Null when there is nothing to edit any more: the row is gone, or the server already has the letter.
+   */
   suspend fun open(id: Long): Pair<OutboxPayload, List<StagedFile>>?
+  /** The compose screen that opened the letter has closed: if the letter is still queued, it may be sent again. */
+  fun release(id: Long) {}
   suspend fun delete(id: Long)
   /** After [open] and a successful re-send: drops the row and its encrypted files, which the new send has superseded. */
   suspend fun forget(id: Long) = delete(id)
@@ -146,6 +152,8 @@ class DefaultOutboxRepository @Inject constructor(
 ) : OutboxRepository {
 
   private val flushing = Mutex()
+  // Letters open on a compose screen. In memory only: if the app dies with one open, it simply goes back in line.
+  private val beingEdited = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
 
   /** The clock, replaceable in tests. */
   internal var now: () -> Instant = Instant::now
@@ -186,11 +194,15 @@ class DefaultOutboxRepository @Inject constructor(
     return dao.insert(OutboxEntity(userId = userId, sealed = seal(payload), queuedAt = System.currentTimeMillis())).also { scheduler.schedule() }
   }
 
-  override suspend fun open(id: Long): Pair<OutboxPayload, List<StagedFile>>? {
-    val row = dao.get(id)?.takeIf { it.userId == myId } ?: return null
-    val payload = unseal(row) ?: return null
-    return payload to withContext(Dispatchers.IO) { payload.attachments.mapNotNull(::unsealFile) }
+  override suspend fun open(id: Long): Pair<OutboxPayload, List<StagedFile>>? = flushing.withLock { // not while a flush is half way through sending it
+    // A letter the server already has is not opened: sent again from the compose screen it would be a second letter.
+    val row = dao.get(id)?.takeIf { it.userId == myId && it.messageId == null } ?: return@withLock null
+    val payload = unseal(row) ?: return@withLock null
+    beingEdited += id
+    payload to withContext(Dispatchers.IO) { payload.attachments.mapNotNull(::unsealFile) }
   }
+
+  override fun release(id: Long) { if (beingEdited.remove(id)) scheduler.schedule() }
 
   private fun unsealFile(a: OutboxAttachment): StagedFile? = runCatching {
     val plain = files.newStagingFile(a.name).apply { writeBytes(cipher.decrypt(File(a.path).readBytes())) }
@@ -201,6 +213,7 @@ class DefaultOutboxRepository @Inject constructor(
     val row = dao.get(id)?.takeIf { it.userId == myId } ?: return
     unseal(row)?.attachments?.forEach { File(it.path).delete() }
     dao.delete(id)
+    beingEdited -= id
   }
 
   override suspend fun eraseFor(userId: Int): Int = flushing.withLock { // not while the worker is half way through sending one of them
@@ -228,6 +241,7 @@ class DefaultOutboxRepository @Inject constructor(
     }
     var sent = 0; var refused = 0
     for (row in dao.waiting(userId)) {
+      if (row.id in beingEdited) continue // open on the compose screen, which sends it (or lets it go) itself
       when (sendOne(row)) {
         Step.SENT -> sent++
         Step.REFUSED -> refused++

@@ -428,13 +428,15 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
             scope.launch { snackbar.showSnackbar(limitedUntil?.let { letterQueuedLimited.format(it.shortTime()) } ?: letterQueued, duration = SnackbarDuration.Long) }
             if (Build.VERSION.SDK_INT >= 33) askToNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
           },
-          onSent = { chatId ->
+          onSent = { chatId, notice ->
             // The letter's fate (printed, mailed, a reply) is decided over the coming weeks: a good moment to ask. A no-op once answered.
             if (Build.VERSION.SDK_INT >= 33) askToNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
+            // The letter went and a file did not: said here, because the compose screen is done once the letter exists.
+            notice?.let { scope.launch { snackbar.showSnackbar(it, duration = SnackbarDuration.Long) } }
             // Opened from that very thread: go back to it (it reloads on resume) rather than stacking a second copy.
             val from = navController.previousBackStackEntry
             val cameFromThisThread = from != null && from.destination.hasRoute<ThreadRoute>() && from.toRoute<ThreadRoute>().chatId == chatId
-            if (cameFromThisThread) navController.popBackStack()
+            if (chatId == null || cameFromThisThread) navController.popBackStack()
             else navController.navigate(ThreadRoute(chatId)) { popUpTo<ComposeRoute> { inclusive = true } }
           },
         )

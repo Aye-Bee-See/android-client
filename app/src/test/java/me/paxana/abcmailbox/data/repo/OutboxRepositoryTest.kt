@@ -267,6 +267,27 @@ class OutboxRepositoryTest {
     assertTrue(rows().isEmpty())
   }
 
+  @Test
+  fun `a letter open for editing is not sent from the queue behind the writer's back, and goes back in line when they leave`() = runTest {
+    val editing = outbox.queue("Jane Smith", null, letter, emptyList()); outbox.queue("Alex Johnson", null, letter.copy(prisonerId = 2, body = "the other one"), emptyList())
+    outbox.open(editing)!!
+    assertEquals("the one on the compose screen waits; the one behind it goes", FlushOutcome(sent = 1, stillWaiting = 1), outbox.flush())
+    assertEquals(listOf("the other one"), letters.sent.map { it.body })
+    val before = scheduled
+    outbox.release(editing)
+    assertEquals("a send is booked for it again", before + 1, scheduled)
+    assertEquals(FlushOutcome(sent = 1), outbox.flush())
+    assertEquals(listOf("the other one", letter.body), letters.sent.map { it.body })
+  }
+
+  @Test
+  fun `a letter the server already has cannot be reopened, because sending it from the compose screen would be a second letter`() = runTest {
+    val id = outbox.queue("Jane Smith", null, letter, listOf(staged("scan.pdf")))
+    letters.uploadResults += ApiResult.Failure(AppError.Validation(listOf("Unsupported file type.")))
+    assertEquals(FlushOutcome(refused = 1), outbox.flush())
+    assertNull(outbox.open(id))
+  }
+
   // Fakes ---------------------------------------------------------------------------------------------
 
   class FakeOutboxDao : OutboxDao {

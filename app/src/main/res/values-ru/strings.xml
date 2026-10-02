@@ -387,6 +387,7 @@
     <string name="progress_uploading">Загружаем %1$s (%2$d из %3$d)…</string>
     <string name="error_save_letter">Не удалось сохранить письмо.</string>
     <string name="error_send_letter">Не удалось отправить письмо.</string>
+    <string name="error_outbox_letter_gone">Это письмо больше не ждёт отправки на этом телефоне. Поищите его в переписке, прежде чем писать заново.</string>
     <string name="error_files_not_uploaded">Письмо отправлено, но эти файлы не загрузились: %1$s.</string>
 
     <!-- The outbox: letters written without a connection -->

@@ -404,6 +404,7 @@
     <string name="progress_uploading">Uploading %1$s (%2$d of %3$d)…</string>
     <string name="error_save_letter">Could not save the letter.</string>
     <string name="error_send_letter">Could not send the letter.</string>
+    <string name="error_outbox_letter_gone">That letter is no longer waiting on this phone. Look for it in the conversation before writing it again.</string>
     <string name="error_files_not_uploaded">The letter was sent, but these files did not upload: %1$s.</string>
 
     <!-- The outbox: letters written without a connection -->
