@@ -10,6 +10,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.paxana.abcmailbox.SchemeDispatcher
+import me.paxana.abcmailbox.apiRequestCount
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.api.AppError
 import me.paxana.abcmailbox.data.api.AuthApi
@@ -48,6 +49,8 @@ class TwoFactorSignInTest {
     override suspend fun clear() { flow.value = null }
   }
   private lateinit var repo: DefaultSessionRepository
+  /** The repository's own scope, with a clock of its own to move. */
+  private val appScope = TestScope(UnconfinedTestDispatcher())
 
   @Before fun setUp() { server.start(); server.dispatcher = SchemeDispatcher(SchemeDispatcher.split()) }
   @After fun tearDown() = server.shutdown()
@@ -55,7 +58,7 @@ class TwoFactorSignInTest {
   private fun build(mode: EncryptionMode = EncryptionMode.E2E): DefaultSessionRepository {
     val client = OkHttpClient.Builder().addInterceptor(SessionInterceptor(cache)).build()
     val api = Retrofit.Builder().baseUrl(server.url("/")).client(client).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(AuthApi::class.java)
-    return DefaultSessionRepository(store, api, cache, json, FixedMode(mode), FakeCryptoEngine(), vault, TestScope(UnconfinedTestDispatcher()), TestStrings(), FakeSchemeMemory()).also { repo = it }
+    return DefaultSessionRepository(store, api, cache, json, FixedMode(mode), FakeCryptoEngine(), vault, appScope, TestStrings(), FakeSchemeMemory()).also { repo = it }
   }
   private val challenge = """{"data":{"twoFactor":{"challenge":"CH-1","expiresAt":"2099-01-01T00:00:00.000Z"}},"success":true,"status":200}"""
   private fun session(extra: String = "") = """{"data":{"user":{"id":7,"username":"carol","role":"user"},"token":{"token":"jwt-1","expires":1},"keys":{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)underwrap(carolpass)with(SALT)","kdfSalt":"SALT","kdfParams":{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864},"hasRecovery":true,"orgKey":null}$extra},"success":true,"status":200}"""
@@ -114,5 +117,27 @@ class TwoFactorSignInTest {
     val api = Retrofit.Builder().baseUrl(server.url("/")).client(OkHttpClient.Builder().addInterceptor(SessionInterceptor(cache)).build()).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(AuthApi::class.java)
     runCatching { api.twoFactor() }
     assertEquals(emptyList<String>(), repo.twoFactorSetupRequired.value)
+    server.next()
+
+    // The session ends before it is set up (it ran out, or was ended from another device): the requirement goes with
+    // it. Left behind, it sent a signed-out person to the set-up screen, which they could neither use nor leave.
+    server.queue(MockResponse().setResponseCode(401).setBody("""{"success":false,"info":"Unauthorized","status":401}"""))
+    runCatching { api.twoFactor() }
+    assertTrue(repo.state.value is SessionState.SignedOut); assertNull(repo.twoFactorSetupRequired.value)
+  }
+
+  @Test
+  fun `a sign-in left waiting for its code is forgotten when the challenge has run out, without a screen having to say so`() = runTest {
+    build()
+    server.queue(MockResponse().setBody(challenge)); repo.login("carol", "carolpass"); body()
+    appScope.testScheduler.advanceTimeBy(4 * 60_000L)
+    server.queue(MockResponse().setResponseCode(400).setBody("""{"success":false,"errors":["That code is not right."],"problems":[{"field":"code","code":"not_eligible"}]}"""))
+    assertTrue("still waiting inside the five minutes", (repo.completeTwoFactor("000000", recovery = false) as ApiResult.Failure).error is AppError.Validation)
+    server.next()
+
+    appScope.testScheduler.advanceTimeBy(2 * 60_000L)
+    val asked = server.apiRequestCount
+    assertTrue((repo.completeTwoFactor("123456", recovery = false) as ApiResult.Failure).error is AppError.Unauthorized)
+    assertEquals("nothing was held to ask the server with", asked, server.apiRequestCount)
   }
 }

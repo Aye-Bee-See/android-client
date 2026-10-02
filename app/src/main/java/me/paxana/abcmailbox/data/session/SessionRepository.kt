@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -181,6 +182,8 @@ interface SessionRepository {
  * one screen.
  */
 private const val SPLIT = "split"
+/** A two-factor challenge lasts five minutes on the server (API #173); a little over, so the phone never gives up first. */
+private const val TWO_FACTOR_HOLD_MILLIS = 5 * 60_000L + 10_000L
 
 @Singleton
 class DefaultSessionRepository @Inject constructor(
@@ -266,6 +269,10 @@ class DefaultSessionRepository @Inject constructor(
     scope.launch {
       cache.unauthorized.collect { refused ->
         if (refused == cache.token) {
+          // What only a sign-in resets must go with the session too: left set, a requirement to set two-factor up
+          // sent a signed-out person to its settings, which they could neither use nor leave.
+          cancelTwoFactor()
+          _twoFactorSetupRequired.value = null
           store.clear()
           vault.clear()
           forgetPendingKeys()
@@ -345,7 +352,12 @@ class DefaultSessionRepository @Inject constructor(
     // opening the keys needs is kept for that moment; the password itself only for an account from before the split.
     response.challenge?.let { challenge ->
       val expires = response.twoFactor?.expiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
-      pendingTwoFactor = PendingTwoFactor(name, challenge, expires, used, password.takeUnless { used.isSplit }, olderAccount)
+      val pending = PendingTwoFactor(name, challenge, expires, used, password.takeUnless { used.isSplit }, olderAccount)
+      pendingTwoFactor = pending
+      // What it holds opens the account's letters, so it goes when the challenge can no longer be answered, whatever
+      // the screen is doing by then (the app may be in the background). Counted here rather than read from
+      // `expiresAt`: the phone's clock may not agree with the server's.
+      scope.launch { delay(TWO_FACTOR_HOLD_MILLIS); if (pendingTwoFactor === pending) cancelTwoFactor() }
       return ApiResult.Failure(AppError.TwoFactorNeeded(expires))
     }
     try {
@@ -667,6 +679,7 @@ class DefaultSessionRepository @Inject constructor(
         // NonCancellable: the account is gone whatever happens next. A ViewModel scope cancelled half way
         // (the screens are rebuilt when the session goes) must not leave this person's letters on the phone.
         runCatching { wipe(session.user.id) }
+        _twoFactorSetupRequired.value = null
         store.clear()
         vault.clear()
         forgetPendingKeys()

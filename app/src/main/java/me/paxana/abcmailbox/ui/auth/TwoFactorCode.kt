@@ -76,8 +76,17 @@ class TwoFactorCodeViewModel @Inject constructor(private val sessions: SessionRe
     }
   }
 
-  /** Back to the password: the half-finished sign-in is forgotten. */
-  fun cancel() = sessions.cancelTwoFactor()
+  /** Back to the password: the half-finished sign-in is forgotten, and so is what was typed for it. */
+  fun cancel() { sessions.cancelTwoFactor(); _ui.value = TwoFactorCodeUiState() }
+
+  /**
+   * The screen has gone back to the password with the reason. This ViewModel lives as long as the sign-in screen, not
+   * the code step, so the next challenge would otherwise meet the last one's `expired` and be sent straight back.
+   */
+  fun expiredSeen() { _ui.value = TwoFactorCodeUiState() }
+
+  /** The screen was left some other way (system Back, the top bar): what the sign-in held is not kept waiting for a code that will not come. */
+  override fun onCleared() = sessions.cancelTwoFactor()
 }
 
 internal fun AppError.toTwoFactorMessage(recovery: Boolean, strings: Strings): String = when (this) {
@@ -96,7 +105,7 @@ internal fun AppError.toTwoFactorMessage(recovery: Boolean, strings: Strings): S
 @Composable
 fun TwoFactorCodeStep(onBack: () -> Unit, onExpired: (String) -> Unit, modifier: Modifier = Modifier, viewModel: TwoFactorCodeViewModel = hiltViewModel()) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
-  LaunchedEffect(ui.expired) { if (ui.expired) onExpired(ui.error.orEmpty()) }
+  LaunchedEffect(ui.expired) { if (ui.expired) { val why = ui.error.orEmpty(); viewModel.expiredSeen(); onExpired(why) } }
   Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(stringResource(R.string.two_factor_code_title), style = MaterialTheme.typography.titleLarge)
     Text(stringResource(if (ui.recovery) R.string.two_factor_code_recovery_explained else R.string.two_factor_code_explained), style = MaterialTheme.typography.bodyMedium)
