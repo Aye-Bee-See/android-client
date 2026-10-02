@@ -2,6 +2,7 @@ package me.paxana.abcmailbox.data.files
 
 import android.net.Uri
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -33,5 +34,17 @@ class CacheSweeperTest {
     assertEquals("signed in: opened letters stay in the cache while they are read", 1, emptied)
     sessions.logout()
     assertEquals(2, emptied)
+  }
+
+  @Test
+  fun `a sign-out followed at once by another account's sign-in, seen as one change, is swept all the same`() = runTest {
+    val sessions = FakeSessionRepository().apply { signInAs(SessionUser(2, "user1", null, null, "user", null)) }
+    val scope = TestScope(StandardTestDispatcher()) // nothing runs until told, as on a busy phone
+    CacheSweeper(sessions, files, scope).start()
+    scope.testScheduler.runCurrent()
+    assertEquals("signed in from the start: nothing to sweep", 0, emptied)
+    sessions.logout(); sessions.signInAs(SessionUser(3, "user2", null, null, "user", null))
+    scope.testScheduler.runCurrent() // the collector sees only the latest: user 3, never the signed-out moment
+    assertEquals("what user 1 could read is gone before user 2 reads anything", 1, emptied)
   }
 }

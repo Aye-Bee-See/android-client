@@ -34,6 +34,8 @@ class DataStorePendingInvitesStore @Inject constructor(
   private val json: Json,
 ) : PendingInvitesStore {
   private fun key(userId: Int) = stringPreferencesKey("pending_invites_$userId")
+  /** The release before kept one batch, whoever's. It becomes the first account's to look for it, which is who it showed it to anyway, and the key goes. */
+  private val legacy = stringPreferencesKey("pending_invites")
 
   @Serializable
   private data class Stored(val batch: String, val label: String?, val expiresAt: String?, val codes: List<String>, val groupName: String, val outstanding: Int, val limit: Int)
@@ -45,12 +47,15 @@ class DataStorePendingInvitesStore @Inject constructor(
   }
 
   /** Null when nothing is pending; an undecryptable blob (a new Keystore key) reads as nothing pending too. */
-  override suspend fun load(userId: Int): IssuedInvites? = dataStore.data.first()[key(userId)]?.let { stored ->
+  override suspend fun load(userId: Int): IssuedInvites? {
+    if (dataStore.data.first()[legacy] != null) dataStore.edit { prefs -> prefs[legacy]?.let { if (prefs[key(userId)] == null) prefs[key(userId)] = it }; prefs.remove(legacy) }
+    return dataStore.data.first()[key(userId)]?.let { stored ->
     runCatching {
       val s = json.decodeFromString(Stored.serializer(), String(cipher.decrypt(Base64.getDecoder().decode(stored)), Charsets.UTF_8))
       IssuedInvites(s.batch, s.label, s.expiresAt?.let { Instant.parse(it) }, s.codes, s.groupName, s.outstanding, s.limit)
     }.getOrNull()
   }
+  }
 
-  override suspend fun clear(userId: Int) { dataStore.edit { it.remove(key(userId)) } }
+  override suspend fun clear(userId: Int) { dataStore.edit { it.remove(key(userId)); it.remove(legacy) } }
 }

@@ -2,7 +2,9 @@ package me.paxana.abcmailbox.data.files
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
@@ -27,6 +29,17 @@ class CacheSweeper @Inject constructor(
 ) {
   fun start() {
     // On the application scope's own thread (not Main): a handful of files, deleted where the scope runs.
-    scope.launch { sessions.state.filter { it is SessionState.SignedOut }.collect { runCatching { files.emptyCaches() } } }
+    scope.launch {
+      var previous: Int? = null
+      var first = true
+      sessions.state.filter { it !is SessionState.Loading }.map { (it as? SessionState.SignedIn)?.session?.user?.id }.distinctUntilChanged().collect { id ->
+        // Nobody signed in, or somebody else than before. A StateFlow keeps only its latest value, so a sign-out
+        // followed at once by another sign-in can arrive as one change of account, with no signed-out moment seen;
+        // what the earlier account could read goes all the same.
+        val someoneElse = !first && previous != null && previous != id
+        if (id == null || someoneElse) runCatching { files.emptyCaches() }
+        previous = id; first = false
+      }
+    }
   }
 }

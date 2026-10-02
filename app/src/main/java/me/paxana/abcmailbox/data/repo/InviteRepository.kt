@@ -69,6 +69,8 @@ class DefaultInviteRepository @Inject constructor(
 
   override suspend fun issue(count: Int, label: String?, days: Int?): ApiResult<IssuedInvites> {
     val id = groupId ?: return notInGroup()
+    // Whose batch this is, decided now: by the time the server answers, somebody else may be signed in on this phone.
+    val me = userId ?: return notInGroup()
     // The slips carry the group's name. It is read first, so that nothing is issued that could not be printed.
     val groupName = when (val g = apiCall(json) { api.ownGroup(id) }) {
       is ApiResult.Failure -> return g
@@ -81,7 +83,7 @@ class DefaultInviteRepository @Inject constructor(
         val d = checkNotNull(r.value.data) { "invite-codes response had no data" }
         val issued = IssuedInvites(d.batch, d.label, d.expiresAt?.toInstant(), d.codes, groupName, d.outstanding, d.limit)
         // Kept before it is answered: from here the codes survive whatever happens to the process.
-        userId?.let { pending.save(it, issued) }
+        pending.save(me, issued)
         ApiResult.Success(issued)
       }
     }
