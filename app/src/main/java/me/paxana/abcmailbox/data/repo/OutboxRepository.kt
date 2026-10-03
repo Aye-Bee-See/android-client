@@ -27,6 +27,7 @@ import me.paxana.abcmailbox.data.files.StagedFile
 import me.paxana.abcmailbox.data.session.SecretCipher
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
+import me.paxana.abcmailbox.data.session.settled
 import java.io.File
 import java.time.Instant
 import java.util.Base64
@@ -258,6 +259,7 @@ class DefaultOutboxRepository @Inject constructor(
   }
 
   override suspend fun flush(): FlushOutcome = flushing.withLock {
+    sessions.settled() // the worker may be the first thing to run in the process: wait for the stored session to be read
     val userId = myId ?: return FlushOutcome(stillWaiting = dao.countWaiting())
     // Asked to wait: every trigger (the network returning, the app opening, "Send now") waits it out rather than asking again.
     _limitedUntil.value?.let { until ->

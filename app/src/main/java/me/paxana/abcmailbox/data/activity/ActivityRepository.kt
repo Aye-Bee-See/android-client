@@ -23,6 +23,7 @@ import me.paxana.abcmailbox.data.api.NotificationsApi
 import me.paxana.abcmailbox.data.api.apiCall
 import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
+import me.paxana.abcmailbox.data.session.settled
 import me.paxana.abcmailbox.domain.Activity
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -76,6 +77,7 @@ class DefaultActivityRepository @Inject constructor(
   private fun lastSeenKey(user: Int) = intPreferencesKey("activity_last_seen_$user")
 
   override suspend fun sync(announce: Boolean): List<Activity> {
+    sessions.settled() // the periodic check can be the first thing to run in the process: "not read yet" is not "signed out"
     val user = userId ?: run { _unread.value = 0; return emptyList() }
     val since = dataStore.data.first()[lastSeenKey(user)]
     val envelope = when (val r = apiCall(json) { api.feed(since = since, unread = true) }) {

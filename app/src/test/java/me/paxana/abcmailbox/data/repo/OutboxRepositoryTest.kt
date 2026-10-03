@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import me.paxana.abcmailbox.data.api.ApiResult
@@ -271,6 +272,17 @@ class OutboxRepositoryTest {
     assertEquals("scan of scan.pdf", files.single().file.readText())
     outbox.forget(id)
     assertTrue(rows().isEmpty())
+  }
+
+  @Test
+  fun `a run that starts before the stored session has been read waits for it, and does not take nobody to be signed in`() = runTest {
+    outbox.queue("Jane Smith", null, letter, emptyList())
+    sessions.notReadYet() // a cold process: the worker is running, the session store is still being read
+    val run = async { outbox.flush() }
+    testScheduler.runCurrent()
+    assertTrue("nothing decided yet", letters.sent.isEmpty())
+    sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
+    assertEquals(FlushOutcome(sent = 1), run.await())
   }
 
   @Test
