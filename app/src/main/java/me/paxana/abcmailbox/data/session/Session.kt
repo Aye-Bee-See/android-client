@@ -1,5 +1,6 @@
 package me.paxana.abcmailbox.data.session
 
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import me.paxana.abcmailbox.data.api.LoginData
 
@@ -67,3 +68,12 @@ sealed interface SessionState {
   data object SignedOut : SessionState
   data class SignedIn(val session: Session) : SessionState
 }
+
+/**
+ * The session once the stored one has been read. For work that can start in a cold process (a WorkManager worker):
+ * [SessionRepository.state] begins as [SessionState.Loading] while the store is read and its key fetched from the
+ * Keystore, and "not read yet" taken for "signed out" made a feed check report nothing and a send leave its letters
+ * waiting. Ten seconds at most; past that it answers what there is, and the work behaves as it did.
+ */
+suspend fun SessionRepository.settled(): SessionState =
+  kotlinx.coroutines.withTimeoutOrNull(10_000) { state.first { it !is SessionState.Loading } } ?: state.value

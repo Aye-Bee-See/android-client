@@ -10,6 +10,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import me.paxana.abcmailbox.data.api.NotificationsApi
 import me.paxana.abcmailbox.data.session.SessionUser
@@ -65,6 +66,17 @@ class ActivityRepositoryTest {
   private fun feed(vararg entries: String, unread: Int = entries.size) = MockResponse().setBody("""{"data":[${entries.joinToString(",")}],"total":${entries.size},"page":1,"page_size":50,"unread":$unread,"success":true,"status":200,"name":"notification many"}""")
   private fun entry(id: Int, event: String, detail: String = "null", chat: Int? = 41, read: Boolean = false) =
     """{"id":$id,"event":"$event","chat":$chat,"message":50,"submission":null,"detail":$detail,"readAt":${if (read) "\"2026-09-19T10:00:00.000Z\"" else "null"},"createdAt":"2026-09-19T09:40:00.000Z"}"""
+
+  @Test
+  fun `a check that starts before the stored session has been read waits for it, and does not report nothing`() = runTest {
+    sessions.notReadYet() // a cold process: the periodic worker is running, the session store is still being read
+    server.enqueue(feed(entry(3, "letter.reply")))
+    val look = async { repo.sync() }
+    testScheduler.runCurrent()
+    assertEquals("nothing asked while nobody is known", 0, server.requestCount)
+    sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
+    assertEquals(listOf(Activity.Kind.REPLY), look.await().map { it.kind })
+  }
 
   @Test
   fun `new entries ring once, and the next look asks only for what came after`() = runTest {

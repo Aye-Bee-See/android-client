@@ -49,6 +49,8 @@ class FakeSessionRepository(
 
   /** Tests that need a particular account (a group member, say) skip the sign-in form. */
   fun signInAs(user: SessionUser) { _state.value = SessionState.SignedIn(Session("tok", 0L, user)) }
+  /** As at a cold start: the stored session has not been read yet. */
+  fun notReadYet() { _state.value = SessionState.Loading }
 
   override suspend fun logout(everywhere: Boolean): ApiResult<Unit> {
     _state.value = SessionState.SignedOut
