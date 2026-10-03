@@ -129,13 +129,18 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   val accountId = (sessionState as? SessionState.SignedIn)?.session?.user?.id ?: NO_ACCOUNT
   var lastAccountId by rememberSaveable { mutableIntStateOf(ACCOUNT_UNKNOWN) }
   var generation by rememberSaveable { mutableIntStateOf(0) }
+  // The shell in use hands up a way to empty its navigation before it is thrown away. Dropping a NavController does
+  // not clear its screens' ViewModels: they live in the Activity's store, keyed by screen, and are cleared only when
+  // the screen is popped. Unpopped, the previous account's conversation, half-written letter and typed password
+  // stayed in memory until the Activity ended.
+  var forgetShell by remember { mutableStateOf<(() -> Unit)?>(null) }
   LaunchedEffect(accountId, sessionState is SessionState.Loading) {
     if (sessionState is SessionState.Loading) return@LaunchedEffect
     // Signing in from signed-out changes nothing that was private; every other change does.
-    if (lastAccountId != ACCOUNT_UNKNOWN && lastAccountId != NO_ACCOUNT && lastAccountId != accountId) generation++
+    if (lastAccountId != ACCOUNT_UNKNOWN && lastAccountId != NO_ACCOUNT && lastAccountId != accountId) { forgetShell?.invoke(); generation++ }
     lastAccountId = accountId
   }
-  key(generation) { Shell(viewModel, sessionState, landOnAccount = generation > 0) }
+  key(generation) { Shell(viewModel, sessionState, landOnAccount = generation > 0, onReady = { forgetShell = it }) }
 
   // Outside `key`, so it survives the rebuild that the deletion itself causes.
   val farewell by viewModel.farewell.collectAsStateWithLifecycle()
@@ -143,13 +148,27 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landOnAccount: Boolean) {
+private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landOnAccount: Boolean, onReady: (forget: () -> Unit) -> Unit) {
   val navController = rememberNavController()
+  // Once the first shell has had the launching intent (a claim link, a tapped notification), it is spent: Navigation
+  // reads it once per NavController, and a shell rebuilt for the next account would otherwise open that link again,
+  // check that code again, or land on the previous account's conversation. The Activity's intent becomes a plain launch.
+  val activity = LocalActivity.current as? ComponentActivity
+  LaunchedEffect(navController) {
+    activity?.let { it.intent = Intent(it, it.javaClass).setAction(Intent.ACTION_MAIN) }
+    // How the shell is emptied before it is thrown away: every tab's saved screens, then everything on the stack, so
+    // that each screen is popped and its ViewModel cleared (see AppShell).
+    onReady {
+      runCatching {
+        tabs.forEach { navController.clearBackStack(it.route) }
+        navController.popBackStack(navController.graph.id, inclusive = true, saveState = false)
+      }
+    }
+  }
   // A rebuilt shell starts on the Directory like a fresh launch. Whoever just signed out (or was signed
   // out) is better served by the Account page, where signing in again is one tap. Once, not on every rotation.
   // Navigation reads the launching intent by itself, but not one that arrives while the app is already open
   // (a tapped notification). The Activity passes those on here.
-  val activity = LocalActivity.current as? ComponentActivity
   DisposableEffect(activity, navController) {
     val listener = androidx.core.util.Consumer<Intent> { intent -> navController.handleDeepLink(intent) }
     activity?.addOnNewIntentListener(listener)

@@ -25,6 +25,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import me.paxana.abcmailbox.ui.common.directoryLink
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -116,10 +120,7 @@ private fun PrisonerBody(p: Prisoner, facilityDetail: Facility?, onFacility: (In
 
     p.supportWebsite?.let { url ->
       SectionTitle(stringResource(R.string.section_support))
-      val uriHandler = LocalUriHandler.current
-      TextButton(onClick = { uriHandler.openUri(url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
-        Text("🔗 $url", color = MaterialTheme.colorScheme.secondary)
-      }
+      LinkLine("🔗 $url", url)
     }
     p.donationInfo?.let { SectionTitle(stringResource(R.string.section_donate)); Text(it, style = MaterialTheme.typography.bodyMedium) }
 
@@ -223,7 +224,6 @@ fun GroupScreen(
 
 @Composable
 private fun GroupBody(g: Group, onPrisoner: (Int) -> Unit, onFacility: (Int) -> Unit) {
-  val uriHandler = LocalUriHandler.current
   Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
     g.announcement?.let { AlertBanner(it) }
     Text(g.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.asHeading())
@@ -234,11 +234,7 @@ private fun GroupBody(g: Group, onPrisoner: (Int) -> Unit, onFacility: (Int) -> 
       g.email?.let { add("✉ $it" to "mailto:$it") }
       g.socialLinks.forEach { (k, v) -> add("${k.replaceFirstChar { c -> c.uppercase() }}" to v) }
     }
-    links.forEach { (label, url) ->
-      TextButton(onClick = { uriHandler.openUri(url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
-        Text(label, color = MaterialTheme.colorScheme.secondary)
-      }
-    }
+    links.forEach { (label, url) -> LinkLine(label, url) }
 
     TagRow(rememberStrings().let { st -> g.services.map { Services.label(it, st) } })
     Text(stringResource(NetworkRoles.labelRes(g.networkRole)), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -264,4 +260,21 @@ private fun GroupBody(g: Group, onPrisoner: (Int) -> Unit, onFacility: (Int) -> 
       }
     }
   }
+}
+
+/**
+ * A link from the directory, offered only if it is one this phone may open (see [directoryLink]); otherwise the words
+ * alone. Opening can still fail (no browser, no mail app): said under the link rather than crashing, which is what
+ * [androidx.compose.ui.platform.UriHandler.openUri] does when nothing can open an address.
+ */
+@Composable
+private fun LinkLine(label: String, raw: String) {
+  val link = remember(raw) { directoryLink(raw) }
+  if (link == null) { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant); return }
+  val uriHandler = LocalUriHandler.current
+  var noApp by remember(raw) { mutableStateOf(false) } // the failure belongs to this address, not to this place in the list
+  TextButton(onClick = { noApp = runCatching { uriHandler.openUri(link) }.isFailure }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+    Text(label, color = MaterialTheme.colorScheme.secondary)
+  }
+  if (noApp) Text(stringResource(R.string.no_app_opens, link), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
 }
