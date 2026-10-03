@@ -18,5 +18,12 @@ fun directoryLink(raw: String): String? {
     "http", "https", "mailto" -> text
     else -> return null
   }
-  return runCatching { URI(link) }.getOrNull()?.takeIf { it.scheme == "mailto" || !it.host.isNullOrEmpty() }?.let { link }
+  val uri = runCatching { URI(link) }.getOrNull() ?: return null
+  // Schemes are case-insensitive ("MAILTO:" is mail), and a mail link needs someone to write to: "mailto:" and
+  // "mailto:?subject=…" address nobody and would open the mail app on an empty letter.
+  val sound = when (uri.scheme?.lowercase()) {
+    "mailto" -> uri.rawSchemeSpecificPart.substringBefore('?').isNotBlank()
+    else -> !uri.host.isNullOrEmpty()
+  }
+  return link.takeIf { sound }
 }

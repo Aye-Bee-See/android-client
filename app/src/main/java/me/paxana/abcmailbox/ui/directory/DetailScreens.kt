@@ -272,7 +272,7 @@ private fun LinkLine(label: String, raw: String) {
   val link = remember(raw) { directoryLink(raw) }
   if (link == null) { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant); return }
   val uriHandler = LocalUriHandler.current
-  var noApp by remember { mutableStateOf(false) }
+  var noApp by remember(raw) { mutableStateOf(false) } // the failure belongs to this address, not to this place in the list
   TextButton(onClick = { noApp = runCatching { uriHandler.openUri(link) }.isFailure }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
     Text(label, color = MaterialTheme.colorScheme.secondary)
   }

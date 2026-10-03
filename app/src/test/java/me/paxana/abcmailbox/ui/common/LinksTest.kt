@@ -18,6 +18,14 @@ class LinksTest {
   fun `an email address opens the mail app`() {
     assertEquals("mailto:hello@abcportland.org", directoryLink("hello@abcportland.org"))
     assertEquals("mailto:hello@abcportland.org", directoryLink("mailto:hello@abcportland.org"))
+    assertEquals("a scheme in capitals is the same scheme", "MAILTO:hello@abcportland.org", directoryLink("MAILTO:hello@abcportland.org"))
+    assertEquals("HTTPS://abcportland.org", directoryLink("HTTPS://abcportland.org"))
+  }
+
+  @Test
+  fun `a mail link with nobody to write to is not a link`() {
+    assertNull(directoryLink("mailto:"))
+    assertNull(directoryLink("mailto:?subject=hello"))
   }
 
   @Test
