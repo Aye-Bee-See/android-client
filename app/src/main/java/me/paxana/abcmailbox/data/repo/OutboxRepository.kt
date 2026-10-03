@@ -62,7 +62,15 @@ data class OutboxPayload(
   val resendOf: Int? = null,
   val replacesHeld: Int? = null,
   val reference: String? = null,
+  /**
+   * How many times the server, or the connection, answered this letter with a fault rather than a refusal (a 5xx, an
+   * answer that could not be read). Not "no answer at all": a week without a connection counts for nothing. Past
+   * [MAX_FAULTS] the letter is set aside as refused with the last fault's words, so the person sees it and the letters
+   * behind it can go; "try as it is" starts the count again.
+   */
+  val faults: Int = 0,
 ) {
+  companion object { const val MAX_FAULTS = 5 }
   fun toNewLetter() = NewLetter(prisonerId, body, relayNote, relayChapter, asWriterId, fromPrisoner, groupRelaysFacility, idempotencyKey, resendOf, reference = reference, replacesHeld = replacesHeld)
 }
 
@@ -77,8 +85,14 @@ data class OutboxItem(
   val letterWasSent: Boolean,
 )
 
-/** [limitedUntil]: the server is pacing this account's writes (a `429`) and asked for nothing before then. */
-data class FlushOutcome(val sent: Int = 0, val refused: Int = 0, val stillWaiting: Int = 0, val limitedUntil: Instant? = null)
+/**
+ * [limitedUntil]: the server is pacing this account's writes (a `429`) and asked for nothing before then.
+ * [tryAgain]: a letter stopped the run for a reason time may mend (no connection, a server fault, an earlier try still
+ * in flight), so the worker should come back by itself. False when what is waiting waits for a person: a sign-in, the
+ * password for the keys, or an editor to close. Those book a run of their own when they happen, and a worker told to
+ * retry meanwhile would only back off further, holding up the run they book.
+ */
+data class FlushOutcome(val sent: Int = 0, val refused: Int = 0, val stillWaiting: Int = 0, val limitedUntil: Instant? = null, val tryAgain: Boolean = false)
 
 /** Arranges for [OutboxRepository.flush] to run when there is a network, even if the app is closed by then. */
 interface OutboxScheduler {
@@ -250,40 +264,52 @@ class DefaultOutboxRepository @Inject constructor(
       if (until.isAfter(now())) return FlushOutcome(stillWaiting = dao.waiting(userId).size, limitedUntil = until)
       _limitedUntil.value = null
     }
-    var sent = 0; var refused = 0
+    var sent = 0; var refused = 0; var tryAgain = false
+    val unreadable = mutableSetOf<Long>()
     for (listed in dao.waiting(userId)) {
       if (listed.id in beingEdited) continue // open on the compose screen, which sends it (or lets it go) itself
       // Read again: the list is from when the flush began, and sending the letters before this one may have taken
       // minutes. Deleted since, or sent from the compose screen in an edited form, it must not go from here as well.
       val row = dao.get(listed.id)?.takeIf { it.state == OutboxEntity.STATE_WAITING } ?: continue
-      when (sendOne(row)) {
-        Step.SENT -> sent++
-        Step.REFUSED -> refused++
-        Step.DROPPED -> Unit
+      when (val step = sendOne(row)) {
+        Step.Sent -> sent++
+        Step.Refused -> refused++
+        Step.Dropped -> Unit
+        Step.Unreadable -> unreadable += row.id
         // No point trying the next letter through the same broken connection, and order matters to a reader.
-        Step.LATER -> break
+        is Step.Later -> { tryAgain = step.timeMayMend; break }
       }
     }
-    // Not counting letters open for editing: nothing is wrong with them that trying again would mend, and a worker
-    // told to retry backs off for longer each time, with the run booked at their release waiting behind it.
-    FlushOutcome(sent, refused, dao.waiting(userId).count { it.id !in beingEdited }, _limitedUntil.value)
+    // Not counting letters open for editing, nor ones that could not be read this time: nothing is wrong with them
+    // that trying again would mend, and a worker told to retry backs off for longer each time, with the run booked
+    // at their release waiting behind it.
+    FlushOutcome(sent, refused, dao.waiting(userId).count { it.id !in beingEdited && it.id !in unreadable }, _limitedUntil.value, tryAgain)
   }
 
-  private enum class Step { SENT, REFUSED, LATER, DROPPED }
+  private sealed interface Step {
+    data object Sent : Step
+    data object Refused : Step
+    data object Dropped : Step
+    /** The blob would not open this time (the Keystore can fail in passing). Left as it is: the next run may read it. */
+    data object Unreadable : Step
+    /** Stopped the run. [timeMayMend]: worth a retry by the worker; otherwise it waits for a person. */
+    data class Later(val timeMayMend: Boolean) : Step
+  }
 
   private suspend fun forget(row: OutboxEntity, payload: OutboxPayload) { payload.attachments.forEach { File(it.path).delete() }; dao.delete(row.id) }
 
   private suspend fun sendOne(start: OutboxEntity): Step {
     var row = start.copy(attempts = start.attempts + 1)
-    var payload = unseal(row) ?: run { dao.delete(row.id); return Step.REFUSED } // the Keystore key is gone; nothing can read this any more
+    // Not deleted when it will not open: the Keystore can fail in passing, and a letter is not thrown away for that.
+    var payload = unseal(row) ?: return Step.Unreadable
     dao.update(row)
 
     // 1. The letter itself. The key makes a repeat harmless; `messageId` makes it unnecessary.
     if (row.messageId == null) when (val r = letters.send(payload.toNewLetter())) {
       is ApiResult.Success -> { row = row.copy(messageId = r.value.id); dao.update(row) }
       // Sent earlier, and deleted since (by the writer, on another device): it must not be sent again, and there is nothing to say.
-      is ApiResult.Failure -> if (r.error is AppError.Gone) { forget(row, payload); return Step.DROPPED } else return when (val verdict = judge(r.error)) {
-        Verdict.Later -> Step.LATER
+      is ApiResult.Failure -> if (r.error is AppError.Gone) { forget(row, payload); return Step.Dropped } else return when (val verdict = judge(r.error, payload)) {
+        is Verdict.Later -> { payload = noteFault(row, payload, verdict); Step.Later(verdict.timeMayMend) }
         is Verdict.Refused -> refuse(row, payload, verdict.reason)
       }
     }
@@ -291,44 +317,66 @@ class DefaultOutboxRepository @Inject constructor(
     // 2. Its files, each at most once: a file that went up is struck off before the next is tried.
     val messageId = checkNotNull(row.messageId)
     for (attachment in payload.attachments) {
-      val staged = withContext(Dispatchers.IO) { unsealFile(attachment) }
-      val result = if (staged == null) ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.outbox_file_unreadable, attachment.name)))) else letters.upload(messageId, staged, attachment.key)
-      staged?.let(files::discard)
+      // Gone from the phone: nothing will ever read it, and the letter is set aside saying so. Still there but not
+      // opening this time (the Keystore, as for the letter itself): left for the next run, which carries on from
+      // here, the letter being recorded as sent.
+      if (!File(attachment.path).exists()) return refuse(row, payload, strings.get(R.string.outbox_sent_but_file_refused, attachment.name, strings.get(R.string.outbox_file_unreadable, attachment.name)))
+      val staged = withContext(Dispatchers.IO) { unsealFile(attachment) } ?: return Step.Unreadable
+      val result = letters.upload(messageId, staged, attachment.key)
+      files.discard(staged)
       when (result) {
         is ApiResult.Success -> {
           File(attachment.path).delete()
           payload = payload.copy(attachments = payload.attachments - attachment)
           row = row.copy(sealed = seal(payload)); dao.update(row)
         }
-        is ApiResult.Failure -> return when (val verdict = judge(result.error)) {
-          Verdict.Later -> Step.LATER
+        is ApiResult.Failure -> return when (val verdict = judge(result.error, payload)) {
+          is Verdict.Later -> { payload = noteFault(row, payload, verdict); Step.Later(verdict.timeMayMend) }
           is Verdict.Refused -> refuse(row, payload, strings.get(R.string.outbox_sent_but_file_refused, attachment.name, verdict.reason))
         }
       }
     }
     dao.delete(row.id)
-    return Step.SENT
+    return Step.Sent
+  }
+
+  /** A fault is counted on the letter (see [OutboxPayload.faults]); anything else leaves it as it was. */
+  private suspend fun noteFault(row: OutboxEntity, payload: OutboxPayload, verdict: Verdict.Later): OutboxPayload {
+    if (!verdict.fault) return payload
+    val counted = payload.copy(faults = payload.faults + 1)
+    dao.update(row.copy(sealed = seal(counted)))
+    return counted
   }
 
   private suspend fun refuse(row: OutboxEntity, payload: OutboxPayload, reason: String): Step {
-    dao.update(row.copy(state = OutboxEntity.STATE_REFUSED, sealed = seal(payload.copy(problem = reason))))
-    return Step.REFUSED
+    // Set aside with its faults forgotten: "try as it is" is a fresh start.
+    dao.update(row.copy(state = OutboxEntity.STATE_REFUSED, sealed = seal(payload.copy(problem = reason, faults = 0))))
+    return Step.Refused
   }
 
   private sealed interface Verdict {
-    /** Try again when things change. With idempotency keys it no longer matters whether the last attempt arrived. */
-    data object Later : Verdict
+    /**
+     * Try again when things change. With idempotency keys it no longer matters whether the last attempt arrived.
+     * [timeMayMend]: the worker should come back by itself; otherwise a person's doing is waited for.
+     * [fault]: the server, or the connection, answered with a fault, which is counted (see [OutboxPayload.faults]).
+     */
+    data class Later(val timeMayMend: Boolean, val fault: Boolean = false) : Verdict
     /** The server understood and said no. Trying again unchanged would get the same answer. */
     data class Refused(val reason: String) : Verdict
   }
 
-  private fun judge(error: AppError): Verdict = when {
-    error is AppError.Network || error is AppError.Server || error is AppError.Unexpected -> Verdict.Later // no answer, a 5xx, or a Wi-Fi login page
+  private fun judge(error: AppError, payload: OutboxPayload): Verdict = when {
+    error is AppError.Network -> Verdict.Later(timeMayMend = true)             // no answer, or a Wi-Fi login page: not the letter's fault
+    // A 5xx, or an answer that could not be read: the server's fault, or a proxy's, and usually passing. Not for ever,
+    // though: a letter that keeps meeting one would hold up every letter behind it, unseen, until the end of time.
+    error is AppError.Server && error.status >= 500 || error is AppError.Unexpected ->
+      if (payload.faults + 1 >= OutboxPayload.MAX_FAULTS) Verdict.Refused(error.message(strings) ?: strings.get(R.string.outbox_refused_no_reason)) else Verdict.Later(timeMayMend = true, fault = true)
     // Paced, not refused: a limited letter was not saved, and the same key makes the later try safe (API PR #128).
-    error is AppError.RateLimited -> Verdict.Later.also { waitOut(error.retryAfterSeconds) }
-    error is AppError.Unauthorized -> Verdict.Later                             // signed out: it waits for the next sign-in
-    error is AppError.Conflict && error.isStillProcessing -> Verdict.Later      // our own earlier attempt is still in flight
-    error == codec.locked -> Verdict.Later                                      // waits for the password
+    error is AppError.RateLimited -> Verdict.Later(timeMayMend = false).also { waitOut(error.retryAfterSeconds) } // a run is booked for the end of the wait
+    error is AppError.Unauthorized -> Verdict.Later(timeMayMend = false)       // signed out: it waits for the next sign-in, which books a run
+    error is AppError.Conflict && error.isStillProcessing -> Verdict.Later(timeMayMend = true) // our own earlier attempt is still in flight
+    error == codec.locked -> Verdict.Later(timeMayMend = false)                // waits for the password, which books a run
+    // Anything else the server said, including a 4xx this app has no name for (413: too big, say): trying again unchanged would get the same answer.
     else -> Verdict.Refused(error.message(strings) ?: strings.get(R.string.outbox_refused_no_reason))
   }
 }
