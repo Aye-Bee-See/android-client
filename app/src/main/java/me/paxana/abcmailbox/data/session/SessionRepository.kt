@@ -353,7 +353,10 @@ class DefaultSessionRepository @Inject constructor(
       if (schemes.isKnownSplit(name)) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_scheme_downgrade, name)))
       Credential(password, null, null, null)
     } else when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
-    return when (val attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }) {
+    // Cancelled while the request is out (the screen closed): the wrap key is wiped on the way, as on any other
+    // failure, now that a cancellation passes through apiCall instead of coming back from it as one.
+    val attempt = try { apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) } } catch (e: CancellationException) { cred.wipe(); throw e }
+    return when (attempt) {
       is ApiResult.Failure -> { cred.wipe(); attempt }
       // A success with no body is a malformed answer, not a session: say so, with the wrap key wiped like any other failure.
       is ApiResult.Success -> attempt.value.data?.let { ApiResult.Success(Proof(cred, it)) }

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -88,6 +89,23 @@ class SplitSignInTest {
     val r = repo.login("carol", "carolpass")
     assertEquals("The server asked this phone to protect your password more weakly than this app allows, so nothing was sent. Try again later; if it keeps happening, tell your group.", ((r as ApiResult.Failure).error as AppError.Forbidden).info)
     assertEquals(0, server.apiRequestCount)
+  }
+
+  @Test
+  fun `a sign-in cancelled while its request is out leaves no wrap key behind`() = runTest {
+    val fake = FakeCryptoEngine()
+    var derived: me.paxana.abcmailbox.data.crypto.SplitKeys? = null
+    val engine = object : me.paxana.abcmailbox.data.crypto.CryptoEngine by fake {
+      override suspend fun deriveSplit(password: String, salt: String, params: kotlinx.serialization.json.JsonElement) = fake.deriveSplit(password, salt, params).also { derived = it }
+    }
+    val api = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(AuthApi::class.java)
+    val repo = DefaultSessionRepository(store, api, SessionCache(), json, FixedMode(EncryptionMode.E2E), engine, vault, TestScope(UnconfinedTestDispatcher()), TestStrings(), memory)
+    // Nothing is queued for the sign-in itself, so the request is out and unanswered when the screen goes away.
+    val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { repo.login("carol", "carolpass") }
+    server.next() // the sign-in request has reached the server
+    job.cancel(); job.join()
+    assertTrue(job.isCancelled)
+    assertTrue("the key that opens the letters was zeroed on the way out", derived!!.wrapKey.all { it == 0.toByte() })
   }
 
   @Test
