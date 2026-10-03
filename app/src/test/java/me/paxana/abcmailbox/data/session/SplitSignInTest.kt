@@ -68,6 +68,28 @@ class SplitSignInTest {
   private fun body() = json.parseToJsonElement(server.next().body.readUtf8()).jsonObject
   private fun field(o: kotlinx.serialization.json.JsonObject, k: String) = o[k]?.jsonPrimitive?.content
 
+  private fun handshake(kdfParams: String, salt: String = "SALT") = SchemeDispatcher(MockResponse().setBody("""{"data":{"scheme":"split","kdfSalt":"$salt","kdfParams":$kdfParams},"success":true,"status":200}"""))
+
+  @Test
+  fun `a recipe this app cannot use, or a cost beyond a phone, is a failure to show and sends nothing`() = runTest {
+    val unusable = "This phone could not work out the sign-in key for this account: the server's settings for it are not ones this app can use, or the phone ran out of memory. Nothing was sent. Try again; if it keeps happening, the app may need updating."
+    for (params in listOf("""{"kdf":"scrypt","alg":2,"opslimit":2,"memlimit":67108864}""", """{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":2000000000}""", """{"kdf":"argon2id","alg":2,"opslimit":5000000,"memlimit":67108864}""", """"not an object"""")) {
+      server.dispatcher = handshake(params); build()
+      val before = server.requestCount
+      val r = repo.login("carol", "carolpass")
+      assertEquals(params, listOf(unusable), ((r as ApiResult.Failure).error as AppError.Validation).errors)
+      assertEquals("the handshake, and nothing after it", 1, server.requestCount - before)
+    }
+  }
+
+  @Test
+  fun `a cost below every client's own is refused, since the server would be handed a key cheap to turn back into the password`() = runTest {
+    server.dispatcher = handshake("""{"kdf":"argon2id","alg":2,"opslimit":1,"memlimit":8388608}"""); build()
+    val r = repo.login("carol", "carolpass")
+    assertEquals("The server asked this phone to protect your password more weakly than this app allows, so nothing was sent. Try again later; if it keeps happening, tell your group.", ((r as ApiResult.Failure).error as AppError.Forbidden).info)
+    assertEquals(0, server.apiRequestCount)
+  }
+
   @Test
   fun `signing in sends the auth key, never the password, and the wrap key opens the private key`() = runTest {
     build()

@@ -277,6 +277,7 @@ class ComposeViewModel(
   fun attach(uri: Uri) {
     viewModelScope.launch {
       val staged = runCatching { files.stage(uri) }.getOrElse {
+        if (it is kotlinx.coroutines.CancellationException) throw it
         _ui.update { s -> s.copy(error = strings.get(R.string.error_read_file)) }; return@launch
       }
       when {

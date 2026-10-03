@@ -976,6 +976,8 @@
     <string name="strength_label">Strength: %s. A rough guess; nothing here can know whether a password has leaked.</string>
     <!-- %s is a username -->
     <string name="error_scheme_downgrade">This phone has signed in to %s without sending the password, and the server now asks for the password itself. That is not how this account works, so nothing was sent. Try again later; if it keeps happening, tell your group.</string>
+    <string name="error_sign_in_recipe_unusable">This phone could not work out the sign-in key for this account: the server\'s settings for it are not ones this app can use, or the phone ran out of memory. Nothing was sent. Try again; if it keeps happening, the app may need updating.</string>
+    <string name="error_sign_in_recipe_weak">The server asked this phone to protect your password more weakly than this app allows, so nothing was sent. Try again later; if it keeps happening, tell your group.</string>
     <string name="error_scheme_refused">The server would not accept this password in the form the app sends it. The app may need updating.</string>
 
     <!-- Group roles (API PR #115): one group-owner admin per group, who alone hands the key out; every group admin told of every change -->

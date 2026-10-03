@@ -35,7 +35,16 @@ class KdfParamsTest {
   @Test
   fun `derives with its own costs`() {
     val salt = Sodium.randomBytes(Sodium.SALT_BYTES)
+    assertFailsWithMessage("beyond") { KdfParams(opslimit = 2_000_000) }
+    assertFailsWithMessage("beyond") { KdfParams(memlimit = 2_000_000_000) }
+    assertEquals(true, KdfParams().meetsFloor)
+    assertEquals("a cheaper recipe opens an old key, but is not one to sign in with", false, KdfParams(opslimit = 1, memlimit = 16_777_216).meetsFloor)
     val params = KdfParams(opslimit = 1, memlimit = 16_777_216)
     assertArrayEquals(params.derive("pw", salt), Sodium.deriveKey("pw", salt, opslimit = 1, memlimit = 16_777_216))
   }
+}
+
+private fun assertFailsWithMessage(part: String, block: () -> Unit) {
+  val e = runCatching(block).exceptionOrNull() ?: throw AssertionError("expected a refusal")
+  if (e.message?.contains(part) != true) throw AssertionError("refused, but for another reason: ${e.message}")
 }

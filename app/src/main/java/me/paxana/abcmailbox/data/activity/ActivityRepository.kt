@@ -115,7 +115,7 @@ class DefaultActivityRepository @Inject constructor(
     // The group's key changed hands or was replaced: what this phone holds may be stale, so it is loaded again. Every
     // fetched entry counts, read or not. (An event another device read before this phone asked is not fetched at all,
     // the query being for unread entries; a key stale that way heals on use, when the server answers KeyVersionError.)
-    if (all.any { it.second.touchesGroupKey }) runCatching { keyring.load(force = true) }
+    if (all.any { it.second.touchesGroupKey }) runCatching { keyring.load(force = true) }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
     return fresh
   }
 

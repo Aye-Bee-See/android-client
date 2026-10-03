@@ -7,6 +7,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.launch
 import org.junit.Test
 import retrofit2.HttpException
 import retrofit2.Response
@@ -19,6 +20,14 @@ class ApiCallTest {
   private fun http(code: Int, body: String) = HttpException(
     Response.error<Any>(code, body.toResponseBody("application/json".toMediaType()))
   )
+
+  @Test
+  fun `a cancelled call is cancelled, not a failure to carry on with`() = runTest {
+    var carriedOn = false
+    val job = launch { apiCall(json) { throw kotlinx.coroutines.CancellationException("the screen closed") }; carriedOn = true }
+    job.join()
+    assertTrue(job.isCancelled); assertFalse("nothing after the call runs", carriedOn)
+  }
 
   @Test
   fun `400 becomes Validation with the errors list`() = runTest {
