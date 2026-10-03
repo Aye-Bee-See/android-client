@@ -14,6 +14,7 @@ import kotlinx.coroutines.NonCancellable
 import me.paxana.abcmailbox.data.crypto.lockedError
 import me.paxana.abcmailbox.text.Strings
 import me.paxana.abcmailbox.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -310,7 +311,15 @@ class DefaultSessionRepository @Inject constructor(
       is ApiResult.Failure -> if (r.error is AppError.NotFound) { olderApi = true; null } else return r
     }
     if (params?.isSplit == true) {
-      val keys = engine.deriveSplit(password, params.kdfSalt!!, params.kdfParams!!)
+      // The salt and the cost are the server's word. They are read, weighed and used inside a catch: an answer this
+      // app cannot use (a recipe it does not know, a cost beyond a phone, a salt of the wrong size) or a derivation
+      // that fails (64 MiB the phone does not have) is a failure to show, where it used to end the app.
+      val unusable = ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_sign_in_recipe_unusable))))
+      val recipe = try { json.decodeFromJsonElement(KdfParams.serializer(), params.kdfParams!!) } catch (e: Exception) { return unusable }
+      // And no cheaper than every client's own: the server gets the auth key, and one derived at a trivial cost would
+      // be cheap to turn back into the password. Nothing is sent to a server that asks for that.
+      if (!recipe.meetsFloor) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_sign_in_recipe_weak)))
+      val keys = try { engine.deriveSplit(password, params.kdfSalt!!, params.kdfParams) } catch (e: CancellationException) { throw e } catch (e: Exception) { return unusable }
       return ApiResult.Success(Credential(keys.authKey, keys, params.kdfSalt, params.kdfParams))
     }
     // Fail closed: "split" without its salt, a scheme this app has never heard of, or no answer at all, is not
@@ -344,7 +353,10 @@ class DefaultSessionRepository @Inject constructor(
       if (schemes.isKnownSplit(name)) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_scheme_downgrade, name)))
       Credential(password, null, null, null)
     } else when (val c = credential(name, password)) { is ApiResult.Failure -> return c; is ApiResult.Success -> c.value }
-    return when (val attempt = apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) }) {
+    // Cancelled while the request is out (the screen closed): the wrap key is wiped on the way, as on any other
+    // failure, now that a cancellation passes through apiCall instead of coming back from it as one.
+    val attempt = try { apiCall(json) { api.login(LoginRequest(name, cred.serverPassword)) } } catch (e: CancellationException) { cred.wipe(); throw e }
+    return when (attempt) {
       is ApiResult.Failure -> { cred.wipe(); attempt }
       // A success with no body is a malformed answer, not a session: say so, with the wrap key wiped like any other failure.
       is ApiResult.Success -> attempt.value.data?.let { ApiResult.Success(Proof(cred, it)) }
@@ -429,7 +441,7 @@ class DefaultSessionRepository @Inject constructor(
         pendingKeys = PendingKeys(userId, fresh)
         _pendingRecoveryCode.value = fresh.recoveryCode
       }
-    }
+    }.onFailure { if (it is CancellationException) throw it } // a cancelled sign-in is cancelled, not "keys locked"
   }
 
   /** `caughtUp: { letters, sealed, dropped }`, or null once the server holds no keys of its own. Read leniently: it is only told. */
@@ -801,7 +813,7 @@ class DefaultSessionRepository @Inject constructor(
   override suspend fun recover(username: String, recoveryCode: String, newPassword: String): ApiResult<Session> {
     val start = when (val r = apiCall(json) { api.recoverStart(username.trim()) }) {
       is ApiResult.Failure -> return r
-      is ApiResult.Success -> checkNotNull(r.value.data)
+      is ApiResult.Success -> r.value.data ?: return ApiResult.Failure(AppError.Unexpected(IllegalStateException("recovery answered no data")))
     }
     val keyPair = try {
       engine.unlockWithCode(start.publicKey, start.recoveryWrappedPrivateKey, recoveryCode, start.recoverySalt, start.recoveryKdfParams)
@@ -809,7 +821,8 @@ class DefaultSessionRepository @Inject constructor(
       return ApiResult.Failure(AppError.Validation(listOf(strings.get(R.string.error_recovery_code_wrong))))
     }
     // Opening the sealed challenge proves to the server that we hold the private key.
-    val challenge = engine.openChallenge(start.sealedChallenge, keyPair)
+    // A challenge the right key cannot open is the server's mistake, not the person's: said as such, not thrown.
+    val challenge = try { engine.openChallenge(start.sealedChallenge, keyPair) } catch (e: Exception) { return ApiResult.Failure(AppError.Unexpected(e)) }
     val split = when (val r = splitSupported(username.trim())) { is ApiResult.Failure -> return r; is ApiResult.Success -> r.value }
     val finish = if (split) {
       val (w, authKey) = engine.wrapForSplitPassword(keyPair, newPassword)

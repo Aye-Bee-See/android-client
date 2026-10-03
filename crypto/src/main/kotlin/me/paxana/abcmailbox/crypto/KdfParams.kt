@@ -33,6 +33,23 @@ data class KdfParams(
     require(alg == Sodium.ALG_ARGON2ID13) { "unsupported argon2 variant: $alg" }
     require(opslimit >= 1) { "opslimit must be positive" }
     require(memlimit >= 8_192) { "memlimit must be at least 8 KiB" }
+    // The costs come from the server, with the wrapped key or the sign-in handshake. Without a ceiling, a wrong or
+    // hostile value has the phone hash for hours or ask for memory it does not have. libsodium's own "sensitive"
+    // tier (4 passes, 1 GiB) is the most any client of this API has reason to ask of a phone.
+    require(opslimit <= MAX_OPSLIMIT) { "opslimit is beyond what a phone should be asked for: $opslimit" }
+    require(memlimit <= MAX_MEMLIMIT) { "memlimit is beyond what a phone should be asked for: $memlimit" }
+  }
+
+  /**
+   * No weaker than what every client makes a new account with. Asked of the sign-in handshake only, where the server
+   * names the cost and gets the result: a server that named a trivial cost would be handed an auth key cheap to turn
+   * back into the password. A key wrapped long ago under a lower cost is still opened; nothing leaves the phone there.
+   */
+  val meetsFloor: Boolean get() = opslimit >= Sodium.OPSLIMIT_INTERACTIVE && memlimit >= Sodium.MEMLIMIT_INTERACTIVE
+
+  companion object {
+    const val MAX_OPSLIMIT = 10L
+    const val MAX_MEMLIMIT = 1_073_741_824
   }
 
   fun derive(secret: String, salt: ByteArray): ByteArray =

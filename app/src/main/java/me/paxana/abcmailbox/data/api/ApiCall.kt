@@ -2,6 +2,7 @@ package me.paxana.abcmailbox.data.api
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
 import java.io.IOException
 
@@ -12,6 +13,10 @@ import java.io.IOException
  */
 suspend fun <T> apiCall(json: Json, block: suspend () -> T): ApiResult<T> = try {
   ApiResult.Success(block())
+} catch (e: CancellationException) {
+  // Not a failure of the call: the coroutine that asked is gone (its screen closed, its worker was stopped). Handed
+  // on, so the caller stops too; as an [AppError.Unexpected] it would carry on, and be counted as a server fault.
+  throw e
 } catch (e: HttpException) {
   ApiResult.Failure(e.toAppError(json))
 } catch (e: IOException) {

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -67,6 +68,45 @@ class SplitSignInTest {
   private fun splitKeys(password: String, salt: String = "SALT") = """{"publicKey":"PUB-CAROL","wrappedPrivateKey":"wrapped(PUB-CAROL)underwrap($password)with($salt)","kdfSalt":"$salt","kdfParams":{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":67108864},"hasRecovery":true,"orgKey":null}"""
   private fun body() = json.parseToJsonElement(server.next().body.readUtf8()).jsonObject
   private fun field(o: kotlinx.serialization.json.JsonObject, k: String) = o[k]?.jsonPrimitive?.content
+
+  private fun handshake(kdfParams: String, salt: String = "SALT") = SchemeDispatcher(MockResponse().setBody("""{"data":{"scheme":"split","kdfSalt":"$salt","kdfParams":$kdfParams},"success":true,"status":200}"""))
+
+  @Test
+  fun `a recipe this app cannot use, or a cost beyond a phone, is a failure to show and sends nothing`() = runTest {
+    val unusable = "This phone could not work out the sign-in key for this account: the server's settings for it are not ones this app can use, or the phone ran out of memory. Nothing was sent. Try again; if it keeps happening, the app may need updating."
+    for (params in listOf("""{"kdf":"scrypt","alg":2,"opslimit":2,"memlimit":67108864}""", """{"kdf":"argon2id","alg":2,"opslimit":2,"memlimit":2000000000}""", """{"kdf":"argon2id","alg":2,"opslimit":5000000,"memlimit":67108864}""", """"not an object"""")) {
+      server.dispatcher = handshake(params); build()
+      val before = server.requestCount
+      val r = repo.login("carol", "carolpass")
+      assertEquals(params, listOf(unusable), ((r as ApiResult.Failure).error as AppError.Validation).errors)
+      assertEquals("the handshake, and nothing after it", 1, server.requestCount - before)
+    }
+  }
+
+  @Test
+  fun `a cost below every client's own is refused, since the server would be handed a key cheap to turn back into the password`() = runTest {
+    server.dispatcher = handshake("""{"kdf":"argon2id","alg":2,"opslimit":1,"memlimit":8388608}"""); build()
+    val r = repo.login("carol", "carolpass")
+    assertEquals("The server asked this phone to protect your password more weakly than this app allows, so nothing was sent. Try again later; if it keeps happening, tell your group.", ((r as ApiResult.Failure).error as AppError.Forbidden).info)
+    assertEquals(0, server.apiRequestCount)
+  }
+
+  @Test
+  fun `a sign-in cancelled while its request is out leaves no wrap key behind`() = runTest {
+    val fake = FakeCryptoEngine()
+    var derived: me.paxana.abcmailbox.data.crypto.SplitKeys? = null
+    val engine = object : me.paxana.abcmailbox.data.crypto.CryptoEngine by fake {
+      override suspend fun deriveSplit(password: String, salt: String, params: kotlinx.serialization.json.JsonElement) = fake.deriveSplit(password, salt, params).also { derived = it }
+    }
+    val api = Retrofit.Builder().baseUrl(server.url("/")).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(AuthApi::class.java)
+    val repo = DefaultSessionRepository(store, api, SessionCache(), json, FixedMode(EncryptionMode.E2E), engine, vault, TestScope(UnconfinedTestDispatcher()), TestStrings(), memory)
+    // Nothing is queued for the sign-in itself, so the request is out and unanswered when the screen goes away.
+    val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { repo.login("carol", "carolpass") }
+    server.next() // the sign-in request has reached the server
+    job.cancel(); job.join()
+    assertTrue(job.isCancelled)
+    assertTrue("the key that opens the letters was zeroed on the way out", derived!!.wrapKey.all { it == 0.toByte() })
+  }
 
   @Test
   fun `signing in sends the auth key, never the password, and the wrap key opens the private key`() = runTest {

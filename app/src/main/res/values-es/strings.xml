@@ -947,6 +947,8 @@
     <string name="strength_strong">Fuerte</string>
     <string name="strength_label">Fortaleza: %s. Una estimación aproximada; nada aquí puede saber si una contraseña se ha filtrado.</string>
     <string name="error_scheme_downgrade">Este teléfono ha iniciado sesión como %s sin enviar la contraseña, y ahora el servidor pide la contraseña en sí. Esta cuenta no funciona así, de modo que no se ha enviado nada. Inténtalo más tarde; si se repite, avisa a tu grupo.</string>
+    <string name="error_sign_in_recipe_unusable">Este teléfono no pudo calcular la clave de inicio de sesión de esta cuenta: los ajustes del servidor para ella no son los que esta aplicación puede usar, o el teléfono se quedó sin memoria. No se envió nada. Inténtalo de nuevo; si sigue pasando, puede que haya que actualizar la aplicación.</string>
+    <string name="error_sign_in_recipe_weak">El servidor pidió a este teléfono proteger tu contraseña con menos fuerza de la que esta aplicación permite, así que no se envió nada. Inténtalo más tarde; si sigue pasando, avisa a tu grupo.</string>
     <string name="error_scheme_refused">El servidor no ha aceptado esta contraseña en la forma en que la app la envía. Puede que haya que actualizar la app.</string>
 
     <!-- Group roles (API PR #115): one group-owner admin per group, who alone hands the key out; every group admin told of every change -->
