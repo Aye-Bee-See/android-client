@@ -163,7 +163,12 @@ class LetterCodec @Inject constructor(
 
   fun incoming(dto: MessageDto): Letter {
     val base = dto.toDomain()
-    if (dto.ciphertext == null || dto.nonce == null) return base
+    if (dto.ciphertext == null || dto.nonce == null) {
+      // API #182: in end-to-end mode a letter in the writer's own thread that nobody has sealed to them yet (a reply
+      // recorded before they had keys) comes with no body and no envelopes. Waiting, not locked, and not an empty letter.
+      val waiting = modes.mode.value == EncryptionMode.E2E && dto.messageText == null && dto.envelopes?.isEmpty() == true
+      return if (waiting) base.copy(waitingForKey = true) else base
+    }
     val key = contentKey(dto) ?: return base.copy(locked = true)
     return runCatching {
       base.copy(
@@ -193,7 +198,8 @@ class LetterCodec @Inject constructor(
     for (e in envelopes) {
       val keyPair = when {
         e.readerType == Reader.USER && e.readerId == user.id -> vault.keyPair(user.id)
-        e.readerType == Reader.CHAPTER && e.readerId == group?.groupId -> group.keyPair
+        // Sealed to a version of the group key other than the one held (API #198 says which on reads): it cannot open, so it is not tried.
+        e.readerType == Reader.CHAPTER && e.readerId == group?.groupId -> group.keyPair.takeIf { e.keyVersion == null || e.keyVersion == group.version }
         e.readerType == Reader.USER && group != null -> keyring.writerKey(e.readerId)
         else -> null
       } ?: continue

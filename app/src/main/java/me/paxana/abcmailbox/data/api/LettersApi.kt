@@ -189,6 +189,8 @@ data class LastMessageDto(
   val ciphertext: String? = null,
   val nonce: String? = null,
   val envelopes: List<EnvelopeDto>? = null,
+  /** Why the newest letter is held, where it is (API #178); its `status` still says `queued`. */
+  val heldReason: String? = null,
 )
 
 @Serializable
@@ -222,6 +224,8 @@ data class MessageDto(
   // API #170: why the relay group would not mail it, the facility rule's tag, and the group's words. Never encrypted.
   val declineReason: String? = null,
   val declineRule: String? = null,
+  /** The rule's label as it read when the group declined (API #184): stays put if the rule is renamed, retired or deleted. */
+  val declineRuleLabel: String? = null,
   val declineNote: String? = null,
   val resendOf: Int? = null,
   @SerialName("resent_as") val resentAs: List<ResentDto>? = null,

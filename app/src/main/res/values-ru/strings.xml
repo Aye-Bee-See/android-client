@@ -273,6 +273,7 @@
     <string name="action_new_letter">Новое письмо</string>
     <string name="thread_no_letters">Писем пока нет</string>
     <string name="thread_last_received">← Получено письмо</string>
+    <string name="thread_last_held">→ Письмо приостановлено</string>
     <string name="thread_last_sent">→ Письмо отправлено · %1$s</string>
     <string name="writer_named">Автор: %1$s</string>
     <string name="unlock_explained">Ваши письма на этом устройстве заблокированы. Введите пароль, чтобы их открыть. Он используется здесь, на телефоне, чтобы открыть ваш ключ шифрования, и никуда не отправляется.</string>
@@ -307,6 +308,7 @@
     <string name="thread_empty">В этой переписке пока нет писем.</string>
     <string name="letter_received">← Получено</string>
     <string name="letter_sent">→ Отправлено</string>
+    <string name="letter_waiting_for_key">⏳ Этот ответ ждёт, пока ваша группа поделится им с вами. Он откроется сам, когда это произойдёт.</string>
     <string name="letter_locked">🔒 Это письмо зашифровано, а на этом устройстве нет ключа, который его открывает.</string>
     <string name="label_note_to_relay">ПРИМЕЧАНИЕ ДЛЯ ГРУППЫ ПЕРЕСЫЛКИ</string>
     <string name="status_waiting_named">Ждёт, пока %1$s его напечатает</string>

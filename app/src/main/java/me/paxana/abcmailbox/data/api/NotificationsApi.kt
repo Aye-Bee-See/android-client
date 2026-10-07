@@ -22,6 +22,13 @@ import retrofit2.http.Query
  */
 interface NotificationsApi {
   /** Newest first. [since] is the id of the newest entry this phone already has. */
+  /**
+   * The signed-in writer's current blocks (API #179): which groups are not mailing their letters, and the reason each
+   * gave. What the `writer.block` feed entry said, kept by the server, so a second phone or a reinstalled app can say it too.
+   */
+  @GET("auth/blocks")
+  suspend fun blocks(): ApiEnvelope<List<OwnBlockDto>>
+
   @GET("auth/notifications")
   suspend fun feed(@Query("since") since: Int? = null, @Query("unread") unread: Boolean? = null, @Query("page_size") pageSize: Int = 50): ApiEnvelope<List<NotificationDto>>
 
@@ -74,3 +81,9 @@ data class DeviceRegistrationDto(
   /** Whether the server can actually send through that provider today. It runs without push until it is configured. */
   val deliverable: Boolean = false,
 )
+
+@kotlinx.serialization.Serializable
+/** One group that is not mailing the signed-in writer's letters (API #179). Not `WriterBlockDto`, which is a group's own list. */
+data class OwnBlockDto(val chapter: OwnBlockChapterDto? = null, val reason: String? = null, val blockedAt: String? = null)
+@kotlinx.serialization.Serializable
+data class OwnBlockChapterDto(val id: Int, val name: String? = null)

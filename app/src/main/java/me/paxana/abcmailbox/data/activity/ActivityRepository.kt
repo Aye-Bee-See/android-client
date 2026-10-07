@@ -52,6 +52,12 @@ interface ActivityRepository {
   suspend fun sync(announce: Boolean = true): List<Activity>
   /** The person is looking at their Inbox: everything counts as seen, here and on their other devices. */
   suspend fun markAllRead()
+  /**
+   * A writer's current blocks from the server (API #179), kept where the feed's `writer.block` entries were kept. The
+   * feed entry is read once for all of a writer's devices, so a second phone or a reinstalled app never saw it; this
+   * does not depend on having seen it. At sign-in and when the app opens. Quiet when offline or not a writer.
+   */
+  suspend fun refreshBlocks() {}
   /** The account was deleted: its place in its feed, the badge, and any notification still showing. */
   suspend fun forget(userId: Int) {}
 }
@@ -129,6 +135,13 @@ class DefaultActivityRepository @Inject constructor(
     blockNotices.forget(userId)
     _unread.value = 0
     notifier.clear()
+  }
+
+  override suspend fun refreshBlocks() {
+    val me = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.takeIf { !it.isStaff } ?: return
+    val blocks = (apiCall(json) { api.blocks() } as? ApiResult.Success)?.value?.data ?: return
+    if (userId != me.id) return // signed out, or someone else signed in, while the request was in flight
+    blockNotices.replaceAll(me.id, blocks.mapNotNull { b -> b.chapter?.let { it.id to GroupBlockNotice(it.name, b.reason) } }.toMap())
   }
 
   override suspend fun markAllRead() {

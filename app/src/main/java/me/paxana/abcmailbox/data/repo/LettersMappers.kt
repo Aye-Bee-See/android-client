@@ -51,6 +51,7 @@ fun MessageDto.toDomain(): Letter = Letter(
   returnReason = ReturnReason.fromKey(returnReason),
   declineReason = DeclineReason.fromKey(declineReason),
   declineRule = declineRule?.takeIf { it.isNotBlank() },
+  declineRuleLabel = declineRuleLabel?.takeIf { it.isNotBlank() },
   declineNote = declineNote?.takeIf { it.isNotBlank() },
   heldReason = HeldReason.fromKey(heldReason),
   resendOfId = resendOf,
@@ -78,13 +79,15 @@ fun ChatDto.toDomain(
       status = LetterStatus.fromKey(it.status),
       at = it.createdAt.toInstantOrNull(),
       preview = preview(it),
+      heldReason = HeldReason.fromKey(it.heldReason),
     )
   },
   lastActivity = lastMessageAt.toInstantOrNull() ?: updatedAt.toInstantOrNull(),
   // Oldest first for a conversation view; the API returns them in insertion order already.
   letters = messages.orEmpty().map(letter).sortedBy { it.createdAt },
   writer = userDetails?.let { u ->
-    me.paxana.abcmailbox.domain.ThreadWriter(u.id, u.name?.takeIf { it.isNotBlank() } ?: u.username, u.managedBy, u.anonymousForChapter)
+    // The pen name their letters are signed with (API #195), as the reference lookup and the message rows show it; the account's name only without one.
+    me.paxana.abcmailbox.domain.ThreadWriter(u.id, u.penName?.takeIf { it.isNotBlank() } ?: u.name?.takeIf { it.isNotBlank() } ?: u.username, u.managedBy, u.anonymousForChapter)
   },
   heldCount = heldCount,
   heldReasons = heldReasons.mapNotNull { HeldReason.fromKey(it) },

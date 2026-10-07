@@ -117,11 +117,18 @@ data class Letter(
   val attachments: List<Attachment>,
   /** End-to-end mode: true when this device holds no key that opens the letter. */
   val locked: Boolean = false,
+  /**
+   * End-to-end mode (API #182): nobody has sealed this letter to the writer yet, so it has no body and no envelopes. A
+   * reply recorded before the writer had keys. It opens once a member of the group adds the envelope; not a failure.
+   */
+  val waitingForKey: Boolean = false,
   /** Set when [status] is `RETURNED`. */
   val returnReason: ReturnReason? = null,
   /** Set when [status] is `DECLINED` (API #170): why, the facility's rule for a `facility_rule` decline, and the group's words. */
   val declineReason: DeclineReason? = null,
   val declineRule: String? = null,
+  /** The rule's wording as it read when the group declined (API #184); the tag alone where the server is older. */
+  val declineRuleLabel: String? = null,
   val declineNote: String? = null,
   /** Set while a queued letter is held. */
   val heldReason: HeldReason? = null,
@@ -152,7 +159,7 @@ data class Letter(
   val canEdit: Boolean get() = !fromPrisoner && status == LetterStatus.QUEUED
 }
 
-data class LastMessage(val id: Int, val fromPrisoner: Boolean, val status: LetterStatus, val at: Instant?, val preview: String?)
+data class LastMessage(val id: Int, val fromPrisoner: Boolean, val status: LetterStatus, val at: Instant?, val preview: String?, /** Held where it is (API #178): said instead of the status. */ val heldReason: HeldReason? = null)
 
 /**
  * The footer of a printed letter (API PR #120): who to write back to, care of which group, and the reference the

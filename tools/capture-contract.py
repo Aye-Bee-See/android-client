@@ -12,7 +12,8 @@ app's DTO classes and reports fields the app expects that the API no longer send
 Needs the development data from tools/dev-seed.py (user1, member1). Read-only, except that in server
 mode it issues a claim token for one managed writer that has none, to capture the claim check.
 """
-import json, os, sys, urllib.request, urllib.error, argparse
+import json
+import subprocess, os, sys, urllib.request, urllib.error, argparse
 
 ap = argparse.ArgumentParser()
 ap.add_argument("out"); ap.add_argument("--server", default="http://localhost:3000"); ap.add_argument("--e2e", default="http://localhost:3100")
@@ -42,7 +43,14 @@ def capture(mode, base, claim_token=None, writer_password="password1"):
     save("health", status, health)
     tokens = {}
     for who, pw in (("user1", writer_password), ("member1", "password1")):
-        s, r = call(base, "POST", "/auth/login", {"username": who, "password": pw})
+        # As the app signs in (API PR #114): the auth key where the server says the account is split, the password
+        # itself where it says plain or is an older API. The seed makes every account split now.
+        sent = pw
+        s, params = call(base, "GET", f"/auth/login-params?username={who}")
+        if s == 200 and (params.get("data") or {}).get("scheme") == "split":
+            d = params["data"]; k = d.get("kdfParams") or {}
+            sent = json.loads(subprocess.check_output(["node", os.path.join(os.path.dirname(os.path.abspath(__file__)), "split-auth-key.mjs"), pw, d["kdfSalt"], str(k.get("opslimit", 2)), str(k.get("memlimit", 67108864))], text=True))["password"]
+        s, r = call(base, "POST", "/auth/login", {"username": who, "password": sent})
         if s == 200: tokens[who] = (r["data"]["token"]["token"], r["data"]["user"]); save(f"login.{who}", s, r)
         else: print(f"  [{mode}] cannot sign in as {who}: {r.get('info')}")
     # Public directory

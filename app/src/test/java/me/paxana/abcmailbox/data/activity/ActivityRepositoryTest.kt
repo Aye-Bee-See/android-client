@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import me.paxana.abcmailbox.data.api.NotificationsApi
 import me.paxana.abcmailbox.data.session.SessionUser
@@ -49,6 +50,7 @@ class ActivityRepositoryTest {
     override fun notices(userId: Int) = kotlinx.coroutines.flow.flowOf(kept[userId].orEmpty().toMap())
     override suspend fun blocked(userId: Int, groupId: Int, notice: GroupBlockNotice) { kept.getOrPut(userId) { mutableMapOf() }[groupId] = notice }
     override suspend fun lifted(userId: Int, groupId: Int) { kept[userId]?.remove(groupId) }
+    override suspend fun replaceAll(userId: Int, notices: Map<Int, GroupBlockNotice>) { kept[userId] = notices.toMutableMap() }
   }
 
   @Before
@@ -76,6 +78,15 @@ class ActivityRepositoryTest {
     assertEquals("nothing asked while nobody is known", 0, server.requestCount)
     sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
     assertEquals(listOf(Activity.Kind.REPLY), look.await().map { it.kind })
+  }
+
+  @Test
+  fun `the server's list of a writer's blocks takes the place of what the feed had told this phone (API 179)`() = runTest {
+    notices.blocked(2, 5, GroupBlockNotice("Old Group", "from the feed, lifted on another phone"))
+    server.enqueue(MockResponse().setBody("""{"data":[{"chapter":{"id":7,"name":"Portland ABC"},"reason":"letters came back twice","blockedAt":"2026-10-03T10:00:00.000Z"}],"success":true,"status":200}"""))
+    repo.refreshBlocks()
+    assertEquals("/auth/blocks", server.next().path)
+    assertEquals(mapOf(7 to GroupBlockNotice("Portland ABC", "letters came back twice")), notices.notices(2).first())
   }
 
   @Test

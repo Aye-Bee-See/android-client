@@ -17,6 +17,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -53,6 +54,14 @@ class LetterCodecTest {
     assertNull(request.ciphertext)
     assertNull(key)
     assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `a letter nobody has sealed to the writer yet is waiting, not locked and not empty (API 182)`() = runTest {
+    val waiting = MessageDto(id = 9, chat = 4, sender = "prisoner", prisoner = 3, user = 1, status = "queued", envelopes = emptyList())
+    val letter = codec(EncryptionMode.E2E).incoming(waiting)
+    assertTrue(letter.waitingForKey); assertFalse(letter.locked); assertEquals("", letter.body)
+    assertFalse("in server mode a letter with no envelopes is just a letter", codec(EncryptionMode.SERVER).incoming(waiting.copy(messageText = "Hi")).waitingForKey)
   }
 
   @Test
