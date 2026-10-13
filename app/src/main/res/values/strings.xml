@@ -622,6 +622,8 @@
     <string name="action_continue">Continue</string>
 
     <!-- Account tab -->
+    <string name="screen_security_title">Screen security</string>
+    <string name="screen_security_text">Block screenshots and screen recording of this app, by you or by any other app. Off, you can save your recovery codes with a screenshot; on, nothing here can be captured.</string>
     <string name="title_account">Account</string>
     <string name="account_signed_out">You are not signed in. Browsing the directory works without an account; writing letters needs one.</string>
     <string name="username_at">@%1$s</string>

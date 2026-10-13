@@ -8,6 +8,7 @@ import androidx.compose.ui.res.stringResource
 import me.paxana.abcmailbox.ui.common.asHeading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -119,6 +120,7 @@ fun AccountScreen(
       pluralStringResource(R.plurals.account_unsent, unsent.size, unsent.size),
       style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    ScreenSecuritySection(on = viewModel.screenSecurityOn.collectAsStateWithLifecycle().value, onChange = viewModel::setScreenSecurity)
     OfflineCopySection()
     Text(
       stringResource(R.string.build_line, BuildConfig.VERSION_NAME, stringResource(when (mode) { EncryptionMode.E2E -> R.string.mode_e2e; EncryptionMode.SERVER -> R.string.mode_server; EncryptionMode.UNKNOWN -> R.string.mode_unknown })) + if (ui.serverOverridden) " · ${ui.serverUrl}" else "",
@@ -141,5 +143,25 @@ fun AccountScreen(
       )
     }
     SnackbarHost(hostState = snackbar) { Snackbar(it) }
+  }
+}
+
+/**
+ * "Screen security", as Signal has it: off, screenshots work (people save their recovery codes that way); on, the
+ * window refuses screenshots and screen recording. A choice for the phone rather than the account, so it is shown
+ * signed in or out.
+ */
+@Composable
+private fun ScreenSecuritySection(on: Boolean, onChange: (Boolean) -> Unit) {
+  HorizontalDivider()
+  androidx.compose.foundation.layout.Row(
+    Modifier.fillMaxWidth().toggleable(value = on, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onChange).testTag("screen-security"),
+    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+  ) {
+    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+      Text(stringResource(R.string.screen_security_title), style = MaterialTheme.typography.titleMedium)
+      Text(stringResource(R.string.screen_security_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    androidx.compose.material3.Switch(checked = on, onCheckedChange = null)
   }
 }
