@@ -292,6 +292,7 @@
     <!-- The arrow is decoration; screen readers skip it. -->
     <string name="thread_last_received">← Letter received</string>
     <!-- %1$s is the letter's status: Queued, Printed, Mailed. -->
+    <string name="thread_last_held">→ Letter on hold</string>
     <string name="thread_last_sent">→ Letter sent · %1$s</string>
     <string name="writer_named">Writer: %1$s</string>
     <string name="unlock_explained">Your letters are locked on this device. Enter your password to unlock them. It is used here, on the phone, to open your encryption key; it is not sent anywhere.</string>
@@ -325,6 +326,7 @@
     <string name="thread_empty">No letters in this conversation yet.</string>
     <string name="letter_received">← Received</string>
     <string name="letter_sent">→ Sent</string>
+    <string name="letter_waiting_for_key">⏳ This reply is waiting for your group to share it with you. It opens by itself once they have.</string>
     <string name="letter_locked">🔒 This letter is encrypted and this device does not hold a key that opens it.</string>
     <string name="label_note_to_relay">NOTE TO RELAY GROUP</string>
     <!-- %1$s is a group's name. -->

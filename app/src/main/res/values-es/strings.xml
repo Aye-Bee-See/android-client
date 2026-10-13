@@ -262,6 +262,7 @@
     <string name="action_new_letter">Carta nueva</string>
     <string name="thread_no_letters">Todavía no hay cartas</string>
     <string name="thread_last_received">← Carta recibida</string>
+    <string name="thread_last_held">→ Carta en espera</string>
     <string name="thread_last_sent">→ Carta enviada · %1$s</string>
     <string name="writer_named">Remitente: %1$s</string>
     <string name="unlock_explained">Tus cartas están bloqueadas en este dispositivo. Escribe tu contraseña para desbloquearlas. Se usa aquí, en el teléfono, para abrir tu clave de cifrado; no se envía a ningún sitio.</string>
@@ -294,6 +295,7 @@
     <string name="thread_empty">Todavía no hay cartas en esta conversación.</string>
     <string name="letter_received">← Recibida</string>
     <string name="letter_sent">→ Enviada</string>
+    <string name="letter_waiting_for_key">⏳ Esta respuesta está esperando a que tu grupo la comparta contigo. Se abrirá sola cuando lo hagan.</string>
     <string name="letter_locked">🔒 Esta carta está cifrada y este dispositivo no tiene una clave que la abra.</string>
     <string name="label_note_to_relay">NOTA PARA EL GRUPO DE REENVÍO</string>
     <string name="status_waiting_named">A la espera de que %1$s la imprima</string>

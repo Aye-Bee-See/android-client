@@ -124,6 +124,8 @@ fun ThreadRow(t: Thread, onClick: () -> Unit, showWriter: Boolean = false) {
   val last = t.lastMessage
   val direction = when {
     last == null -> stringResource(R.string.thread_no_letters)
+    // Held where it is (API #178): its status still says "queued", which would read as on its way.
+    last.heldReason != null -> stringResource(R.string.thread_last_held)
     last.fromPrisoner -> stringResource(R.string.thread_last_received)
     else -> stringResource(R.string.thread_last_sent, stringResource(last.status.labelRes))
   }

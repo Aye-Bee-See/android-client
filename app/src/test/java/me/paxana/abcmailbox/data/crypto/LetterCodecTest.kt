@@ -17,6 +17,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -53,6 +54,14 @@ class LetterCodecTest {
     assertNull(request.ciphertext)
     assertNull(key)
     assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `a letter nobody has sealed to the writer yet is waiting, not locked and not empty (API 182)`() = runTest {
+    val waiting = MessageDto(id = 9, chat = 4, sender = "prisoner", prisoner = 3, user = 1, status = "queued", envelopes = emptyList())
+    val letter = codec(EncryptionMode.E2E).incoming(waiting)
+    assertTrue(letter.waitingForKey); assertFalse(letter.locked); assertEquals("", letter.body)
+    assertFalse("in server mode a letter with no envelopes is just a letter", codec(EncryptionMode.SERVER).incoming(waiting.copy(messageText = "Hi")).waitingForKey)
   }
 
   @Test
@@ -181,6 +190,15 @@ class LetterCodecTest {
     server.enqueue(publicKey("""{"user":4,"publicKey":"PUB-WRITER"}"""))
     val relayed = (codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Thank you", null, relayChapter = null, asWriterId = 4, fromPrisoner = true, groupRelaysFacility = true)) as ApiResult.Success).value.first
     assertEquals(listOf("user" to 4, "chapter" to 1), relayed.envelopes!!.map { it.readerType to it.readerId })
+  }
+
+  @Test
+  fun `a group envelope sealed to another version of the group key is not tried, and the held version opens (API 198)`() = runTest {
+    asMember() // holds version 3 of the group key
+    fun letter(keyVersion: Int?) = MessageDto(id = 7, chat = 1, sender = "user", prisoner = 3, ciphertext = "enc[Dear Jane]", nonce = "n", envelopes = listOf(EnvelopeDto("chapter", 1, engine.sealedTo(groupPair), keyVersion = keyVersion)))
+    assertTrue("sealed to version 2: the key held cannot open it, and is not asked to", codec(EncryptionMode.E2E).incoming(letter(2)).locked)
+    assertEquals("Dear Jane", codec(EncryptionMode.E2E).incoming(letter(3)).body)
+    assertEquals("an older server names no version: tried as before", "Dear Jane", codec(EncryptionMode.E2E).incoming(letter(null)).body)
   }
 
   @Test

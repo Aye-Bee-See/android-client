@@ -251,7 +251,9 @@ private fun LetterCard(letter: Letter, answered: Letter? = null, busy: Boolean, 
         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("reply-answers"),
       )
     }
-    if (letter.locked) {
+    if (letter.waitingForKey) {
+      Text(stringResource(R.string.letter_waiting_for_key), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("letter-waiting"))
+    } else if (letter.locked) {
       Text(stringResource(R.string.letter_locked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     } else if (letter.body.isNotBlank()) {
       Text(letter.body, style = MaterialTheme.typography.bodyLarge)
@@ -325,8 +327,9 @@ private fun DeclinedNotice(letter: Letter, mayChange: Boolean, busy: Boolean, on
     val reason = letter.declineReason ?: DeclineReason.OTHER
     val strings = me.paxana.abcmailbox.text.rememberStrings()
     Text(stringResource(reason.labelRes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+    // The rule's words as they read when the group declined (API #184), which outlive a renamed or retired rule; the tag looked up only where the server is older.
     letter.declineRule?.takeIf { reason == DeclineReason.FACILITY_RULE }?.let { tag ->
-      Text(stringResource(R.string.decline_rule_line, me.paxana.abcmailbox.domain.MailRuleCatalog.Compiled.resolve(tag).label(strings)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("decline-rule"))
+      Text(stringResource(R.string.decline_rule_line, letter.declineRuleLabel ?: me.paxana.abcmailbox.domain.MailRuleCatalog.Compiled.resolve(tag).label(strings)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("decline-rule"))
     }
     letter.declineNote?.let { note ->
       Text(stringResource(R.string.decline_note_from, letter.relayGroupName ?: stringResource(R.string.the_relay_group)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

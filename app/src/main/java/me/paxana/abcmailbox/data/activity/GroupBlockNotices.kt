@@ -31,6 +31,8 @@ interface GroupBlockNotices {
   suspend fun blocked(userId: Int, groupId: Int, notice: GroupBlockNotice)
   suspend fun lifted(userId: Int, groupId: Int)
   suspend fun forget(userId: Int) {}
+  /** The server's list (API #179) takes the place of what this phone had gathered from the feed. */
+  suspend fun replaceAll(userId: Int, notices: Map<Int, GroupBlockNotice>) {}
 
   object None : GroupBlockNotices {
     override fun notices(userId: Int): Flow<Map<Int, GroupBlockNotice>> = flowOf(emptyMap())
@@ -65,4 +67,8 @@ class DataStoreGroupBlockNotices @Inject constructor(
   }
 
   override suspend fun forget(userId: Int) { dataStore.edit { it.remove(key(userId)) } }
+
+  override suspend fun replaceAll(userId: Int, notices: Map<Int, GroupBlockNotice>) {
+    dataStore.edit { prefs -> if (notices.isEmpty()) prefs.remove(key(userId)) else prefs[key(userId)] = seal(json.encodeToString(serializer, notices)) }
+  }
 }

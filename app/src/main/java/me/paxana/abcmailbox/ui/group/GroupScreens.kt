@@ -248,7 +248,7 @@ private fun LetterWorkBody(
       }
       LetterStatus.DECLINED -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val strings = rememberStrings()
-        val why = letter.declineRule?.let { tag -> p?.facility?.rules?.rules?.firstOrNull { it.tag == tag } ?: me.paxana.abcmailbox.domain.MailRuleCatalog.Compiled.resolve(tag) }?.label(strings)
+        val why = letter.declineRuleLabel ?: letter.declineRule?.let { tag -> p?.facility?.rules?.rules?.firstOrNull { it.tag == tag } ?: me.paxana.abcmailbox.domain.MailRuleCatalog.Compiled.resolve(tag) }?.label(strings)
           ?: stringResource((letter.declineReason ?: me.paxana.abcmailbox.domain.DeclineReason.OTHER).choiceRes).lowercase()
         Text(letter.declinedAt?.let { stringResource(R.string.declined_group_line_on, it.longDate(), why) } ?: stringResource(R.string.declined_group_line, why), color = MaterialTheme.colorScheme.onSurfaceVariant)
         letter.declineNote?.let { Text(stringResource(R.string.decline_group_note, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }

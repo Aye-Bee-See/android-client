@@ -58,7 +58,7 @@ class ContractCheckTest {
   private val expectedAbsent = mapOf(
     "ApiEnvelope.errors" to "only on a 400", "ApiEnvelope.error" to "only on a 409",
     "AttachmentDto.nonce" to "end-to-end attachments only; the dev data has none",
-    "EnvelopeDto.keyVersion" to "sent by the app, never returned (plan, ask 11)",
+    "EnvelopeDto.keyVersion" to "returned on reads since API #198; the dev data has no end-to-end letters",
     "ApiEnvelope.unread" to "only on the notification feed",
   )
 

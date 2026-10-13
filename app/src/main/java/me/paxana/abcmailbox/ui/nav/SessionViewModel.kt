@@ -91,7 +91,7 @@ class SessionViewModel @Inject constructor(
     // Keep the offline copy of the directory fresh: at most one quiet download a day, and only if the server answers.
     viewModelScope.launch { offline.downloadIfOlderThan(maxAgeHours = 24) }
     // Whoever is signed in gets their feed looked at now (quietly: they are in the app, the badge is enough) and a few times a day from here on.
-    viewModelScope.launch { repository.state.collect { if (it is SessionState.SignedIn) { activityScheduler.keepChecking(); activity.sync(announce = false) } } }
+    viewModelScope.launch { repository.state.collect { if (it is SessionState.SignedIn) { activityScheduler.keepChecking(); activity.sync(announce = false); activity.refreshBlocks() } } }
     // Letters queued under this account wait through sign-outs and restarts; whenever someone is signed in, make sure a send is scheduled.
     viewModelScope.launch { repository.state.collect { if (it is SessionState.SignedIn && outbox.hasWaiting()) outboxScheduler.schedule() } }
     // Letters sealed on the phone wait for the keys as well: the moment they are opened (the password typed), a send is booked.

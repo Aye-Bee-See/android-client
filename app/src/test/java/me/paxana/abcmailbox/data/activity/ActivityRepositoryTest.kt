@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import me.paxana.abcmailbox.data.api.NotificationsApi
 import me.paxana.abcmailbox.data.session.SessionUser
@@ -49,6 +50,7 @@ class ActivityRepositoryTest {
     override fun notices(userId: Int) = kotlinx.coroutines.flow.flowOf(kept[userId].orEmpty().toMap())
     override suspend fun blocked(userId: Int, groupId: Int, notice: GroupBlockNotice) { kept.getOrPut(userId) { mutableMapOf() }[groupId] = notice }
     override suspend fun lifted(userId: Int, groupId: Int) { kept[userId]?.remove(groupId) }
+    override suspend fun replaceAll(userId: Int, notices: Map<Int, GroupBlockNotice>) { kept[userId] = notices.toMutableMap() }
   }
 
   @Before
@@ -76,6 +78,15 @@ class ActivityRepositoryTest {
     assertEquals("nothing asked while nobody is known", 0, server.requestCount)
     sessions.signInAs(SessionUser(2, "user1", null, null, "user", null))
     assertEquals(listOf(Activity.Kind.REPLY), look.await().map { it.kind })
+  }
+
+  @Test
+  fun `the server's list of a writer's blocks takes the place of what the feed had told this phone (API 179)`() = runTest {
+    notices.blocked(2, 5, GroupBlockNotice("Old Group", "from the feed, lifted on another phone"))
+    server.enqueue(MockResponse().setBody("""{"data":[{"chapter":{"id":7,"name":"Portland ABC"},"reason":"letters came back twice","blockedAt":"2026-10-03T10:00:00.000Z"}],"success":true,"status":200}"""))
+    repo.refreshBlocks()
+    assertEquals("/auth/blocks", server.next().path)
+    assertEquals(mapOf(7 to GroupBlockNotice("Portland ABC", "letters came back twice")), notices.notices(2).first())
   }
 
   @Test
@@ -250,11 +261,23 @@ class ActivityRepositoryTest {
       entry(42, "writer.block", """{"action":"blocked","chapter":{"id":4,"name":"Riverside ABC"},"reason":"Spam."}""", chat = null),
       entry(43, "writer.block", """{"action":"lifted","chapter":{"id":4,"name":"Riverside ABC"}}""", chat = null),
     ))
+    // The feed told of a block, so the server's list (API #179) is read after it and has the last word: here it no
+    // longer holds PDX ABC either, lifted on another phone since the feed entry was written.
+    server.enqueue(MockResponse().setBody("""{"data":[],"success":true,"status":200}"""))
     val fresh = repo.sync()
     assertEquals(listOf(Activity.Kind.WRITER_BLOCKED, Activity.Kind.WRITER_BLOCKED, Activity.Kind.WRITER_UNBLOCKED), fresh.map { it.kind })
     val said = fresh.first().sentence(TestStrings())
     assertEquals("A group will not mail your letters any more. Open the app to see which, and why.", said)
     assertFalse("the lock screen names no group and quotes nothing", said.contains("PDX") || said.contains("Threats"))
+    assertEquals(listOf("/auth/notifications?unread=true&page_size=50", "/auth/blocks"), listOf(server.next().path, server.next().path))
+    assertEquals("the server's list, read after the feed's entries, stands", emptyMap<Int, GroupBlockNotice>(), notices.kept[2])
+  }
+
+  @Test
+  fun `on a server without the blocks list, the feed's notices stand (API 171 alone)`() = runTest {
+    server.enqueue(feed(entry(41, "writer.block", """{"action":"blocked","chapter":{"id":3,"name":"PDX ABC"},"reason":"Threats in two letters."}""", chat = null)))
+    server.enqueue(MockResponse().setResponseCode(404).setBody("""{"success":false,"info":"Cannot GET /auth/blocks","status":404}"""))
+    repo.sync()
     assertEquals(mapOf(3 to GroupBlockNotice("PDX ABC", "Threats in two letters.")), notices.kept[2])
   }
 
