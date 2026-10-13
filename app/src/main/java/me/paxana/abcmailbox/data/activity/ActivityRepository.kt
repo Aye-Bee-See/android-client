@@ -25,6 +25,7 @@ import me.paxana.abcmailbox.data.session.SessionRepository
 import me.paxana.abcmailbox.data.session.SessionState
 import me.paxana.abcmailbox.data.session.settled
 import me.paxana.abcmailbox.domain.Activity
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -74,6 +75,9 @@ class DefaultActivityRepository @Inject constructor(
 ) : ActivityRepository {
 
   private val _unread = MutableStateFlow(0)
+  // One writer of the block notices at a time: the feed's entries (sync, from the worker or the app opening) and the
+  // server's list (refreshBlocks, at sign-in) could otherwise cross, and a stale feed entry land after the list.
+  private val blocks = kotlinx.coroutines.sync.Mutex()
   private val _arrivals = MutableSharedFlow<List<Activity>>(extraBufferCapacity = 8)
   override val arrivals: SharedFlow<List<Activity>> = _arrivals.asSharedFlow()
   override val unread: StateFlow<Int> = _unread.asStateFlow()
@@ -106,15 +110,21 @@ class DefaultActivityRepository @Inject constructor(
     }
     val fresh = all.filter { (e, _) -> e.readAt == null }.map { it.second }
     // A group's block, with its name and reason (API #171), kept for the app to say inside, never on the lock screen.
-    all.filter { (e, _) -> e.event == "writer.block" }.sortedBy { it.first.id }.forEach { (e, a) ->
-      val group = runCatching { e.detail?.get("chapter")?.jsonObject }.getOrNull() ?: return@forEach
-      val groupId = runCatching { group["id"]?.jsonPrimitive?.intOrNull }.getOrNull() ?: return@forEach
-      when (a.kind) {
-        Activity.Kind.WRITER_BLOCKED -> blockNotices.blocked(user, groupId, GroupBlockNotice(runCatching { group["name"]?.jsonPrimitive?.contentOrNull }.getOrNull(), e.detailText("reason")))
-        Activity.Kind.WRITER_UNBLOCKED -> blockNotices.lifted(user, groupId)
-        else -> Unit
+    val blockEntries = all.filter { (e, _) -> e.event == "writer.block" }.sortedBy { it.first.id }
+    blocks.withLock {
+      blockEntries.forEach { (e, a) ->
+        val group = runCatching { e.detail?.get("chapter")?.jsonObject }.getOrNull() ?: return@forEach
+        val groupId = runCatching { group["id"]?.jsonPrimitive?.intOrNull }.getOrNull() ?: return@forEach
+        when (a.kind) {
+          Activity.Kind.WRITER_BLOCKED -> blockNotices.blocked(user, groupId, GroupBlockNotice(runCatching { group["name"]?.jsonPrimitive?.contentOrNull }.getOrNull(), e.detailText("reason")))
+          Activity.Kind.WRITER_UNBLOCKED -> blockNotices.lifted(user, groupId)
+          else -> Unit
+        }
       }
     }
+    // The feed told of a block: the server's list (API #179) has the last word on what stands, so it is read after
+    // the feed's entries, never before them. A server without the list leaves the feed's notices as they are.
+    if (blockEntries.isNotEmpty()) refreshBlocks()
     entries.maxOfOrNull { it.id }?.let { newest -> dataStore.edit { it[lastSeenKey(user)] = newest } }
     if (announce && fresh.isNotEmpty()) {
       // A banner over the app you are already using is noise, and it would leave the screen underneath stale.
@@ -139,9 +149,9 @@ class DefaultActivityRepository @Inject constructor(
 
   override suspend fun refreshBlocks() {
     val me = (sessions.state.value as? SessionState.SignedIn)?.session?.user?.takeIf { !it.isStaff } ?: return
-    val blocks = (apiCall(json) { api.blocks() } as? ApiResult.Success)?.value?.data ?: return
+    val list = (apiCall(json) { api.blocks() } as? ApiResult.Success)?.value?.data ?: return
     if (userId != me.id) return // signed out, or someone else signed in, while the request was in flight
-    blockNotices.replaceAll(me.id, blocks.mapNotNull { b -> b.chapter?.let { it.id to GroupBlockNotice(it.name, b.reason) } }.toMap())
+    blocks.withLock { blockNotices.replaceAll(me.id, list.mapNotNull { b -> b.chapter?.let { it.id to GroupBlockNotice(it.name, b.reason) } }.toMap()) }
   }
 
   override suspend fun markAllRead() {

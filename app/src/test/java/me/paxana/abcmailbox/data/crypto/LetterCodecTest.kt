@@ -193,6 +193,15 @@ class LetterCodecTest {
   }
 
   @Test
+  fun `a group envelope sealed to another version of the group key is not tried, and the held version opens (API 198)`() = runTest {
+    asMember() // holds version 3 of the group key
+    fun letter(keyVersion: Int?) = MessageDto(id = 7, chat = 1, sender = "user", prisoner = 3, ciphertext = "enc[Dear Jane]", nonce = "n", envelopes = listOf(EnvelopeDto("chapter", 1, engine.sealedTo(groupPair), keyVersion = keyVersion)))
+    assertTrue("sealed to version 2: the key held cannot open it, and is not asked to", codec(EncryptionMode.E2E).incoming(letter(2)).locked)
+    assertEquals("Dear Jane", codec(EncryptionMode.E2E).incoming(letter(3)).body)
+    assertEquals("an older server names no version: tried as before", "Dear Jane", codec(EncryptionMode.E2E).incoming(letter(null)).body)
+  }
+
+  @Test
   fun `a member without the group key is told why, and nothing is sent anywhere`() = runTest {
     asMember(); keyring.state.value = GroupKeyState.NotHeld(1)
     val r = codec(EncryptionMode.E2E).outgoing(NewLetter(3, "Hi", null, 1)) as ApiResult.Failure

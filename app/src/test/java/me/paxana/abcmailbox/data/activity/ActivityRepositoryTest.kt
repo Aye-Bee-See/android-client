@@ -261,11 +261,23 @@ class ActivityRepositoryTest {
       entry(42, "writer.block", """{"action":"blocked","chapter":{"id":4,"name":"Riverside ABC"},"reason":"Spam."}""", chat = null),
       entry(43, "writer.block", """{"action":"lifted","chapter":{"id":4,"name":"Riverside ABC"}}""", chat = null),
     ))
+    // The feed told of a block, so the server's list (API #179) is read after it and has the last word: here it no
+    // longer holds PDX ABC either, lifted on another phone since the feed entry was written.
+    server.enqueue(MockResponse().setBody("""{"data":[],"success":true,"status":200}"""))
     val fresh = repo.sync()
     assertEquals(listOf(Activity.Kind.WRITER_BLOCKED, Activity.Kind.WRITER_BLOCKED, Activity.Kind.WRITER_UNBLOCKED), fresh.map { it.kind })
     val said = fresh.first().sentence(TestStrings())
     assertEquals("A group will not mail your letters any more. Open the app to see which, and why.", said)
     assertFalse("the lock screen names no group and quotes nothing", said.contains("PDX") || said.contains("Threats"))
+    assertEquals(listOf("/auth/notifications?unread=true&page_size=50", "/auth/blocks"), listOf(server.next().path, server.next().path))
+    assertEquals("the server's list, read after the feed's entries, stands", emptyMap<Int, GroupBlockNotice>(), notices.kept[2])
+  }
+
+  @Test
+  fun `on a server without the blocks list, the feed's notices stand (API 171 alone)`() = runTest {
+    server.enqueue(feed(entry(41, "writer.block", """{"action":"blocked","chapter":{"id":3,"name":"PDX ABC"},"reason":"Threats in two letters."}""", chat = null)))
+    server.enqueue(MockResponse().setResponseCode(404).setBody("""{"success":false,"info":"Cannot GET /auth/blocks","status":404}"""))
+    repo.sync()
     assertEquals(mapOf(3 to GroupBlockNotice("PDX ABC", "Threats in two letters.")), notices.kept[2])
   }
 
