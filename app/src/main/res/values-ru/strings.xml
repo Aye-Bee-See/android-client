@@ -599,6 +599,8 @@
     <string name="action_continue">Продолжить</string>
 
     <!-- Account tab -->
+    <string name="screen_security_title">Защита экрана</string>
+    <string name="screen_security_text">Запрещает снимки и запись экрана этого приложения — как вам, так и любому другому приложению. Выключено: коды восстановления можно сохранить снимком экрана; включено: здесь ничего нельзя захватить.</string>
     <string name="title_account">Аккаунт</string>
     <string name="account_signed_out">Вы не вошли. Каталог можно смотреть без аккаунта; чтобы писать письма, он нужен.</string>
     <string name="username_at">@%1$s</string>

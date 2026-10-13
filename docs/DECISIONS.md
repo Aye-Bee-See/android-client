@@ -184,3 +184,14 @@ A refusal that can be known in advance is shown in advance: in end-to-end mode t
 **Decision.** `com.google.zxing:core` (3.5.3, Apache 2.0, plain Java, about 500 KB, no camera or Android dependency) encodes the link to a grid of modules; the drawing is ours, on a Compose canvas for the screen and on an A4 page for the file, so both show the same code. The file is written with Android's `PdfDocument` (eight slips a page) into the app cache under a `FileProvider` path; the print dialog prints that file through a small `PrintDocumentAdapter`, and "Share as PDF" sends it, so what a group saves is exactly what it would have printed. A round-trip test decodes the grid with ZXing's reader.
 
 **Rejected.** The server rendering the QR (the codes are said once and slips are made on the phone). A WebView page for the slips as for letters (gives print but no file to share, and the QR would have to be an image anyway). ML Kit or `zxing-android-embedded` (scanning; the app only draws).
+
+## 2026-10-13: screenshots allowed by default, with a "Screen security" setting
+
+**Context.** The review of 2 October found nothing in the app stops screenshots or screen recording: letters, recovery codes, claim tokens and invite slips can all be captured, and `FLAG_SECURE` would stop that app-wide. But the recovery-code screens tell people to save their codes, and a screenshot is how many will; a flag they cannot switch off would leave some with no saved code. Since 2 October the app's content is already kept out of the Recents thumbnail (`setRecentsScreenshotEnabled(false)`, Android 13+), which needs no choice.
+
+**Decision** (the owner, 13 October). Screenshots stay allowed by default. "Screen security" on the Account page, as Signal has it, sets `FLAG_SECURE` on the one Activity's window while it is on: no screenshots, no screen recording, no capture by another app. It is a setting of the phone (DataStore, not per account) and is shown signed in or out, because it is the phone that is looked at.
+
+**Consequences.** With it on, the recovery-code and invite-slip screens cannot be captured either; the setting's own text says so. The iOS app has the same question for its app-switcher snapshot and should take the same shape (mobile note, 3 October).
+
+**Rejected.** `FLAG_SECURE` always (no way to save the codes by screenshot). On by default (the first thing a new person meets would be a screenshot that silently fails; off by default matches Signal and what the owner chose).
+

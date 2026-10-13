@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.paxana.abcmailbox.data.api.ApiResult
 import me.paxana.abcmailbox.data.dev.DevServerRepository
@@ -35,7 +36,12 @@ class AccountViewModel @Inject constructor(
   private val offline: OfflineDirectory,
   private val strings: Strings,
   private val activityScheduler: me.paxana.abcmailbox.data.activity.ActivityScheduler,
+  private val screenSecurity: me.paxana.abcmailbox.data.settings.ScreenSecurity,
 ) : ViewModel() {
+
+  /** "Screen security": the phone's choice, kept in the settings store; the Activity applies it to the window. */
+  val screenSecurityOn: StateFlow<Boolean> = screenSecurity.enabled.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), false)
+  fun setScreenSecurity(on: Boolean) { viewModelScope.launch { screenSecurity.set(on) } }
 
   /**
    * Developer tool: a feed check from the background, after a pause long enough to leave the app, so the whole

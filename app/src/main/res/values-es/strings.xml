@@ -581,6 +581,8 @@
     <string name="action_continue">Continuar</string>
 
     <!-- Account tab -->
+    <string name="screen_security_title">Seguridad de pantalla</string>
+    <string name="screen_security_text">Bloquea las capturas y grabaciones de pantalla de esta aplicación, tanto tuyas como de cualquier otra aplicación. Desactivado, puedes guardar tus códigos de recuperación con una captura; activado, nada de lo que hay aquí se puede capturar.</string>
     <string name="title_account">Cuenta</string>
     <string name="account_signed_out">No has iniciado sesión. El directorio se puede consultar sin cuenta; para escribir cartas hace falta una.</string>
     <string name="username_at">@%1$s</string>
