@@ -195,3 +195,13 @@ A refusal that can be known in advance is shown in advance: in end-to-end mode t
 
 **Rejected.** `FLAG_SECURE` always (no way to save the codes by screenshot). On by default (the first thing a new person meets would be a screenshot that silently fails; off by default matches Signal and what the owner chose).
 
+## 2026-10-13: a server that stops sealing letters is not followed down
+
+**Context.** `LettersRepository.send` met a `wrong_encryption_mode` refusal by asking `/health` again and, if the server now named the other mode, encoding the letter again in that mode and sending it once more. Meant for a server switched while the app was open. In the direction that matters it was the one place a client downgraded on the server's say-so: a server that had spoken end-to-end and now said server mode was sent the letter in the clear, and every letter after it, without a word to the writer. The review of 2 October raised it as a decision.
+
+**Decision** (the owner, 13 October): refuse, and tell the person. `DefaultEncryptionModeRepository` remembers, per server address and across restarts (DataStore), that a server spoke end-to-end; a `/health` that then says server mode sets `downgraded`, and `LetterCodec.endToEnd()` answers every letter, file, new writer and claim token with a sentence instead of plain text. A move the other way, server mode to end-to-end, is still followed: the letter is sealed and sent again under the same key.
+
+**Consequences.** A deliberate switch back to server mode would need an app release that clears the memory, or the person clearing the app's data; that is the point. The sentence names no cause, because the app cannot know one: a misconfiguration, a rollback, or an attacker. iOS has the same question (mobile note, 3 October).
+
+**Rejected.** Following the switch with a warning (the warning comes after the letter has gone). Refusing only the one resend (the next letter, composed in the new mode, would have gone in the clear anyway).
+
