@@ -62,10 +62,16 @@ class LetterCodec @Inject constructor(
    * Whether letters are sealed on the phone. Fails closed: a mode not known (the server could not be asked) is not
    * "server mode", it is no answer, and what asked waits as it would for any lost connection.
    */
-  suspend fun endToEnd(): ApiResult<Boolean> = when (modes.current()) {
-    EncryptionMode.E2E -> ApiResult.Success(true)
-    EncryptionMode.SERVER -> ApiResult.Success(false)
-    EncryptionMode.UNKNOWN -> ApiResult.Failure(AppError.Network(EncryptionModeUnknownException()))
+  suspend fun endToEnd(): ApiResult<Boolean> {
+    val mode = modes.current()
+    // A server that spoke end-to-end and now says server mode is not followed down (decided 13 October 2026): in the
+    // clear it could read every letter. Refused with a sentence, wherever a letter or a file would go.
+    if (modes.downgraded.value) return ApiResult.Failure(AppError.Forbidden(strings.get(R.string.error_server_stopped_sealing)))
+    return when (mode) {
+      EncryptionMode.E2E -> ApiResult.Success(true)
+      EncryptionMode.SERVER -> ApiResult.Success(false)
+      EncryptionMode.UNKNOWN -> ApiResult.Failure(AppError.Network(EncryptionModeUnknownException()))
+    }
   }
 
   /**

@@ -44,7 +44,9 @@ class LettersRepositoryE2eTest {
   private val modes = object : me.paxana.abcmailbox.data.crypto.EncryptionModeRepository {
     var next: EncryptionMode? = null
     override val mode = kotlinx.coroutines.flow.MutableStateFlow(EncryptionMode.E2E)
-    override suspend fun refresh() = (next ?: mode.value).also { mode.value = it }
+    override val downgraded = kotlinx.coroutines.flow.MutableStateFlow(false)
+    // As the real repository does: end-to-end once, then server mode, is a downgrade.
+    override suspend fun refresh() = (next ?: mode.value).also { if (mode.value == EncryptionMode.E2E && it == EncryptionMode.SERVER) downgraded.value = true; mode.value = it }
   }
   private lateinit var repo: DefaultLettersRepository
   private val tmp = File(System.getProperty("java.io.tmpdir"), "abc-e2e-${System.nanoTime()}").apply { mkdirs() }
@@ -116,16 +118,30 @@ class LettersRepositoryE2eTest {
   private val wrongMode = MockResponse().setResponseCode(400).setBody("""{"success":false,"errors":["ciphertext is not accepted by a server-mode server."],"problems":[{"field":"ciphertext","code":"wrong_encryption_mode"}],"status":400}""")
 
   @Test
-  fun `a server that switched modes while the app was open gets the letter again in its mode, under the same key`() = runTest {
+  fun `a server that stopped sealing letters while the app was open is refused with a sentence, and nothing goes in the clear`() = runTest {
     server.enqueue(publicKey(1)); server.enqueue(wrongMode)
-    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"id":9,"chat":4,"sender":"user","prisoner":3,"user":1,"status":"queued","relayChapter":2,"messageText":"Dear friend"},"success":true,"status":201}"""))
     modes.next = EncryptionMode.SERVER
-    val sent = repo.send(NewLetter(3, "Dear friend", null, 2, idempotencyKey = "key-1")) as ApiResult.Success
-    assertEquals("Dear friend", sent.value.body)
+    val r = repo.send(NewLetter(3, "Dear friend", null, 2, idempotencyKey = "key-1")) as ApiResult.Failure
+    assertEquals("This server used to keep letters sealed so that only their readers could open them, and now asks for them in the clear. The app will not send anything that way: the server could read it. Nothing was sent. Ask your group what has changed.", (r.error as AppError.Forbidden).info)
     server.next() // the group's public key, for the sealed first try
+    assertEquals(true, json.parseToJsonElement(server.next().body.readUtf8()).jsonObject.containsKey("ciphertext"))
+    assertEquals("the sealed try, and no second one in the clear", 2, server.requestCount)
+    // And from here on: nothing goes to that server in the clear, letter or file.
+    assertTrue(repo.send(NewLetter(3, "Another", null, null, idempotencyKey = "key-2")) is ApiResult.Failure)
+    assertEquals(2, server.requestCount)
+  }
+
+  @Test
+  fun `a server that started sealing letters while the app was open gets the letter again, sealed, under the same key`() = runTest {
+    modes.mode.value = EncryptionMode.SERVER
+    server.enqueue(MockResponse().setResponseCode(400).setBody("""{"success":false,"errors":["messageText is not accepted by an end-to-end server."],"problems":[{"field":"messageText","code":"wrong_encryption_mode"}],"status":400}"""))
+    server.enqueue(MockResponse().setResponseCode(201).setBody("""{"data":{"id":9,"chat":4,"sender":"user","prisoner":3,"user":1,"status":"queued","messageText":"Dear friend"},"success":true,"status":201}"""))
+    modes.next = EncryptionMode.E2E
+    val sent = repo.send(NewLetter(3, "Dear friend", null, null, idempotencyKey = "key-1")) as ApiResult.Success
+    assertEquals("Dear friend", sent.value.body)
     val first = server.next(); val second = server.next()
-    assertEquals(true, json.parseToJsonElement(first.body.readUtf8()).jsonObject.containsKey("ciphertext"))
-    assertEquals("the second try is plain, as the server now wants", "Dear friend", json.parseToJsonElement(second.body.readUtf8()).jsonObject["messageText"]!!.jsonPrimitive.content)
+    assertEquals("the first try was plain, as the server used to want", "Dear friend", json.parseToJsonElement(first.body.readUtf8()).jsonObject["messageText"]!!.jsonPrimitive.content)
+    assertEquals("the second is sealed", true, json.parseToJsonElement(second.body.readUtf8()).jsonObject.containsKey("ciphertext"))
     assertEquals("key-1", first.getHeader("Idempotency-Key")); assertEquals("key-1", second.getHeader("Idempotency-Key"))
   }
 
