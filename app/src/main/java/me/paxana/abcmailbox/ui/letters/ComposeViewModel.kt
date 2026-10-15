@@ -90,7 +90,12 @@ data class ComposeUiState(
   val needsRelayChoice: Boolean get() = !recordingReply && (relay as? RelayChoice.Choose)?.required == true && selectedRelay == null
   private val mailRules: MailRules get() = facility?.rules ?: MailRules()
   /** What the facility's rules mean for this letter; recomputed as the writer types. */
-  fun advice(strings: Strings): List<ComposeAdvice> = composeAdvice(mailRules, pages, attachments.count { it.mimeType.startsWith("image/") }, strings)
+  fun advice(strings: Strings): List<ComposeAdvice> = buildList {
+    // Written to someone the directory records as free, the letter is created held (API #210): the group will not
+    // mail it to a prison they have left. Said before it is written, as the website does.
+    if (prisoner?.status == "free") add(ComposeAdvice(strings.get(R.string.advice_prisoner_free), warning = true))
+    addAll(composeAdvice(mailRules, pages, attachments.count { it.mimeType.startsWith("image/") }, strings))
+  }
   /** Where pictures are refused only a PDF may be attached (API guidance for `no_photos`). */
   val allowedAttachmentTypes: Array<String> get() = if (mailRules.forbidsPhotos) arrayOf("application/pdf") else ATTACHMENT_MIME_TYPES
   // A recorded reply is not mailed anywhere, so the facility's routing cannot block it.

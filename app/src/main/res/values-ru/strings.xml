@@ -331,6 +331,7 @@
     <string name="title_record_reply">Записать ответ</string>
     <string name="title_edit_letter">Изменить письмо</string>
     <string name="title_new_letter">Новое письмо</string>
+    <string name="advice_prisoner_free">Этот человек числится на свободе. Группа задержит это письмо, а не отправит его в тюрьму, которую он покинул. Если в справочнике ошибка, сообщите группе поддержки.</string>
     <string name="compose_signed_out">Войдите, чтобы написать письмо.</string>
     <string name="compose_from">От: %1$s</string>
     <string name="compose_to">Кому: %1$s</string>

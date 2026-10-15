@@ -328,6 +328,16 @@ class ComposeViewModelTest {
   }
 
   @Test
+  fun `writing to someone recorded as free is warned about before the letter is written (API 210)`() = runTest {
+    val free = ComposeViewModel(FakeLetters(), FakeDirectory(prisoner().copy(status = "free"), facility(Routing.DIRECT, emptyList())), FakeDrafts(), files, FakeSession(), ComposeRoute(prisonerId = 3), outbox, TestStrings())
+    dispatcher.scheduler.advanceUntilIdle()
+    val warning = free.ui.value.advice(TestStrings()).first()
+    assertTrue(warning.warning); assertEquals("This person is recorded as free. The group will hold this letter rather than mail it to a prison they have left. If the directory is wrong, tell a support group.", warning.text)
+    val model = vm(Routing.DIRECT, emptyList()); dispatcher.scheduler.advanceUntilIdle()
+    assertTrue("not for someone inside", model.ui.value.advice(TestStrings()).none { it.text.contains("recorded as free") })
+  }
+
+  @Test
   fun `a reopened letter sent as it was goes under the key it was queued with, because the earlier try may have arrived`() = runTest {
     outbox.stored = OutboxPayload(prisonerId = 3, prisonerName = "Alex", body = "Queued last night", idempotencyKey = "key-of-the-queued-copy") to emptyList()
     val letters = FakeLetters()

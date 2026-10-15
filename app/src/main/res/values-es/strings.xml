@@ -318,6 +318,7 @@
     <string name="title_record_reply">Registrar una respuesta</string>
     <string name="title_edit_letter">Editar la carta</string>
     <string name="title_new_letter">Carta nueva</string>
+    <string name="advice_prisoner_free">Esta persona figura como libre. El grupo retendrá esta carta en lugar de enviarla a una prisión de la que ya salió. Si el directorio está equivocado, avisa a un grupo de apoyo.</string>
     <string name="compose_signed_out">Inicia sesión para escribir una carta.</string>
     <string name="compose_from">De: %1$s</string>
     <string name="compose_to">Para: %1$s</string>
