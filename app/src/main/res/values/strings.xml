@@ -352,6 +352,7 @@
     <string name="title_record_reply">Record a reply</string>
     <string name="title_edit_letter">Edit letter</string>
     <string name="title_new_letter">New letter</string>
+    <string name="advice_prisoner_free">This person is recorded as free. The group will hold this letter rather than mail it to a prison they have left. If the directory is wrong, tell a support group.</string>
     <string name="compose_signed_out">Sign in to write a letter.</string>
     <string name="compose_from">From: %1$s</string>
     <string name="compose_to">To: %1$s</string>

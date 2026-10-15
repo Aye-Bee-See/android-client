@@ -132,7 +132,7 @@ class DefaultGroupKeyring @Inject constructor(
       // "No key yet" is also all a pending or suspended group's member is told. Asking any group key endpoint tells
       // them apart: for such a group it answers 403. Without this the page offers a set-up that can only be refused.
       val mayAct = apiCall(json) { groupApi.members(groupId) }
-      return@withLock set(if ((mayAct as? ApiResult.Failure)?.error is AppError.Forbidden) GroupKeyState.GroupNotActive(groupId) else GroupKeyState.NotSetUp(groupId))
+      return@withLock set(if ((mayAct as? ApiResult.Failure)?.error.saysGroupNotActive()) GroupKeyState.GroupNotActive(groupId) else GroupKeyState.NotSetUp(groupId))
     }
     val sealed = org.wrappedOrgPrivateKey ?: return@withLock set(GroupKeyState.NotHeld(groupId))
     val groupPair = runCatching { engine.openSealedKey(sealed, mine, publicKey) }.getOrElse {
@@ -166,4 +166,18 @@ class DefaultGroupKeyring @Inject constructor(
   }
 
   private fun set(state: GroupKeyState): GroupKeyState { _state.value = state; return state }
+
+  /**
+   * The 403 an account of a group that cannot act gets on every write, by its code since API #212
+   * (`authorization.no_group`, `.group_pending`, `.group_suspended`). A 403 with no code is an older server's, which
+   * said nothing more, and is read as before; one with another code ("not yours", say) is not this.
+   */
+  private fun AppError?.saysGroupNotActive(): Boolean {
+    val refusal = this as? AppError.Forbidden ?: return false
+    return refusal.code == null || refusal.code == "authorization" || refusal.code in GROUP_NOT_ACTIVE_CODES
+  }
+
+  private companion object {
+    val GROUP_NOT_ACTIVE_CODES = setOf("authorization.no_group", "authorization.group_pending", "authorization.group_suspended")
+  }
 }

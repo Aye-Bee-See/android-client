@@ -74,6 +74,18 @@ class GroupKeyringTest {
     server.enqueue(bundle(null, null))
     server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"Your group is waiting for network approval; an admin has to activate it first.","status":403}"""))
     assertEquals(GroupKeyState.GroupNotActive(1), keyring().load())
+  }
+
+  @Test
+  fun `the inactive-group refusal is known by its code (API 212), an older server's by its bare 403, and "not yours" is neither`() = runTest {
+    fun refused(code: String?) {
+      server.enqueue(MockResponse().setBody("""{"data":{"orgKey":{"chapterId":1,"chapterPublicKey":null,"wrappedOrgPrivateKey":null}},"success":true,"status":200}"""))
+      server.enqueue(MockResponse().setResponseCode(403).setBody("""{"success":false,"name":"AuthorizationError","info":"Refused.","status":403${code?.let { ""","code":"$it"""" } ?: ""}}"""))
+    }
+    refused("authorization.group_pending"); assertEquals(GroupKeyState.GroupNotActive(1), keyring().load(force = true))
+    refused("authorization.no_group"); assertEquals(GroupKeyState.GroupNotActive(1), keyring().load(force = true))
+    refused(null); assertEquals("an older server, read as before", GroupKeyState.GroupNotActive(1), keyring().load(force = true))
+    refused("authorization.not_yours"); assertEquals("not this group's standing: there is simply no key yet", GroupKeyState.NotSetUp(1), keyring().load(force = true))
     assertEquals("/auth/member-keys?chapter=1", server.next().let { server.next().path })
   }
 
