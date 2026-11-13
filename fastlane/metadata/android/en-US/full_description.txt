@@ -1,0 +1,28 @@
+PaperKites is a way to write to someone in prison. You write on your phone; a volunteer support group prints your letter, puts it in an envelope and mails it. When a reply comes back on paper, the group scans or types it up and it appears in your conversation.
+
+HOW IT WORKS
+
+• Browse the directory. Read about the people who would like mail, the prisons that hold them, and the groups that mail for them. No account is needed to look.
+• Read the rules before you write. Every prison has its own: how many pages, which languages, whether photos are allowed. The app shows them beside your letter and warns you before you break one.
+• Write. Your letter goes into the queue of the group that mails to that prison. You can follow it: queued, printed, mailed.
+• Read the reply in the same place.
+
+You need an invite code from a support group to make an account. Groups give them out at letter-writing nights and to people they know. If you help run a group, the app is also where you see what is waiting to be printed, address the envelope, and record replies.
+
+PRIVATE BY DESIGN
+
+• Letters are end-to-end encrypted. They are sealed on your phone and opened only by you and by the group that prints them. The people who run the server cannot read them.
+• You write under a pen name. Replies come to that name, care of the group. The app never asks for your home address or phone number.
+• No ads, no trackers, no analytics. The app contains no advertising or tracking code and uses no Google services.
+• Mailed letters are removed after 90 days unless you choose to keep them. Deleting your account deletes everything at once.
+• A recovery code, shown once when you join, is the only way back in if you forget your password. Nobody else can reset it for you.
+
+WHAT TO KNOW
+
+A printed letter is not private in the way a sealed one is. The group reads it to print it, and prison staff may read it when it arrives. The server also knows who writes to whom and when, because it has to route the letter.
+
+Letters written without a connection wait on your phone, encrypted, and are sent when you are back online. The directory can be read offline too.
+
+PaperKites is free. It takes no payments and no donations, and nothing in it is for sale. Each group pays for its own paper and stamps.
+
+Available in English, Spanish and Russian.

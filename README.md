@@ -65,6 +65,14 @@ The identifier is `org.paperkites.app`. What is left to settle is the signing ke
 
 Release signing reads `keystore.properties` (copy `keystore.properties.example`; git ignores the real one) or the `ABC_KEYSTORE_*` environment variables. For Google Play that key is the upload key: Google's app signing key signs what people install, and a lost upload key can be replaced through Play support. Only a build handed out directly is signed by this key itself, and such an install can only ever be updated by the same key. Without them `assembleRelease` produces an unsigned APK. Every push runs the tests, lint and the internal build on GitHub Actions and keeps the APK as an artifact.
 
+### Store listing
+
+`fastlane/metadata/android/` holds what a store shows, in the layout both F-Droid and fastlane's `supply` read: for each of `en-US`, `es-ES` and `ru-RU`, a `title.txt` (30 characters at most on Google Play), a `short_description.txt` (80), a `full_description.txt` (4,000), `changelogs/<versionCode>.txt`, and seven screenshots under `images/phoneScreenshots/`. Nothing in the build reads these files; they are pasted or uploaded.
+
+The screenshots show invented people, prisons and a group, on a local API with no real data: the API's own seed is real prisoners and must never appear in a store. They are 1080 × 1920 because Google Play refuses a screenshot more than twice as tall as it is wide, which a current phone's screen is (`adb shell wm size 1080x1920` for the session, `wm size reset` afterwards); the status bar is System UI's demo mode; the language is set per app with `adb shell cmd locale set-app-locales <identifier> --locales es`.
+
+Still to make: the 512 × 512 icon and the 1024 × 500 feature graphic Google Play asks for. The Spanish and Russian text was written with the app's glossary (`docs/TRANSLATING.md`) and, like the app's own strings, wants a native speaker's read before release.
+
 ### Tests
 
 ```bash
