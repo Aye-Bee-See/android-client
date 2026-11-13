@@ -1,6 +1,6 @@
 # PaperKites for Android
 
-The Android client for PaperKites (`paperkites.org`), a correspondence network for political prisoners. Writers find a prisoner, read the facility's mail rules, and write; a support group prints and mails the letter and records the reply. The project was called ABC Mailbox, then letters.support, before 16 October 2026: the code's package (`me.paxana.abcmailbox`), the `abcmailbox://` links and some file names still say so, and none of them is seen by the people using the app.
+The Android client for PaperKites (`paperkites.org`), a correspondence network for political prisoners. Writers find a prisoner, read the facility's mail rules, and write; a support group prints and mails the letter and records the reply. The project was called ABC Mailbox, then letters.support, before 16 October 2026: the code's package (`me.paxana.abcmailbox`), the `abcmailbox://` links and some file names still say so, and none of them is seen by the people using the app. The app identifier, the name a phone and a store know it by, is `org.paperkites.app` (decided 12 November 2026; it cannot change after the first store upload).
 
 - `docs/PLAN.md`: what is being built, in what order, and why.
 - `docs/PUSH.md`: why the app has no push notifications, and how it learns of news instead.
@@ -28,9 +28,9 @@ Requires JDK 17 or newer on the path; use a long-term-support release (17, 21, 2
 
 | Type | For | Shrunk (R8) | Server | Installs as |
 | --- | --- | --- | --- | --- |
-| `debug` | development | no (about 24 MB) | emulator's host by default; hidden server dialog on the Account tab (five taps on the build line) | `me.paxana.abcmailbox` |
-| `internal` | testers, and checking the shrunk build | yes (about 5 MB) | the test API, `https://abctest.letters.support/`, always; plain HTTP allowed and the server dialog kept, so it can still reach a laptop | `me.paxana.abcmailbox.internal` |
-| `release` | the store | yes | production, `https://api.paperkites.org/`; HTTPS only, no server dialog | `me.paxana.abcmailbox` |
+| `debug` | development | no (about 24 MB) | emulator's host by default; hidden server dialog on the Account tab (five taps on the build line) | `org.paperkites.app` |
+| `internal` | testers, and checking the shrunk build | yes (about 5 MB) | the test API, `https://abctest.letters.support/`, always; plain HTTP allowed and the server dialog kept, so it can still reach a laptop | `org.paperkites.app.internal` |
+| `release` | the store | yes | production, `https://api.paperkites.org/`; HTTPS only, no server dialog | `org.paperkites.app` |
 
 ```bash
 ./gradlew :app:assembleInternal
@@ -61,9 +61,9 @@ For Android to open the https links in the app without asking, `https://paperkit
                "sha256_cert_fingerprints": ["<SHA-256 of the certificate the installed app is signed with>"] } }]
 ```
 
-Two things have to be settled first, and both are the owner's: the app identifier (it cannot change after the first store upload) and who holds the signing key. The fingerprint is read with `keytool -list -v -keystore <the keystore> -alias <the alias>` (the `SHA256:` line), or `./gradlew :app:signingReport` once `keystore.properties` exists. If the app goes through Google Play with Play App Signing, the certificate on people's phones is Google's app signing key, not the upload key: the fingerprint to publish is then the one Play Console shows under App integrity, and the upload key's is added beside it only if builds are also handed out directly. Until the file is there, Android 12 and later open these links in the browser, where the website handles them; `adb shell pm get-app-links <identifier>` shows what Android made of the file.
+The identifier is `org.paperkites.app`. What is left to settle is the signing key, which is the owner's. The fingerprint is read with `keytool -list -v -keystore <the keystore> -alias <the alias>` (the `SHA256:` line), or `./gradlew :app:signingReport` once `keystore.properties` exists. If the app goes through Google Play with Play App Signing, the certificate on people's phones is Google's app signing key, not the upload key: the fingerprint to publish is then the one Play Console shows under App integrity, and the upload key's is added beside it only if builds are also handed out directly. Until the file is there, Android 12 and later open these links in the browser, where the website handles them; `adb shell pm get-app-links <identifier>` shows what Android made of the file.
 
-Release signing reads `keystore.properties` (copy `keystore.properties.example`; git ignores the real one) or the `ABC_KEYSTORE_*` environment variables. Without them `assembleRelease` produces an unsigned APK. Every push runs the tests, lint and the internal build on GitHub Actions and keeps the APK as an artifact.
+Release signing reads `keystore.properties` (copy `keystore.properties.example`; git ignores the real one) or the `ABC_KEYSTORE_*` environment variables. For Google Play that key is the upload key: Google's app signing key signs what people install, and a lost upload key can be replaced through Play support. Only a build handed out directly is signed by this key itself, and such an install can only ever be updated by the same key. Without them `assembleRelease` produces an unsigned APK. Every push runs the tests, lint and the internal build on GitHub Actions and keeps the APK as an artifact.
 
 ### Tests
 

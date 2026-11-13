@@ -6,7 +6,7 @@
 -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- The project is PaperKites since 16 October 2026: one word, capital P and K. (It was letters.support from 22 September, API PR #121, and
-         ABC Mailbox before that.) The app identifier is the owner's to decide, before the first store upload. -->
+         ABC Mailbox before that.) The app identifier is org.paperkites.app (app/build.gradle.kts). -->
     <string name="app_name" translatable="false">PaperKites</string>
 
     <!-- Bottom navigation. Keep each to one short word if the language allows: they sit side by side. -->
