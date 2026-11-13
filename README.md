@@ -73,7 +73,7 @@ The listing is pitched at writers only (the owner's decision, 12 November 2026):
 
 The screenshots show invented people, prisons and a group, on a local API with no real data: the API's own seed is real prisoners and must never appear in a store. They are 1080 × 1920 because Google Play refuses a screenshot more than twice as tall as it is wide, which a current phone's screen is (`adb shell wm size 1080x1920` for the session, `wm size reset` afterwards); the status bar is System UI's demo mode; the language is set per app with `adb shell cmd locale set-app-locales <identifier> --locales es`.
 
-Still to make: the 512 × 512 icon and the 1024 × 500 feature graphic Google Play asks for. The Spanish and Russian text was written with the app's glossary (`docs/TRANSLATING.md`) and, like the app's own strings, wants a native speaker's read before release.
+The store icon, `en-US/images/icon.png` (512 × 512, the size Google Play asks for), is the launcher icon's two layers cut to the part a launcher shows, with square corners because the store rounds them itself. It is drawn from `fastlane/icon.svg`, which copies the paths of `ic_launcher_background.xml` and `ic_launcher_foreground.xml`: change the launcher icon and that file together, then `sips -s format png fastlane/icon.svg --out fastlane/metadata/android/en-US/images/icon.png`. Still to make: the 1024 × 500 feature graphic. The Spanish and Russian text was written with the app's glossary (`docs/TRANSLATING.md`) and, like the app's own strings, wants a native speaker's read before release.
 
 ### Tests
 
