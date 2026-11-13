@@ -11,7 +11,7 @@ Para crear una cuenta necesitas un código de invitación de un grupo de apoyo. 
 
 PRIVADA POR DISEÑO
 
-• Las cartas están cifradas de extremo a extremo. Se sellan en tu teléfono y solo las abren tú y el grupo que las imprime. Quienes administran el servidor no pueden leerlas.
+• Las cartas están cifradas de extremo a extremo. Se sellan en tu teléfono y solo las abren tú y el grupo que las imprime. Quienes mantienen el servidor no pueden leerlas.
 • Escribes con un seudónimo. Las respuestas llegan a ese nombre, a cargo del grupo. La app nunca te pide tu dirección ni tu número de teléfono.
 • Sin anuncios, sin rastreadores, sin analíticas. La app no contiene código publicitario ni de seguimiento y no usa servicios de Google.
 • Las cartas enviadas se eliminan a los 90 días, salvo que decidas conservarlas. Al eliminar tu cuenta se borra todo de inmediato.
