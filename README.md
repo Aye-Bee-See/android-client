@@ -1,6 +1,6 @@
-# ABC Mailbox for Android
+# PaperKites for Android
 
-The Android client for Aye Bee See, a correspondence network for political prisoners. Writers find a prisoner, read the facility's mail rules, and write; a support group prints and mails the letter and records the reply.
+The Android client for PaperKites (`paperkites.org`), a correspondence network for political prisoners. Writers find a prisoner, read the facility's mail rules, and write; a support group prints and mails the letter and records the reply. The project was called ABC Mailbox, then letters.support, before 16 October 2026: the code's package (`me.paxana.abcmailbox`), the `abcmailbox://` links and some file names still say so, and none of them is seen by the people using the app.
 
 - `docs/PLAN.md`: what is being built, in what order, and why.
 - `docs/PUSH.md`: why the app has no push notifications, and how it learns of news instead.
@@ -29,12 +29,39 @@ Requires JDK 17 or newer on the path; use a long-term-support release (17, 21, 2
 | Type | For | Shrunk (R8) | Server | Installs as |
 | --- | --- | --- | --- | --- |
 | `debug` | development | no (about 24 MB) | emulator's host by default; hidden server dialog on the Account tab (five taps on the build line) | `me.paxana.abcmailbox` |
-| `internal` | testers, and checking the shrunk build, until there is a domain | yes (about 4 MB) | same as debug, plain HTTP allowed | `me.paxana.abcmailbox.internal` |
-| `release` | the store | yes | HTTPS only; `-PapiBaseUrl=https://…` sets the address | `me.paxana.abcmailbox` |
+| `internal` | testers, and checking the shrunk build | yes (about 5 MB) | the test API, `https://abctest.letters.support/`, always; plain HTTP allowed and the server dialog kept, so it can still reach a laptop | `me.paxana.abcmailbox.internal` |
+| `release` | the store | yes | production, `https://api.paperkites.org/`; HTTPS only, no server dialog | `me.paxana.abcmailbox` |
 
 ```bash
 ./gradlew :app:assembleInternal
 ```
+
+### Servers
+
+- **Production** is `https://api.paperkites.org/` (the website is `https://paperkites.org`), live since 13 November 2026. It holds real accounts, runs end-to-end, refuses accounts that would send their password (`REQUIRE_SPLIT_AUTH`), sends no push, and is updated only when the owner runs an update by hand, so it can be behind the API's `main`. **Do not test against it**: nothing made there can be assumed to be removable.
+- **The test API** is `https://abctest.letters.support/`. It follows the API's `main` every hour and is where testing happens. The `internal` build talks to it, and nothing on the command line changes that.
+
+The store build needs no flag:
+
+```bash
+./gradlew :app:assembleRelease
+```
+
+`-PapiBaseUrl=https://…` still overrides the address for a release-shaped build against another server (`./gradlew :app:assembleRelease -PapiBaseUrl=https://abctest.letters.support/`). It is deliberately the exception and not the rule: a flag that has to be remembered for the store build is one day forgotten, and people would then make their accounts on the test server.
+
+### Links that open the app
+
+The website hands out three links, each built from its own address: `https://paperkites.org/join?code=…` (the QR code on an invite slip), `/claim?token=…` (a handoff) and `/invitation?token=…` (a volunteer or a new group). The app answers all three, and prints the same join link on the slips it makes. `abcmailbox://join` and `abcmailbox://claim` still work and need nothing from a server.
+
+For Android to open the https links in the app without asking, `https://paperkites.org/.well-known/assetlinks.json` has to name the app, as JSON (`Content-Type: application/json`, no redirect):
+
+```json
+[{ "relation": ["delegate_permission/common.handle_all_urls"],
+   "target": { "namespace": "android_app", "package_name": "<the app identifier>",
+               "sha256_cert_fingerprints": ["<SHA-256 of the certificate the installed app is signed with>"] } }]
+```
+
+Two things have to be settled first, and both are the owner's: the app identifier (it cannot change after the first store upload) and who holds the signing key. The fingerprint is read with `keytool -list -v -keystore <the keystore> -alias <the alias>` (the `SHA256:` line), or `./gradlew :app:signingReport` once `keystore.properties` exists. If the app goes through Google Play with Play App Signing, the certificate on people's phones is Google's app signing key, not the upload key: the fingerprint to publish is then the one Play Console shows under App integrity, and the upload key's is added beside it only if builds are also handed out directly. Until the file is there, Android 12 and later open these links in the browser, where the website handles them; `adb shell pm get-app-links <identifier>` shows what Android made of the file.
 
 Release signing reads `keystore.properties` (copy `keystore.properties.example`; git ignores the real one) or the `ABC_KEYSTORE_*` environment variables. Without them `assembleRelease` produces an unsigned APK. Every push runs the tests, lint and the internal build on GitHub Actions and keeps the APK as an artifact.
 

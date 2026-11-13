@@ -23,6 +23,11 @@ class SecretCodesTest {
     assertEquals("dashes, dots and spaces go; case does not matter", "0123456789AB", SecretCodes.normalise(" 0123.4567-89ab "))
     assertEquals("the web client's own vectors", "ABCDEFGH1JK1MN0P", SecretCodes.normalise("abcd-efgh ijkl.mnop"))
     assertEquals("00111", SecretCodes.normalise("0O1IL"))
+    // The server and the web keep only A-Z and 0-9 (`/[^A-Z0-9]/g`): anything else goes the way a dash does.
+    // Checked against the web's own expression in Node, 12 November 2026: an accented letter, an Arabic digit and the
+    // full-width forms go; a sharp s and a dotless i survive only because upper-casing turns them into ASCII first.
+    assertEquals("letters and digits outside ASCII are dropped, not kept", "ABSS12", SecretCodes.normalise("a\u00e9b\u00df-1\u0663\uff12 2\uff21"))
+    assertEquals("1S", SecretCodes.normalise("\u0131\u017f"))
     assertTrue("the typo is not reported as an invalid code", SecretCodes.isWellFormed("O123-4567-89AB-CDEF-GHJK-MNPQ"))
     assertFalse("U is not a look-alike of anything, so it stays wrong", SecretCodes.isWellFormed("U123-4567-89AB-CDEF-GHJK-MNPQ"))
     assertEquals(printed, SecretCodes.pretty("O123 4567 89ab cdef ghjk mnpq"))

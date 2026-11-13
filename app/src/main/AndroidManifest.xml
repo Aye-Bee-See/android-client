@@ -45,20 +45,28 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- abcmailbox://claim?token=… until a domain exists for verified https links. -->
+            <!-- abcmailbox://claim?token=…: the form that needs no domain behind it, kept beside the https one below. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="abcmailbox" android:host="claim" />
             </intent-filter>
-            <!-- An invite-code slip's QR code: https://letters.support/join?code=… (API PR #116), and the scheme form. autoVerify
-                 takes effect once the domain hosts assetlinks.json (docs/PLAN.md, ask 4); until then Android offers the app as a choice. -->
+            <!-- The three links the website hands out (it builds each from its own address, paperkites.org since 12 November 2026):
+                 /join?code=… on an invite slip's QR code (API PR #116), /claim?token=… at a handoff, /invitation?token=… to a
+                 volunteer. autoVerify asks Android to check https://paperkites.org/.well-known/assetlinks.json for this app's
+                 identifier and signing certificate. Until the site serves that file, Android 12 and later open these links in the
+                 browser (the website handles them), and the app can be made their handler by hand in its "Open by default" settings.
+                 The domain attributes of one filter combine, so this is one host with three paths. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="letters.support" android:path="/join" />
+                <data android:scheme="https" />
+                <data android:host="paperkites.org" />
+                <data android:path="/join" />
+                <data android:path="/claim" />
+                <data android:path="/invitation" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

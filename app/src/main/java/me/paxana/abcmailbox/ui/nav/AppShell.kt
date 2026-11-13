@@ -65,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -145,6 +146,25 @@ fun AppShell(viewModel: SessionViewModel = hiltViewModel()) {
   // Outside `key`, so it survives the rebuild that the deletion itself causes.
   val farewell by viewModel.farewell.collectAsStateWithLifecycle()
   farewell?.let { FarewellDialog(it, onClose = viewModel::farewellSeen) }
+}
+
+/**
+ * Where someone lands once an account is theirs (joined, invited, claimed, recovered): the Inbox, with the step they
+ * came through and whatever lay under it gone. Done in two moves, exactly as closing that step and then tapping the
+ * Inbox tab would do it, and not as one `navigate` that pops on its way.
+ *
+ * The one-move form left the Directory tab dead for the rest of the session, leading back to the Inbox, whenever no
+ * tab had been tapped before it: someone who opened the app from a join, claim or invitation link, or who went from a
+ * prisoner's page to sign in and joined from there. Navigation files what a tab's `popUpTo(start) { saveState = true }`
+ * removes under the start destination too, the first time it is asked, so that the first tab can be come back to; the
+ * first time is normally a tab tap with nothing above the Directory's first page, and files nothing. Arriving on the
+ * Inbox without that, the first tap on Directory removed the Inbox, filed it as "what the Directory tab had open", and
+ * restored it. Found 12 November 2026, joining from a `paperkites.org/join` link.
+ */
+private fun NavHostController.landOnInbox() {
+  val start = graph.findStartDestination().id
+  popBackStack(start, inclusive = false)
+  navigate(InboxGraph) { popUpTo(start) { saveState = true }; launchSingleTop = true; restoreState = true }
 }
 
 @Composable
@@ -509,14 +529,14 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onForgot = { navController.navigate(RecoverRoute) },
         )
       }
-      // The slip's QR code is https://letters.support/join?code=…, which opens here with the code filled in; so does
+      // The slip's QR code is https://paperkites.org/join?code=…, which opens here with the code filled in; so does
       // abcmailbox://join?code=…. The https link is verified (App Links) only once the domain hosts assetlinks.json.
       composable<JoinRoute>(deepLinks = listOf(navDeepLink<JoinRoute>(basePath = "https://${me.paxana.abcmailbox.domain.InviteCode.LINK_HOST}${me.paxana.abcmailbox.domain.InviteCode.LINK_PATH}"), navDeepLink<JoinRoute>(basePath = "abcmailbox://join"))) {
         JoinScreen(
           sessionState = sessionState,
           mode = mode,
           onJoined = {
-            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            navController.landOnInbox()
             scope.launch { snackbar.showSnackbar(joined) }
           },
           // Twenty-four characters is an invitation (or a claim) token, not an invite code: its own screen checks it.
@@ -524,12 +544,13 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
         )
       }
-      composable<InvitationRoute> {
+      // https://paperkites.org/invitation?token=…, the link the website gives a group to pass to a volunteer.
+      composable<InvitationRoute>(deepLinks = listOf(navDeepLink<InvitationRoute>(basePath = "https://${me.paxana.abcmailbox.domain.InviteCode.LINK_HOST}/invitation"))) {
         InvitationScreen(
           sessionState = sessionState,
           mode = mode,
           onAccepted = { accepted ->
-            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            navController.landOnInbox()
             scope.launch { snackbar.showSnackbar((if (accepted.activeNow) invitationAccepted else invitationAwaitsReview).format(accepted.groupName), duration = SnackbarDuration.Long) }
           },
           onInviteCode = { code -> navController.navigate(JoinRoute(code)) { popUpTo<InvitationRoute> { inclusive = true } } },
@@ -537,14 +558,14 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
         )
       }
-      // abcmailbox://claim?token=… opens this screen with the token filled in. The https
-      // form (App Links) waits for a domain; see docs/PLAN.md section 8.
-      composable<ClaimRoute>(deepLinks = listOf(navDeepLink<ClaimRoute>(basePath = "abcmailbox://claim"))) {
+      // https://paperkites.org/claim?token=… (the link the website's handoff page gives) and abcmailbox://claim?token=…
+      // open this screen with the token filled in.
+      composable<ClaimRoute>(deepLinks = listOf(navDeepLink<ClaimRoute>(basePath = "https://${me.paxana.abcmailbox.domain.InviteCode.LINK_HOST}/claim"), navDeepLink<ClaimRoute>(basePath = "abcmailbox://claim"))) {
         ClaimScreen(
           sessionState = sessionState,
           mode = mode,
           onClaimed = {
-            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            navController.landOnInbox()
             scope.launch { snackbar.showSnackbar(accountClaimed) }
           },
           onBack = { if (!navController.popBackStack()) navController.navigate(DirectoryGraph) },
@@ -556,7 +577,7 @@ private fun Shell(viewModel: SessionViewModel, sessionState: SessionState, landO
           onBack = { navController.popBackStack() },
           onClaim = { navController.navigate(ClaimRoute()) },
           onRecovered = {
-            navController.navigate(InboxGraph) { popUpTo(navController.graph.findStartDestination().id); launchSingleTop = true }
+            navController.landOnInbox()
             scope.launch { snackbar.showSnackbar(passwordChangedSignedIn) }
           },
         )

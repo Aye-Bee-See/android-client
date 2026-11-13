@@ -40,6 +40,8 @@ class KotlinToNodeFixtureTest {
     val (fileCipher, fileNonce) = LetterCipher.encryptFile(fileBytes, letter.contentKey)
 
     fun wrappedJson(w: WrappedKey) = buildJsonObject { put("wrapped", w.wrapped); put("salt", w.salt); put("params", Json.encodeToJsonElement(w.params)) }
+    // An account as the app makes one today (the split scheme): what the web client must be able to sign in to and recover.
+    val (splitPair, split) = AccountKeys.createSplit(password, recoveryCode)
     val out = buildJsonObject {
       put("password", password); put("recoveryCode", recoveryCode)
       put("publicKey", fields.publicKey); put("privateKey", Sodium.toBase64(kp.privateKey))
@@ -56,6 +58,10 @@ class KotlinToNodeFixtureTest {
       })
       put("file", buildJsonObject { put("plain", Sodium.toBase64(fileBytes)); put("ciphertext", Sodium.toBase64(fileCipher)); put("nonce", fileNonce) })
       put("tokenHash", buildJsonObject { put("token", recoveryCode); put("sha256", SecretCodes.hashHex(recoveryCode)) })
+      put("split", buildJsonObject {
+        put("authKey", split.authKey); put("publicKey", split.fields.publicKey); put("privateKey", Sodium.toBase64(splitPair.privateKey))
+        put("passwordWrapped", wrappedJson(split.fields.password)); put("recoveryWrapped", wrappedJson(split.fields.recovery))
+      })
     }
     File("build/interop").apply { mkdirs() }.resolve("kotlin-fixture.json").writeText(out.toString())
   }

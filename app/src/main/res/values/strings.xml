@@ -5,8 +5,9 @@
   To translate, copy this file to res/values-<language>/strings.xml and translate the values.
 -->
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- The project is letters.support since 22 September 2026 (API PR #121); the app identifier changes before the first store upload. -->
-    <string name="app_name" translatable="false">letters.support</string>
+    <!-- The project is PaperKites since 16 October 2026: one word, capital P and K. (It was letters.support from 22 September, API PR #121, and
+         ABC Mailbox before that.) The app identifier is the owner's to decide, before the first store upload. -->
+    <string name="app_name" translatable="false">PaperKites</string>
 
     <!-- Bottom navigation. Keep each to one short word if the language allows: they sit side by side. -->
     <string name="tab_directory">Directory</string>
@@ -159,7 +160,9 @@
     <!-- %1$s is a list of language names, already in the user's language. -->
     <string name="rule_languages">Accepted languages: %1$s</string>
     <!-- Joins the last two items of a short list: English or Spanish. -->
-    <string name="list_or"> or </string>
+    <!-- In double quotes on purpose: the build drops spaces at either end of a string unless the whole of it is quoted,
+         and this one is nothing but its spaces and a word ("EnglishorSpanish", seen on the compose screen, 16 October 2026). -->
+    <string name="list_or">" or "</string>
 
     <!-- Advice on the letter being written, from the facility's rules -->
     <!-- Always more than one page (it is shown only when the estimate exceeds a limit of at least 1), so not a plural. -->
@@ -418,7 +421,7 @@
     <string name="outbox_to">To %1$s</string>
     <string name="outbox_reply_from">Reply from %1$s</string>
     <!-- Appended to the line above when a group member wrote for someone. -->
-    <string name="outbox_as"> · as %1$s</string>
+    <string name="outbox_as">" · as %1$s"</string>
     <!-- %1$s is a date and time. -->
     <string name="outbox_written">Written %1$s</string>
     <plurals name="outbox_files">
@@ -573,7 +576,7 @@
     <string name="claim_created_for_you_by">This account (%1$s) was created for you by %2$s. Choose a username and password to take independent control of your correspondence.</string>
     <string name="claim_token_expires">This token is good until %1$s.</string>
     <string name="claim_warning_e2e">Your password protects your encryption key. No one, not this site and not your group, can read your letters without it. After this step you will get a recovery code: it is the only way back in if you forget the password.</string>
-    <string name="claim_warning_server">There is no "email me a reset link". Keep your password somewhere safe; if you lose it, a superadmin has to help you.</string>
+    <string name="claim_warning_server">There is no “email me a reset link”. Keep your password somewhere safe; if you lose it, a superadmin has to help you.</string>
     <string name="help_username_length">3 to 16 characters</string>
     <string name="help_password_length">At least 10 characters. A few unrelated words with spaces make a strong one that is easy to remember.</string>
     <string name="label_confirm_password">Confirm password</string>
@@ -1147,7 +1150,7 @@
     <string name="action_leave_anyway">Leave anyway</string>
     <string name="action_stay">Stay</string>
     <string name="slip_inviting">%s invites you to write to a prisoner.</string>
-    <string name="slip_how">Get the letters.support app, choose “I have an invite code” and type this code, or point your camera at the square.</string>
+    <string name="slip_how">Get the PaperKites app, choose “I have an invite code” and type this code, or point your camera at the square.</string>
     <string name="slip_shared_name">Invite codes, %s</string>
     <string name="error_invites_pdf">The PDF could not be written. The codes are still on this screen.</string>
 

@@ -58,7 +58,7 @@
         <item quantity="other">Не более %d фотографии на письмо</item>
     </plurals>
     <string name="rule_languages">Принимаемые языки: %1$s</string>
-    <string name="list_or"> или </string>
+    <string name="list_or">" или "</string>
 
     <!-- Advice on the letter being written, from the facility's rules -->
     <string name="advice_too_long">Здесь примерно %1$d стр., а это учреждение принимает не более %2$d. Возможно, стоит разделить письмо на два.</string>
@@ -400,7 +400,7 @@
     <string name="outbox_explained">Написаны без связи. Отправятся сами, когда телефон снова будет в сети, даже если приложение закрыто.</string>
     <string name="outbox_to">Кому: %1$s</string>
     <string name="outbox_reply_from">Ответ от: %1$s</string>
-    <string name="outbox_as"> · от имени %1$s</string>
+    <string name="outbox_as">" · от имени %1$s"</string>
     <string name="outbox_written">Написано %1$s</string>
     <plurals name="outbox_files">
         <item quantity="one">%d файл</item>
@@ -1168,7 +1168,7 @@
     <string name="action_leave_anyway">Всё равно уйти</string>
     <string name="action_stay">Остаться</string>
     <string name="slip_inviting">%s приглашает вас написать заключённому.</string>
-    <string name="slip_how">Установите приложение letters.support, выберите «У меня есть код приглашения» и введите этот код, или наведите камеру на квадрат.</string>
+    <string name="slip_how">Установите приложение PaperKites, выберите «У меня есть код приглашения» и введите этот код, или наведите камеру на квадрат.</string>
     <string name="slip_shared_name">Коды приглашения, %s</string>
     <string name="error_invites_pdf">Не удалось создать PDF. Коды по-прежнему на этом экране.</string>
 

@@ -26,7 +26,13 @@ object SecretCodes {
     return buildString(LENGTH) { bytes.forEach { append(ALPHABET[it.toInt() and 31]) } }
   }
 
-  fun normalise(input: String): String = input.uppercase().filter { it.isLetterOrDigit() }.map { folded(it) }.joinToString("")
+  /**
+   * The API's `normalizeToken` and the web client's `normalizeCode`, character for character: upper case, then
+   * everything outside `A-Z` and `0-9` dropped, then the look-alikes folded. "Letters and digits" means the ASCII
+   * ones: an accented letter or a full-width digit is dropped like a dash, not kept, because the other clients
+   * drop it and a code must come out the same on all of them however it was typed.
+   */
+  fun normalise(input: String): String = input.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }.map { folded(it) }.joinToString("")
 
   /** The look-alikes the alphabet leaves out, read as the digits they are mistaken for. */
   private fun folded(c: Char): Char = when (c) { 'O' -> '0'; 'I', 'L' -> '1'; else -> c }
