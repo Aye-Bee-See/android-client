@@ -39,7 +39,36 @@ class TestStrings(override val language: String = "en") : Strings {
     }
   }
 
-  private fun unescape(raw: String) = raw.trim().replace("\\'", "'").replace("\\\"", "\"").replace("\\n", "\n").replace("\\@", "@").replace("\\?", "?")
+  /**
+   * What the build (aapt2) makes of a string's text, so that a test sees the sentence the phone shows. Outside double
+   * quotes, a run of spaces or line breaks becomes one space and the ones at either end are dropped; inside them the
+   * text is kept as written; a double quote that is not escaped is taken for that marking and does not appear; and a
+   * backslash escapes the next character. Before 12 November 2026 this only trimmed and unescaped, and a test could
+   * read a string with its quotes in that the phone showed without them.
+   */
+  private fun unescape(raw: String): String {
+    val out = StringBuilder()
+    var quoted = false
+    var gap = false
+    fun put(c: Char) { if (gap && out.isNotEmpty()) out.append(' '); gap = false; out.append(c) }
+    var i = 0
+    while (i < raw.length) {
+      val c = raw[i]
+      when {
+        c == '\\' && i + 1 < raw.length -> when (val next = raw[++i]) {
+          'n' -> put('\n')
+          't' -> put('\t')
+          'u' -> { put(raw.substring(i + 1, i + 5).toInt(16).toChar()); i += 4 }
+          else -> put(next)
+        }
+        c == '"' -> quoted = !quoted
+        !quoted && c.isWhitespace() -> gap = true
+        else -> put(c)
+      }
+      i++
+    }
+    return out.toString()
+  }
 
   override fun get(id: Int, vararg args: Any): String {
     val text = strings[stringNames[id]] ?: error("no string named ${stringNames[id]} (id $id)")

@@ -84,6 +84,35 @@ class TranslationsTest {
   }
 
   @Test
+  fun `no string depends on spaces or quotation marks the build would take out`() {
+    // The build keeps a space at either end of a string only when the whole string is in double quotes, and takes any
+    // other unescaped double quote for that marking and drops it. " or " written bare became "or" on the phone, and the
+    // compose screen said "EnglishorSpanish" (seen 16 October 2026); a quoted phrase in a sentence lost its quotes.
+    val unescapedQuote = Regex("(?<!\\\\)\"")
+    for (folder in listOf("values") + languages.map { "values-$it" }) {
+      val all = read(folder).let { r -> r.strings + r.plurals.flatMap { (name, forms) -> forms.map { "$name[${it.key}]" to it.value } } }
+      all.forEach { (name, raw) ->
+        assertEquals("$folder/$name starts or ends with a space the build drops: put the whole string in double quotes", raw.trim(), raw)
+        val quotes = unescapedQuote.findAll(raw).count()
+        val wholeQuoted = quotes == 2 && raw.startsWith("\"") && raw.endsWith("\"")
+        assertTrue("$folder/$name has a double quote the build drops: use typographic quotes, or \\\"", quotes == 0 || wholeQuoted)
+      }
+    }
+  }
+
+  @Test
+  fun `the words that join other words keep their spaces in every language`() {
+    assertEquals("Letters here must be written in English or Spanish. If that is not your language, ask your relay group about translation.",
+      TestStrings().let { it.get(R.string.advice_language, listOf("English", "Spanish").joinToString(it.get(R.string.list_or))) })
+    for (lang in listOf("en") + languages) {
+      val strings = TestStrings(lang)
+      val or = strings.get(R.string.list_or)
+      assertTrue("$lang: \"$or\"", or.length > 2 && or.startsWith(" ") && or.endsWith(" "))
+      assertTrue("$lang: the pen name follows the prisoner's name after a space and a dot", strings.get(R.string.outbox_as, "Robin").startsWith(" · "))
+    }
+  }
+
+  @Test
   fun `Russian plurals have all four forms, and the others at least two`() {
     read("values-ru").plurals.forEach { (name, forms) -> assertEquals("ru/$name", setOf("one", "few", "many", "other"), forms.keys) }
     for (folder in listOf("values", "values-es")) read(folder).plurals.forEach { (name, forms) -> assertTrue("$folder/$name", forms.keys.containsAll(setOf("one", "other"))) }

@@ -60,7 +60,8 @@ object Sodium {
     check(ALG_ARGON2ID13 == crypto_pwhash_argon2id_ALG_ARGON2ID13)
   }
 
-  fun randomBytes(count: Int): ByteArray = LibsodiumRandom.buf(count).asByteArray()
+  /** Starts libsodium itself, like every other entry point: a code or a salt can be the first thing asked of it. */
+  fun randomBytes(count: Int): ByteArray { initialize(); return LibsodiumRandom.buf(count).asByteArray() }
 
   fun toBase64(bytes: ByteArray): String =
     LibsodiumUtil.toBase64(bytes.asUByteArray(), Base64Variants.ORIGINAL)

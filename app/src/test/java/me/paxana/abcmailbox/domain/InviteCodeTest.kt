@@ -21,7 +21,7 @@ class InviteCodeTest {
 
   @Test
   fun `the slip's link carries the code as it is printed`() {
-    assertEquals("https://letters.support/join?code=7Q4M-2XKD-9HBT", InviteCode.link("7q4m2xkd9hbt"))
+    assertEquals("https://paperkites.org/join?code=7Q4M-2XKD-9HBT", InviteCode.link("7q4m2xkd9hbt"))
   }
 
   @Test

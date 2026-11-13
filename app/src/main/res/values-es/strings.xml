@@ -56,7 +56,7 @@
         <item quantity="other">Como máximo %d fotos por carta</item>
     </plurals>
     <string name="rule_languages">Idiomas aceptados: %1$s</string>
-    <string name="list_or"> o </string>
+    <string name="list_or">" o "</string>
 
     <!-- Advice on the letter being written, from the facility's rules -->
     <string name="advice_too_long">Son unas %1$d páginas, y este centro acepta como máximo %2$d. Piensa en dividirla en dos cartas.</string>
@@ -384,7 +384,7 @@
     <string name="outbox_explained">Escritas sin conexión. Se envían solas cuando este teléfono vuelva a tener conexión, aunque la aplicación esté cerrada.</string>
     <string name="outbox_to">Para %1$s</string>
     <string name="outbox_reply_from">Respuesta de %1$s</string>
-    <string name="outbox_as"> · como %1$s</string>
+    <string name="outbox_as">" · como %1$s"</string>
     <string name="outbox_written">Escrita el %1$s</string>
     <plurals name="outbox_files">
         <item quantity="one">%d archivo</item>
@@ -1121,7 +1121,7 @@
     <string name="action_leave_anyway">Salir de todos modos</string>
     <string name="action_stay">Quedarme</string>
     <string name="slip_inviting">%s te invita a escribir a una persona presa.</string>
-    <string name="slip_how">Instala la app letters.support, elige «Tengo un código de invitación» y escribe este código, o apunta la cámara al cuadrado.</string>
+    <string name="slip_how">Instala la app PaperKites, elige «Tengo un código de invitación» y escribe este código, o apunta la cámara al cuadrado.</string>
     <string name="slip_shared_name">Códigos de invitación, %s</string>
     <string name="error_invites_pdf">No se ha podido crear el PDF. Los códigos siguen en esta pantalla.</string>
 

@@ -1,0 +1,27 @@
+{
+  "madeBy": "letters-support-frontend src/crypto/account.ts createAccountKeys, at 9adcce1",
+  "password": "pässword with spaces, made on the web",
+  "authKey": "gXNYkVQfBDiclXuDlyz2kSak/7PQl9dCvMhxhMonOsM=",
+  "recoveryCodeAsShown": "MGT7-JYDH-V17X-2MXN-NRM5-HQ1Z",
+  "publicKey": "WWSV4428Fs1IWgdNPtpyKPLwmsma/Zn1+yX8t+DNgXg=",
+  "privateKey": "+o8B3MAYozyFYj8Ipjx5yCF3De2fV4cEGFTWdedihjA=",
+  "keyFields": {
+    "publicKey": "WWSV4428Fs1IWgdNPtpyKPLwmsma/Zn1+yX8t+DNgXg=",
+    "wrappedPrivateKey": "{\"ciphertext\":\"o1cvpiLDgPcUcz3PtW2XlWrbh5aqXEHjYFI4yfLXPQJaZmvSGqWIl+VLyg7FFnpU\",\"nonce\":\"n13sumymHCbHvVIqdaY4YiaroI94naCF\"}",
+    "kdfSalt": "wYrfmqcxScKH7QDHTKj5Cw==",
+    "kdfParams": {
+      "kdf": "argon2id",
+      "alg": 2,
+      "opslimit": 2,
+      "memlimit": 67108864
+    },
+    "recoveryWrappedPrivateKey": "{\"ciphertext\":\"1DaluyOKSrn0hwwwrdmg2MlzgcEeIR5vTOvpeLngcGngCElBUWajkI9OscuOoO9M\",\"nonce\":\"/ZOSuOgFwCf+3a3t4XT17kSg0RemFpey\"}",
+    "recoverySalt": "eUCxo/TzmTMlLG+ACbLmvA==",
+    "recoveryKdfParams": {
+      "kdf": "argon2id",
+      "alg": 2,
+      "opslimit": 2,
+      "memlimit": 67108864
+    }
+  }
+}

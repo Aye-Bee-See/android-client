@@ -14,8 +14,12 @@ object InviteCode {
   const val LENGTH = 12
   private const val ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
-  /** The link a slip's QR code carries, which the app opens on the join screen with the code filled in. */
-  const val LINK_HOST = "letters.support"
+  /**
+   * The link a slip's QR code carries, which the app opens on the join screen with the code filled in. The website
+   * (`paperkites.org`, since 12 November 2026) answers the same address for a phone without the app, and builds the
+   * same link for the slips it prints. Also the host of the claim and invitation links the website hands out.
+   */
+  const val LINK_HOST = "paperkites.org"
   const val LINK_PATH = "/join"
 
   /**

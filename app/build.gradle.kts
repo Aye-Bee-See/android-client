@@ -44,6 +44,9 @@ android {
 
   // No push, and no Firebase (taken out 27 Sep 2026; see docs/PUSH.md): the app checks the feed itself.
   val testApiBaseUrl = "https://abctest.letters.support/"
+  // Production, live since 13 November 2026: real accounts, end-to-end, and updated only when the owner runs an update
+  // by hand, so it can be behind the API's main branch (and behind the test API, which follows main every hour).
+  val productionApiBaseUrl = "https://api.paperkites.org/"
   defaultConfig {
     // The public test API (mobile note of 25 September 2026): it follows the API's main branch, runs end-to-end,
     // and is what the web and iOS clients see too. Real storage and backups, so no real people's details in it.
@@ -63,14 +66,17 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // The test API is the only deployed one so far; a production build passes -PapiBaseUrl=https://… once there is one.
-      val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: testApiBaseUrl
+      // A release build is what goes to the store, so it talks to production with nothing to remember on the command
+      // line: a flag that had to be passed is a flag that is one day forgotten, and the store build would then make
+      // people's accounts on the test server. -PapiBaseUrl=https://… still overrides it, for a release-shaped build
+      // against another server. The internal build below sets its own address and is not affected by either.
+      val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: productionApiBaseUrl
       buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
       buildConfigField("boolean", "DEV_TOOLS", "false")
       signingConfig = signingConfigs.findByName("release")
     }
     // What testers get: shrunk and optimised exactly like release (so it proves the release build works),
-    // pointed at the test API, but with the developer tools of debug, plain HTTP allowed so it can still
+    // pointed at the test API (always: -PapiBaseUrl does not reach it), but with the developer tools of debug, plain HTTP allowed so it can still
     // reach a laptop on the same Wi-Fi, and its own application id so it installs beside the others.
     create("internal") {
       initWith(getByName("release"))
