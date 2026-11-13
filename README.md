@@ -67,7 +67,9 @@ Release signing reads `keystore.properties` (copy `keystore.properties.example`;
 
 ### Store listing
 
-`fastlane/metadata/android/` holds what a store shows, in the layout both F-Droid and fastlane's `supply` read: for each of `en-US`, `es-ES` and `ru-RU`, a `title.txt` (30 characters at most on Google Play), a `short_description.txt` (80), a `full_description.txt` (4,000), `changelogs/<versionCode>.txt`, and seven screenshots under `images/phoneScreenshots/`. Nothing in the build reads these files; they are pasted or uploaded.
+`fastlane/metadata/android/` holds what a store shows, in the layout both F-Droid and fastlane's `supply` read: for each of `en-US`, `es-ES` and `ru-RU`, a `title.txt` (30 characters at most on Google Play), a `short_description.txt` (80), a `full_description.txt` (4,000), `changelogs/<versionCode>.txt`, and five screenshots under `images/phoneScreenshots/`. Nothing in the build reads these files; they are pasted or uploaded.
+
+The listing is pitched at writers only (the owner's decision, 12 November 2026): the text and the screenshots show what someone writing a letter sees, and say nothing of the screens a group's admins or the site's admins use. Groups appear only as the people who print and mail.
 
 The screenshots show invented people, prisons and a group, on a local API with no real data: the API's own seed is real prisoners and must never appear in a store. They are 1080 × 1920 because Google Play refuses a screenshot more than twice as tall as it is wide, which a current phone's screen is (`adb shell wm size 1080x1920` for the session, `wm size reset` afterwards); the status bar is System UI's demo mode; the language is set per app with `adb shell cmd locale set-app-locales <identifier> --locales es`.
 
