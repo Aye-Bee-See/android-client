@@ -11,11 +11,17 @@ plugins {
 }
 
 android {
+  // Two names, on purpose. `namespace` is the Kotlin package the code and its generated classes (R, BuildConfig) live
+  // in; nobody outside the project sees it, and it keeps the name the project started with. `applicationId` below is
+  // the app's identity on a phone and in a store.
   namespace = "me.paxana.abcmailbox"
   compileSdk = 37
 
   defaultConfig {
-    applicationId = "me.paxana.abcmailbox"
+    // Decided by the owner on 12 November 2026, with the domain paperkites.org. FROZEN from the first store upload: a
+    // store treats another identifier as another app, and the people who installed this one would not be offered it
+    // as an update. The internal build adds ".internal" and installs beside it.
+    applicationId = "org.paperkites.app"
     minSdk = 26
     targetSdk = 36
     versionCode = 1
