@@ -297,6 +297,8 @@
     <string name="letter_received">← Recibida</string>
     <string name="letter_sent">→ Enviada</string>
     <string name="letter_waiting_for_key">⏳ Esta respuesta está esperando a que tu grupo la comparta contigo. Se abrirá sola cuando lo hagan.</string>
+    <string name="letter_files_unknown">No se han podido comprobar ahora los escaneos o fotos de esta carta. Vuelve a abrir la conversación para verlos.</string>
+    <string name="letter_nothing_in_it">No se ha escrito texto para esta carta y todavía no tiene ningún escaneo o foto. Si esperabas uno, puede que el grupo aún lo esté añadiendo.</string>
     <string name="letter_locked">🔒 Esta carta está cifrada y este dispositivo no tiene una clave que la abra.</string>
     <string name="label_note_to_relay">NOTA PARA EL GRUPO DE REENVÍO</string>
     <string name="status_waiting_named">A la espera de que %1$s la imprima</string>

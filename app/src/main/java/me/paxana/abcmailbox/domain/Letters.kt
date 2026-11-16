@@ -115,6 +115,12 @@ data class Letter(
   val statusChangedAt: Instant?,
   val history: List<StatusChange>,
   val attachments: List<Attachment>,
+  /**
+   * The letter's list of files was asked for and the server did not answer: [attachments] is empty because it is not
+   * known, which is not the same as the letter having none. A reply that is only a photograph looks, without its
+   * list, like a reply with nothing in it.
+   */
+  val filesUnknown: Boolean = false,
   /** End-to-end mode: true when this device holds no key that opens the letter. */
   val locked: Boolean = false,
   /**

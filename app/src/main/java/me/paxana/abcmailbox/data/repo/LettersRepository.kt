@@ -105,7 +105,32 @@ class DefaultLettersRepository @Inject constructor(
 
   override suspend fun thread(chatId: Int): ApiResult<Thread> {
     codec.ready()
-    return apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).decoded().withReturnsFilledIn() }
+    return apiCall(json) { api.chat(chatId) }.map { checkNotNull(it.data).decoded().withReturnsFilledIn().withFiles() }
+  }
+
+  /**
+   * A conversation's letters arrive without their files. The server puts a letter's attachments on the letter only
+   * when that letter is read by itself (`GET /messaging/message`); inside a conversation there is no such list, and
+   * no count either, so every letter has to be asked (`GET /messaging/attachments?message=`), as the website does.
+   *
+   * Until 15 November 2026 nothing asked. A reply a group recorded as a photograph or a scan alone, with nothing
+   * typed, then showed in the app as "Received" and nothing else: the writer had their reply and could not see it,
+   * while the website showed the same reply with its picture. Found at a testing night.
+   *
+   * All at once, since a conversation is a handful of letters (they are removed 90 days after mailing). A letter this
+   * phone cannot open is not asked about: its files are encrypted under the same key as its words. A list that does
+   * not come is said so on the letter ([Letter.filesUnknown]), because an empty list would be a wrong answer.
+   */
+  private suspend fun Thread.withFiles(): Thread {
+    val ask = letters.filter { it.attachments.isEmpty() && !it.locked && !it.waitingForKey }
+    if (ask.isEmpty()) return this
+    val lists = coroutineScope {
+      ask.map { l -> async { l.id to (apiCall(json) { api.attachments(l.id) } as? ApiResult.Success)?.value?.data } }.awaitAll().toMap()
+    }
+    return copy(letters = letters.map { l ->
+      if (l.id !in lists) return@map l
+      lists[l.id]?.let { rows -> l.copy(attachments = rows.map { it.toDomain() }) } ?: l.copy(filesUnknown = true)
+    })
   }
 
   /**
