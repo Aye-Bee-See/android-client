@@ -331,6 +331,8 @@
     <string name="letter_received">← Received</string>
     <string name="letter_sent">→ Sent</string>
     <string name="letter_waiting_for_key">⏳ This reply is waiting for your group to share it with you. It opens by itself once they have.</string>
+    <string name="letter_files_unknown">The scans or photos with this letter could not be checked just now. Open the conversation again to see them.</string>
+    <string name="letter_nothing_in_it">Nothing was typed for this letter and no scan or photo is attached yet. If one was expected, the group may still be adding it.</string>
     <string name="letter_locked">🔒 This letter is encrypted and this device does not hold a key that opens it.</string>
     <string name="label_note_to_relay">NOTE TO RELAY GROUP</string>
     <!-- %1$s is a group's name. -->

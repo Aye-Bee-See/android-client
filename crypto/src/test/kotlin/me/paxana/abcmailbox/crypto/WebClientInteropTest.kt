@@ -59,4 +59,24 @@ class WebClientInteropTest {
     val kp = AccountKeys.unlockWithWrapKey(f("publicKey"), f("wrappedPrivateKey"), keys.wrapKey)
     assertArrayEquals(Sodium.fromBase64(s("privateKey")), kp.privateKey)
   }
+
+  /**
+   * A reply a group recorded on the website as a photograph alone: an empty body, encrypted all the same, and the
+   * file under the same content key (`interop/web-photo-reply-fixture.json`, made by the web client's
+   * `encryptLetter("")` and `encryptFile`, 15 November 2026). An empty body's ciphertext is sixteen bytes of
+   * authentication and nothing else; it has to open as "", not fail and leave the letter looking locked.
+   */
+  @Test
+  fun `a reply that is a photograph alone, made on the web, opens here as an empty body and its file`() {
+    val reply = Json.parseToJsonElement(
+      checkNotNull(javaClass.getResourceAsStream("/interop/web-photo-reply-fixture.json")) { "the web photo-reply fixture is missing" }.bufferedReader(Charsets.UTF_8).readText(),
+    ).jsonObject
+    fun at(vararg path: String) = path.fold(reply as kotlinx.serialization.json.JsonElement) { e, k -> e.jsonObject.getValue(k) }.jsonPrimitive.content
+    val writer = Sodium.KeyPair(Sodium.fromBase64(at("writer", "publicKey")), Sodium.fromBase64(at("writer", "privateKey")))
+    val envelope = reply.getValue("message").jsonObject.getValue("envelopes").let { it as kotlinx.serialization.json.JsonArray }
+      .first { it.jsonObject.getValue("readerType").jsonPrimitive.content == "user" }.jsonObject.getValue("wrappedKey").jsonPrimitive.content
+    val contentKey = LetterCipher.openEnvelope(envelope, writer)
+    assertEquals("nothing was typed", "", LetterCipher.decryptText(at("message", "ciphertext"), at("message", "nonce"), contentKey))
+    assertArrayEquals("the photograph, byte for byte", Sodium.fromBase64(at("file", "plain")), LetterCipher.decryptFile(Sodium.fromBase64(at("file", "ciphertext")), at("file", "nonce"), contentKey))
+  }
 }

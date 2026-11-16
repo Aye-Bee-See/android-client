@@ -258,6 +258,12 @@ private fun LetterCard(letter: Letter, answered: Letter? = null, busy: Boolean, 
     } else if (letter.body.isNotBlank()) {
       Text(letter.body, style = MaterialTheme.typography.bodyLarge)
     }
+    // A letter can be a scan or a photograph and no typed words. Its files are listed below; when the list could not
+    // be read, or there is truly nothing yet, that is said, so that it never looks like an empty reply.
+    if (!letter.waitingForKey && !letter.locked) {
+      if (letter.filesUnknown) Text(stringResource(R.string.letter_files_unknown), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("letter-files-unknown"))
+      else if (letter.body.isBlank() && letter.attachments.isEmpty()) Text(stringResource(R.string.letter_nothing_in_it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("letter-nothing"))
+    }
     letter.relayNote?.let {
       Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(10.dp)) {
         Text(stringResource(R.string.label_note_to_relay), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

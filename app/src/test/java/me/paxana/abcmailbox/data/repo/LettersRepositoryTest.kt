@@ -95,7 +95,7 @@ class LettersRepositoryTest {
     assertTrue(held.isHeld); assertEquals(HeldReason.CHOOSE_RELAY, held.heldReason); assertTrue("still the writer's to edit: that is how the choice is made", held.canEdit)
     assertEquals(1, thread.letters.first { it.id == 6 }.resendOfId)
     val asked = generateSequence { server.takeRequest(100, java.util.concurrent.TimeUnit.MILLISECONDS) }.map { it.path!! }.toList()
-    assertEquals("one full read per returned letter, none for the rest", 3, asked.count { it.startsWith("/messaging/message") })
+    assertEquals("one full read per returned letter, none for the rest", 3, asked.count { it.startsWith("/messaging/message?") })
   }
 
   @Test
@@ -109,7 +109,51 @@ class LettersRepositoryTest {
     assertEquals("Stamped NOT HERE", thread.letters.first { it.id == 1 }.returnNote); assertEquals(null, thread.letters.first { it.id == 2 }.returnNote)
     assertEquals("what replaced it is still read off the conversation", listOf(6), thread.letters.first { it.id == 1 }.resentAs.map { it.id })
     val asked = generateSequence { server.takeRequest(100, java.util.concurrent.TimeUnit.MILLISECONDS) }.map { it.path!! }.toList()
-    assertEquals("one request, the conversation", listOf("/chat/chat?id=1&full=true"), asked)
+    assertEquals("the conversation, and no letter read in full", listOf("/chat/chat?id=1&full=true"), asked.filterNot { it.startsWith("/messaging/attachments") })
+  }
+
+  /** A writer's conversation as the server sends it: a letter, and a reply recorded as a photograph with nothing typed. No files anywhere in it. */
+  private val conversationWithAPhotoReply = """{"data":{"id":7,"user":3,"prisoner":1,"messages":[
+    {"id":21,"chat":7,"sender":"user","prisoner":1,"user":3,"status":"mailed","messageText":"Dear Maya, how is the garden?","createdAt":"2026-11-01T10:00:00.000Z"},
+    {"id":22,"chat":7,"sender":"prisoner","prisoner":1,"user":3,"status":"received","messageText":"","createdAt":"2026-11-14T10:00:00.000Z"}
+  ]},"success":true,"status":200}"""
+
+  @Test
+  fun `a reply that is only a photograph comes with its photograph, though a conversation is sent without files`() = runTest {
+    server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+      override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest) = when {
+        request.path!!.startsWith("/chat/chat") -> MockResponse().setBody(conversationWithAPhotoReply)
+        request.path == "/messaging/attachments?message=22" -> MockResponse().setBody("""{"data":[{"id":5,"message":22,"originalName":"reply-page-1.jpg","mimeType":"image/jpeg","size":48213,"nonce":"bm9uY2U="}],"success":true,"status":200}""")
+        request.path == "/messaging/attachments?message=21" -> MockResponse().setBody("""{"data":[],"success":true,"status":200}""")
+        else -> MockResponse().setResponseCode(500)
+      }
+    }
+    val thread = (repo.thread(7) as ApiResult.Success).value
+    val reply = thread.letters.first { it.id == 22 }
+    assertTrue("nothing was typed", reply.body.isBlank())
+    assertEquals("the photograph is on the reply", listOf("reply-page-1.jpg"), reply.attachments.map { it.name })
+    assertEquals("with what opens it: the letter it belongs to and its nonce", 22 to "bm9uY2U=", reply.attachments.single().let { it.messageId to it.nonce })
+    assertTrue(!reply.filesUnknown)
+    val letter = thread.letters.first { it.id == 21 }
+    assertTrue("a letter without files has none, and that is known", letter.attachments.isEmpty() && !letter.filesUnknown)
+    val asked = generateSequence { server.takeRequest(100, java.util.concurrent.TimeUnit.MILLISECONDS) }.map { it.path!! }.toList()
+    assertEquals("each letter is asked once", 2, asked.count { it.startsWith("/messaging/attachments") })
+  }
+
+  @Test
+  fun `a list of files that does not come is unknown, which is not the same as empty`() = runTest {
+    server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+      override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest) = when {
+        request.path!!.startsWith("/chat/chat") -> MockResponse().setBody(conversationWithAPhotoReply)
+        request.path == "/messaging/attachments?message=21" -> MockResponse().setBody("""{"data":[],"success":true,"status":200}""")
+        else -> MockResponse().setResponseCode(503)
+      }
+    }
+    val result = repo.thread(7)
+    assertTrue("the conversation still opens", result is ApiResult.Success)
+    val thread = (result as ApiResult.Success).value
+    assertTrue("the reply says its files could not be checked", thread.letters.first { it.id == 22 }.filesUnknown)
+    assertTrue(!thread.letters.first { it.id == 21 }.filesUnknown)
   }
 
   @Test
