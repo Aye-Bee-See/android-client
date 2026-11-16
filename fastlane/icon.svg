@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="18 18 72 72">
+  <!-- The launcher icon's two layers (ic_launcher_background, ic_launcher_foreground), cut to the 72 of 108 units a launcher shows. -->
+  <path fill="#B33A3A" d="M0,0h108v108h-108z"/>
+  <path fill="#F2F0ED" d="M29,37h50a3,3 0,0 1,3 3v28a3,3 0,0 1,-3 3h-50a3,3 0,0 1,-3 -3v-28a3,3 0,0 1,3 -3z"/>
+  <path fill="none" stroke="#B33A3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M28.5,40.5L54,58L79.5,40.5"/>
+</svg>

@@ -1,0 +1,28 @@
+PaperKites es una forma de escribir a alguien que está en prisión. Escribes en tu teléfono; un grupo de apoyo voluntario imprime tu carta, la mete en un sobre y la envía por correo. Cuando llega una respuesta en papel, el grupo la escanea o la transcribe y aparece en tu conversación.
+
+CÓMO FUNCIONA
+
+• Consulta el directorio. Lee sobre las personas que quieren recibir correo, los centros donde están y los grupos que envían cartas allí. Para mirar no hace falta cuenta.
+• Lee las normas antes de escribir. Cada centro tiene las suyas: cuántas páginas, qué idiomas, si se admiten fotos. La app las muestra junto a tu carta y te avisa antes de que incumplas alguna.
+• Escribe. Tu carta entra en la cola del grupo que envía correo a ese centro. Puedes seguirla: en cola, impresa, enviada por correo.
+• Lee la respuesta en el mismo lugar.
+
+Para crear una cuenta necesitas un código de invitación de un grupo de apoyo. Los grupos los reparten en sus encuentros para escribir cartas y a personas que conocen.
+
+PRIVADA POR DISEÑO
+
+• Las cartas están cifradas de extremo a extremo. Se sellan en tu teléfono y solo las abren tú y el grupo que las imprime. Quienes mantienen el servidor no pueden leerlas.
+• Escribes con un seudónimo. Las respuestas llegan a ese nombre, a cargo del grupo. La app nunca te pide tu dirección ni tu número de teléfono.
+• Sin anuncios, sin rastreadores, sin analíticas. La app no contiene código publicitario ni de seguimiento y no usa servicios de Google.
+• Las cartas enviadas se eliminan a los 90 días, salvo que decidas conservarlas. Al eliminar tu cuenta se borra todo de inmediato.
+• Un código de recuperación, que se muestra una sola vez al unirte, es la única forma de volver a entrar si olvidas tu contraseña. Nadie más puede restablecerla.
+
+LO QUE CONVIENE SABER
+
+Una carta impresa no es privada como lo es una sellada. El grupo la lee para imprimirla, y el personal de la prisión puede leerla cuando llega. El servidor también sabe quién escribe a quién y cuándo, porque tiene que encaminar la carta.
+
+Las cartas escritas sin conexión esperan en tu teléfono, cifradas, y se envían cuando vuelves a tener conexión. El directorio también se puede leer sin conexión.
+
+PaperKites es gratuita. No acepta pagos ni donaciones, y nada en ella está a la venta. Cada grupo paga su propio papel y sus sellos.
+
+Disponible en español, inglés y ruso.
